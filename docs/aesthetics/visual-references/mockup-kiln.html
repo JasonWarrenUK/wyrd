@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wyrd — Kiln Theme Mockup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #f0ebe5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    font-family: 'JetBrains Mono', 'Consolas', 'Menlo', monospace;
+  }
+
+  .label { color: #752100; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; text-align: center; }
+  .theme-title { color: #cd3c00; font-size: 18px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 4px; text-align: center; }
+  .theme-subtitle { color: #752100; font-size: 12px; margin-bottom: 32px; text-align: center; }
+
+  .terminal {
+    width: 920px;
+    background: #fff8f5;
+    border: 1px solid #ffded1;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(120, 60, 0, 0.12);
+  }
+
+  .terminal-titlebar {
+    background: #fff8f3;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-bottom: 1px solid #ffded1;
+  }
+
+  .terminal-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+  .terminal-dot.red { background: #e0002b; }
+  .terminal-dot.yellow { background: #cd3c00; }
+  .terminal-dot.green { background: #ac5c00; }
+  .terminal-title-text { color: #752100; font-size: 12px; margin-left: 12px; }
+
+  .terminal-body { display: flex; min-height: 520px; }
+
+  .pane-left {
+    flex: 1;
+    padding: 16px 20px;
+    border-right: 1px solid #ffded1;
+    color: #401600;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .pane-right {
+    flex: 1;
+    padding: 16px 20px;
+    color: #401600;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .section-header {
+    color: #752100;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+  .section-header:first-child { margin-top: 0; }
+
+  .sched-row { display: flex; align-items: center; margin-bottom: 2px; height: 22px; }
+  .sched-time { color: #752100; width: 52px; flex-shrink: 0; font-size: 12px; }
+  .sched-bar { height: 16px; border-radius: 2px; margin-right: 10px; display: flex; align-items: center; padding: 0 4px; font-size: 12px; overflow: hidden; white-space: nowrap; }
+  .sched-label { margin-left: 4px; font-size: 12px; }
+
+  .energy-deep { background: #cd3c00; color: #fff8f5; }
+  .energy-medium { background: #ac5c00; color: #fff8f5; }
+  .energy-low { background: #8b8b8b; color: #fff8f5; }
+  .calendar-event { border: 1px dashed #752100; background: transparent; color: #752100; font-style: italic; }
+  .selected { background: #ffdfc6 !important; outline: 1px solid #cd3c00; color: #401600; }
+  .unscheduled { color: #ac5c00; margin-top: 12px; font-size: 12px; }
+
+  .node-title { color: #cd3c00; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .node-body { color: #401600; font-size: 12px; line-height: 1.6; margin-bottom: 16px; }
+  .meta-row { display: flex; margin-bottom: 3px; font-size: 12px; }
+  .meta-key { color: #752100; width: 80px; flex-shrink: 0; }
+  .meta-val { color: #401600; }
+  .edge-row { font-size: 12px; margin-bottom: 3px; }
+  .edge-arrow { color: #cd3c00; }
+  .edge-blocked { color: #ac5c00; }
+  .edge-waiting { color: #752100; }
+  .edge-age { color: #ac5c00; font-size: 11px; }
+
+  .budget-row { display: flex; align-items: center; margin-bottom: 6px; font-size: 12px; }
+  .budget-glyph { width: 18px; flex-shrink: 0; }
+  .budget-glyph-ok { color: #cd3c00; }
+  .budget-glyph-caution { color: #ac5c00; }
+  .budget-glyph-over { color: #e0002b; }
+  .budget-label { width: 70px; flex-shrink: 0; color: #401600; }
+  .budget-bar-track { flex: 1; height: 10px; background: #ffded1; border-radius: 2px; margin-right: 10px; overflow: hidden; }
+  .budget-bar-fill { height: 100%; border-radius: 2px; }
+  .budget-bar-ok { background: #cd3c00; }
+  .budget-bar-caution { background: #ac5c00; }
+  .budget-bar-over { background: #e0002b; }
+  .budget-amount { color: #752100; font-size: 11px; width: 70px; text-align: right; flex-shrink: 0; }
+
+  .status-bar {
+    background: #fff8f3;
+    border-top: 1px solid #ffded1;
+    padding: 8px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #752100;
+    height: 36px;
+  }
+  .capture-hint { color: #8b8b8b; font-style: italic; }
+  .status-timer { color: #ac5c00; }
+  .displaced { color: #8b8b8b; font-size: 11px; margin-top: 4px; opacity: 0.5; }
+</style>
+</head>
+<body>
+
+<div class="label">WYRD DESIGN REFERENCE</div>
+<div class="theme-title">Kiln</div>
+<div class="theme-subtitle">Light, warm · Terracotta · Orange and cinnamon earth tones, red glaze accents</div>
+
+<div class="terminal">
+  <div class="terminal-titlebar">
+    <div class="terminal-dot red"></div>
+    <div class="terminal-dot yellow"></div>
+    <div class="terminal-dot green"></div>
+    <span class="terminal-title-text">wyrd — Kiln</span>
+  </div>
+
+  <div class="terminal-body">
+    <div class="pane-left">
+      <div class="section-header">TODAY'S SCHEDULE</div>
+
+      <div class="sched-row">
+        <span class="sched-time">08:00</span>
+        <div class="sched-bar energy-deep selected" style="width: 200px;">████████████</div>
+        <span class="sched-label" style="color:#401600;">EPA AM2 Revision</span>
+      </div>
+      <div class="sched-row">
+        <span class="sched-time">09:30</span>
+        <div class="sched-bar energy-medium" style="width: 160px;">▓▓▓▓▓▓▓▓▓▓▓▓</div>
+        <span class="sched-label" style="color:#401600;">Rhea outreach</span>
+      </div>
+      <div class="sched-row">
+        <span class="sched-time">10:15</span>
+        <div class="sched-bar calendar-event" style="width: 120px;">┄┄┄┄┄┄┄┄┄</div>
+        <span class="sched-label" style="color:#752100; font-style:italic;">Stand-up</span>
+      </div>
+      <div class="sched-row">
+        <span class="sched-time">10:45</span>
+        <div class="sched-bar energy-deep" style="width: 140px;">█████████</div>
+        <span class="sched-label" style="color:#401600;">TWCB wireframes</span>
+      </div>
+      <div class="sched-row">
+        <span class="sched-time">11:45</span>
+        <div class="sched-bar energy-low" style="width: 100px;">░░░░░░░░</div>
+        <span class="sched-label" style="color:#401600;">Triage inbox</span>
+      </div>
+      <div class="sched-row displaced">
+        <span class="sched-time">12:30</span>
+        <div class="sched-bar energy-low" style="width: 60px; opacity:0.4;">░░░░</div>
+        <span class="sched-label" style="color:#8b8b8b;">Review PRs</span>
+      </div>
+
+      <div class="unscheduled">◆ 2h unscheduled · 1 task displaced to tomorrow</div>
+    </div>
+
+    <div class="pane-right">
+      <div class="node-title"># EPA AM2 Revision</div>
+      <div class="node-body">
+        Work through chapters 11–14 of the study guide.<br>
+        Focus on fault-finding procedures and<br>
+        three-phase motor theory.
+      </div>
+
+      <div class="meta-row"><span class="meta-key">status</span><span class="meta-val">in_progress</span></div>
+      <div class="meta-row"><span class="meta-key">energy</span><span class="meta-val" style="color:#cd3c00;">deep</span></div>
+      <div class="meta-row"><span class="meta-key">due</span><span class="meta-val">2026-04-01</span></div>
+
+      <div class="section-header">EDGES</div>
+      <div class="edge-row"><span class="edge-arrow">←</span> blocks: <span style="color:#cd3c00;">Portfolio site draft</span></div>
+      <div class="edge-row"><span class="edge-arrow">→</span> parent: <span style="color:#cd3c00;">EPA preparation</span></div>
+      <div class="edge-row"><span class="edge-blocked">⊘</span> waiting_on: <span style="color:#401600;">Dan</span> (feedback) <span class="edge-age">· 12d</span></div>
+      <div class="edge-row"><span class="edge-waiting">◇</span> related: <span style="color:#401600;">Cypher syntax notes</span></div>
+
+      <div class="section-header">BUDGETS</div>
+      <div class="budget-row">
+        <span class="budget-glyph budget-glyph-ok">●</span>
+        <span class="budget-label">EPA</span>
+        <div class="budget-bar-track"><div class="budget-bar-fill budget-bar-ok" style="width: 79%;"></div></div>
+        <span class="budget-amount">9.5/12h</span>
+      </div>
+      <div class="budget-row">
+        <span class="budget-glyph budget-glyph-caution">◐</span>
+        <span class="budget-label">Records</span>
+        <div class="budget-bar-track"><div class="budget-bar-fill budget-bar-caution" style="width: 84%;"></div></div>
+        <span class="budget-amount">£42/£50</span>
+      </div>
+      <div class="budget-row">
+        <span class="budget-glyph budget-glyph-over">○</span>
+        <span class="budget-label">Baby</span>
+        <div class="budget-bar-track"><div class="budget-bar-fill budget-bar-over" style="width: 100%;"></div></div>
+        <span class="budget-amount">£580/£500</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span class="capture-hint">[capture bar]</span>
+    <span class="status-timer">◆ 47m on EPA (45m planned)</span>
+  </div>
+</div>
+
+</body>
+</html>

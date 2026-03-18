@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wyrd — Colour Palette &amp; Glyph Swatches</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a1a;
+    color: #ccc;
+    font-family: 'Inter', -apple-system, sans-serif;
+    padding: 48px 40px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+
+  .page-subtitle {
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 48px;
+  }
+
+  h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 56px;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #333;
+  }
+
+  h2:first-of-type { margin-top: 0; }
+
+  /* Theme palette card */
+  .palette-card {
+    border: 1px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .palette-header {
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .palette-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .palette-desc {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0;
+  }
+
+  .swatch {
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    border-top: 1px solid rgba(128,128,128,0.15);
+    border-right: 1px solid rgba(128,128,128,0.15);
+  }
+
+  .swatch-role {
+    opacity: 0.7;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .swatch-hex {
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  .swatch-source {
+    opacity: 0.5;
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  /* Glyph reference */
+  .glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .glyph-card {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .glyph-char {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    margin-bottom: 8px;
+    line-height: 1;
+  }
+
+  .glyph-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+  }
+
+  .glyph-meaning {
+    font-size: 11px;
+    color: #666;
+  }
+
+  /* Contrast table */
+  .contrast-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    margin-top: 16px;
+  }
+
+  .contrast-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: #888;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid #333;
+    font-weight: 500;
+  }
+
+  .contrast-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #2a2a2a;
+    color: #ccc;
+  }
+
+  .contrast-pass { color: #4caf50; }
+  .contrast-fail { color: #ff4647; }
+
+  /* 16-colour fallback */
+  .fallback-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .fallback-card {
+    border: 1px solid #333;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .fallback-header {
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    border-bottom: 1px solid #333;
+  }
+
+  .fallback-body {
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .fb-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fb-chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .fb-label { color: #888; width: 120px; flex-shrink: 0; }
+  .fb-val { color: #ccc; }
+
+  .notes {
+    color: #666;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Wyrd Colour Palettes &amp; Glyph System</h1>
+<div class="page-subtitle">All palettes from Reasonable Colors · Shade Δ3 = WCAG AA (4.5:1) · Shade Δ4 = WCAG AAA (7:1)</div>
+
+<!-- EMBER & VIOLET -->
+<h2>Theme 1: Cairn</h2>
+<div class="palette-card">
+  <div class="palette-header" style="background: #000; color: #f6f6f6;">
+    <span class="palette-name" style="color: #9b70ff;">Cairn</span>
+    <span class="palette-desc">Dark, warm · Stacked stone at dusk</span>
+  </div>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:#000000; color:#f6f6f6;">
+      <div class="swatch-role">bg.primary</div>
+      <div class="swatch-hex">#000000</div>
+      <div class="swatch-source">black</div>
+    </div>
+    <div class="swatch" style="background:#222222; color:#f6f6f6;">
+      <div class="swatch-role">bg.secondary</div>
+      <div class="swatch-hex">#222222</div>
+      <div class="swatch-source">gray-6</div>
+    </div>
+    <div class="swatch" style="background:#3e3e3e; color:#f6f6f6;">
+      <div class="swatch-role">border</div>
+      <div class="swatch-hex">#3e3e3e</div>
+      <div class="swatch-source">gray-5</div>
+    </div>
+    <div class="swatch" style="background:#2d0fbf; color:#f6f6f6;">
+      <div class="swatch-role">selection</div>
+      <div class="swatch-hex">#2d0fbf</div>
+      <div class="swatch-source">violet-5</div>
+    </div>
+    <div class="swatch" style="background:#f6f6f6; color:#000;">
+      <div class="swatch-role">fg.primary</div>
+      <div class="swatch-hex">#f6f6f6</div>
+      <div class="swatch-source">gray-1</div>
+    </div>
+    <div class="swatch" style="background:#8b8b8b; color:#000;">
+      <div class="swatch-role">fg.muted</div>
+      <div class="swatch-hex">#8b8b8b</div>
+      <div class="swatch-source">gray-3</div>
+    </div>
+    <div class="swatch" style="background:#9b70ff; color:#000;">
+      <div class="swatch-role">accent.primary</div>
+      <div class="swatch-hex">#9b70ff</div>
+      <div class="swatch-source">violet-3</div>
+    </div>
+    <div class="swatch" style="background:#d57300; color:#000;">
+      <div class="swatch-role">accent.secondary</div>
+      <div class="swatch-hex">#d57300</div>
+      <div class="swatch-source">cinnamon-3</div>
+    </div>
+    <div class="swatch" style="background:#794aff; color:#fff;">
+      <div class="swatch-role">energy.deep</div>
+      <div class="swatch-hex">#794aff</div>
+      <div class="swatch-source">violet-4</div>
+    </div>
+    <div class="swatch" style="background:#b98300; color:#fff;">
+      <div class="swatch-role">energy.medium</div>
+      <div class="swatch-hex">#b98300</div>
+      <div class="swatch-source">amber-3</div>
+    </div>
+    <div class="swatch" style="background:#6f6f6f; color:#fff;">
+      <div class="swatch-role">energy.low</div>
+      <div class="swatch-hex">#6f6f6f</div>
+      <div class="swatch-source">gray-4</div>
+    </div>
+    <div class="swatch" style="background:#d57300; color:#fff;">
+      <div class="swatch-role">overflow.warn</div>
+      <div class="swatch-hex">#d57300</div>
+      <div class="swatch-source">cinnamon-3</div>
+    </div>
+    <div class="swatch" style="background:#ff4647; color:#fff;">
+      <div class="swatch-role">overflow.critical</div>
+      <div class="swatch-hex">#ff4647</div>
+      <div class="swatch-source">red-3</div>
+    </div>
+  </div>
+</div>
+
+<!-- PEAT & TEAL -->
+<h2>Theme 2: Peat</h2>
+<div class="palette-card">
+  <div class="palette-header" style="background: #000; color: #d7fff7;">
+    <span class="palette-name" style="color: #009e8c;">Peat</span>
+    <span class="palette-desc">Dark, cool · Boggy dark greens</span>
+  </div>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:#000000; color:#d7fff7;">
+      <div class="swatch-role">bg.primary</div>
+      <div class="swatch-hex">#000000</div>
+      <div class="swatch-source">black</div>
+    </div>
+    <div class="swatch" style="background:#002722; color:#d7fff7;">
+      <div class="swatch-role">bg.secondary</div>
+      <div class="swatch-hex">#002722</div>
+      <div class="swatch-source">teal-6</div>
+    </div>
+    <div class="swatch" style="background:#00443c; color:#d7fff7;">
+      <div class="swatch-role">border</div>
+      <div class="swatch-hex">#00443c</div>
+      <div class="swatch-source">teal-5</div>
+    </div>
+    <div class="swatch" style="background:#00443c; color:#d7fff7;">
+      <div class="swatch-role">selection</div>
+      <div class="swatch-hex">#00443c</div>
+      <div class="swatch-source">teal-5</div>
+    </div>
+    <div class="swatch" style="background:#d7fff7; color:#000;">
+      <div class="swatch-role">fg.primary</div>
+      <div class="swatch-hex">#d7fff7</div>
+      <div class="swatch-source">teal-1</div>
+    </div>
+    <div class="swatch" style="background:#6f6f6f; color:#fff;">
+      <div class="swatch-role">fg.muted</div>
+      <div class="swatch-hex">#6f6f6f</div>
+      <div class="swatch-source">gray-4</div>
+    </div>
+    <div class="swatch" style="background:#009e8c; color:#000;">
+      <div class="swatch-role">accent.primary</div>
+      <div class="swatch-hex">#009e8c</div>
+      <div class="swatch-source">teal-3</div>
+    </div>
+    <div class="swatch" style="background:#d57300; color:#000;">
+      <div class="swatch-role">accent.secondary</div>
+      <div class="swatch-hex">#d57300</div>
+      <div class="swatch-source">cinnamon-3</div>
+    </div>
+    <div class="swatch" style="background:#009e8c; color:#fff;">
+      <div class="swatch-role">energy.deep</div>
+      <div class="swatch-hex">#009e8c</div>
+      <div class="swatch-source">teal-3</div>
+    </div>
+    <div class="swatch" style="background:#b98300; color:#fff;">
+      <div class="swatch-role">energy.medium</div>
+      <div class="swatch-hex">#b98300</div>
+      <div class="swatch-source">amber-3</div>
+    </div>
+    <div class="swatch" style="background:#6f6f6f; color:#fff;">
+      <div class="swatch-role">energy.low</div>
+      <div class="swatch-hex">#6f6f6f</div>
+      <div class="swatch-source">gray-4</div>
+    </div>
+    <div class="swatch" style="background:#d57300; color:#fff;">
+      <div class="swatch-role">overflow.warn</div>
+      <div class="swatch-hex">#d57300</div>
+      <div class="swatch-source">cinnamon-3</div>
+    </div>
+    <div class="swatch" style="background:#ff4647; color:#fff;">
+      <div class="swatch-role">overflow.critical</div>
+      <div class="swatch-hex">#ff4647</div>
+      <div class="swatch-source">red-3</div>
+    </div>
+  </div>
+</div>
+
+<!-- KILN -->
+<h2>Theme 3: Kiln</h2>
+<div class="palette-card">
+  <div class="palette-header" style="background: #fff8f5; color: #401600;">
+    <span class="palette-name" style="color: #cd3c00;">Kiln</span>
+    <span class="palette-desc">Light, warm · Terracotta</span>
+  </div>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:#fff8f5; color:#401600;">
+      <div class="swatch-role">bg.primary</div>
+      <div class="swatch-hex">#fff8f5</div>
+      <div class="swatch-source">orange-1</div>
+    </div>
+    <div class="swatch" style="background:#fff8f3; color:#401600;">
+      <div class="swatch-role">bg.secondary</div>
+      <div class="swatch-hex">#fff8f3</div>
+      <div class="swatch-source">cinnamon-1</div>
+    </div>
+    <div class="swatch" style="background:#ffded1; color:#401600;">
+      <div class="swatch-role">border</div>
+      <div class="swatch-hex">#ffded1</div>
+      <div class="swatch-source">orange-2</div>
+    </div>
+    <div class="swatch" style="background:#ffdfc6; color:#401600;">
+      <div class="swatch-role">selection</div>
+      <div class="swatch-hex">#ffdfc6</div>
+      <div class="swatch-source">cinnamon-2</div>
+    </div>
+    <div class="swatch" style="background:#401600; color:#fff8f5;">
+      <div class="swatch-role">fg.primary</div>
+      <div class="swatch-hex">#401600</div>
+      <div class="swatch-source">orange-6</div>
+    </div>
+    <div class="swatch" style="background:#752100; color:#fff8f5;">
+      <div class="swatch-role">fg.muted</div>
+      <div class="swatch-hex">#752100</div>
+      <div class="swatch-source">orange-5</div>
+    </div>
+    <div class="swatch" style="background:#cd3c00; color:#fff;">
+      <div class="swatch-role">accent.primary</div>
+      <div class="swatch-hex">#cd3c00</div>
+      <div class="swatch-source">orange-4</div>
+    </div>
+    <div class="swatch" style="background:#e0002b; color:#fff;">
+      <div class="swatch-role">accent.secondary</div>
+      <div class="swatch-hex">#e0002b</div>
+      <div class="swatch-source">red-4</div>
+    </div>
+    <div class="swatch" style="background:#cd3c00; color:#fff;">
+      <div class="swatch-role">energy.deep</div>
+      <div class="swatch-hex">#cd3c00</div>
+      <div class="swatch-source">orange-4</div>
+    </div>
+    <div class="swatch" style="background:#ac5c00; color:#fff;">
+      <div class="swatch-role">energy.medium</div>
+      <div class="swatch-hex">#ac5c00</div>
+      <div class="swatch-source">cinnamon-4</div>
+    </div>
+    <div class="swatch" style="background:#8b8b8b; color:#fff;">
+      <div class="swatch-role">energy.low</div>
+      <div class="swatch-hex">#8b8b8b</div>
+      <div class="swatch-source">gray-3</div>
+    </div>
+    <div class="swatch" style="background:#ac5c00; color:#fff;">
+      <div class="swatch-role">overflow.warn</div>
+      <div class="swatch-hex">#ac5c00</div>
+      <div class="swatch-source">cinnamon-4</div>
+    </div>
+    <div class="swatch" style="background:#e0002b; color:#fff;">
+      <div class="swatch-role">overflow.critical</div>
+      <div class="swatch-hex">#e0002b</div>
+      <div class="swatch-source">red-4</div>
+    </div>
+  </div>
+</div>
+
+<!-- ORDNANCE SURVEY -->
+<h2>Theme 4: Fell</h2>
+<div class="palette-card">
+  <div class="palette-header" style="background: #fff8ef; color: #371d00;">
+    <span class="palette-name" style="color: #004908;">Fell</span>
+    <span class="palette-desc">Light, cartographic · Cream paper</span>
+  </div>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:#fff8ef; color:#371d00;">
+      <div class="swatch-role">bg.primary</div>
+      <div class="swatch-hex">#fff8ef</div>
+      <div class="swatch-source">amber-1</div>
+    </div>
+    <div class="swatch" style="background:#fff9e5; color:#371d00;">
+      <div class="swatch-role">bg.secondary</div>
+      <div class="swatch-hex">#fff9e5</div>
+      <div class="swatch-source">yellow-1</div>
+    </div>
+    <div class="swatch" style="background:#ffe0b2; color:#371d00;">
+      <div class="swatch-role">border</div>
+      <div class="swatch-hex">#ffe0b2</div>
+      <div class="swatch-source">amber-2</div>
+    </div>
+    <div class="swatch" style="background:#d5f200; color:#371d00;">
+      <div class="swatch-role">selection</div>
+      <div class="swatch-hex">#d5f200</div>
+      <div class="swatch-source">lime-2</div>
+    </div>
+    <div class="swatch" style="background:#371d00; color:#fff8ef;">
+      <div class="swatch-role">fg.primary</div>
+      <div class="swatch-hex">#371d00</div>
+      <div class="swatch-source">cinnamon-6</div>
+    </div>
+    <div class="swatch" style="background:#926700; color:#fff;">
+      <div class="swatch-role">fg.muted</div>
+      <div class="swatch-hex">#926700</div>
+      <div class="swatch-source">amber-4</div>
+    </div>
+    <div class="swatch" style="background:#004908; color:#fff;">
+      <div class="swatch-role">accent.primary</div>
+      <div class="swatch-hex">#004908</div>
+      <div class="swatch-source">green-5</div>
+    </div>
+    <div class="swatch" style="background:#82002c; color:#fff;">
+      <div class="swatch-role">accent.secondary</div>
+      <div class="swatch-hex">#82002c</div>
+      <div class="swatch-source">raspberry-5</div>
+    </div>
+    <div class="swatch" style="background:#004908; color:#fff;">
+      <div class="swatch-role">energy.deep</div>
+      <div class="swatch-hex">#004908</div>
+      <div class="swatch-source">green-5</div>
+    </div>
+    <div class="swatch" style="background:#82002c; color:#fff;">
+      <div class="swatch-role">energy.medium</div>
+      <div class="swatch-hex">#82002c</div>
+      <div class="swatch-source">raspberry-5</div>
+    </div>
+    <div class="swatch" style="background:#926700; color:#fff;">
+      <div class="swatch-role">energy.low</div>
+      <div class="swatch-hex">#926700</div>
+      <div class="swatch-source">amber-4</div>
+    </div>
+    <div class="swatch" style="background:#cd3c00; color:#fff;">
+      <div class="swatch-role">overflow.warn</div>
+      <div class="swatch-hex">#cd3c00</div>
+      <div class="swatch-source">orange-4</div>
+    </div>
+    <div class="swatch" style="background:#e0002b; color:#fff;">
+      <div class="swatch-role">overflow.critical</div>
+      <div class="swatch-hex">#e0002b</div>
+      <div class="swatch-source">red-4</div>
+    </div>
+  </div>
+</div>
+
+<!-- GLYPH SYSTEM -->
+<h2>Glyph System (All Themes)</h2>
+<div class="notes">Glyphs are consistent across themes. They provide redundant signalling for colour-blind users.</div>
+<div class="glyph-grid" style="margin-top: 16px;">
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #794aff;">█</div>
+    <div class="glyph-name">Solid fill</div>
+    <div class="glyph-meaning">Deep work schedule block</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #b98300;">▓</div>
+    <div class="glyph-name">Dense fill</div>
+    <div class="glyph-meaning">Medium energy schedule block</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #6f6f6f;">░</div>
+    <div class="glyph-name">Light fill</div>
+    <div class="glyph-meaning">Low energy schedule block</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #d57300;">◆</div>
+    <div class="glyph-name">Diamond</div>
+    <div class="glyph-meaning">Overflow / time displacement</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #d57300;">⊘</div>
+    <div class="glyph-name">Circle-slash</div>
+    <div class="glyph-meaning">Blocked / waiting on</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #8b8b8b;">◇</div>
+    <div class="glyph-name">Open diamond</div>
+    <div class="glyph-meaning">Related / loose association</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #4caf50;">●</div>
+    <div class="glyph-name">Filled circle</div>
+    <div class="glyph-meaning">Budget OK</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #d57300;">◐</div>
+    <div class="glyph-name">Half circle</div>
+    <div class="glyph-meaning">Budget caution</div>
+  </div>
+  <div class="glyph-card">
+    <div class="glyph-char" style="color: #ff4647;">○</div>
+    <div class="glyph-name">Open circle</div>
+    <div class="glyph-meaning">Budget over</div>
+  </div>
+</div>
+
+<!-- 16-COLOUR FALLBACK -->
+<h2>16-Colour Fallback Mapping</h2>
+<div class="notes">When truecolor is unavailable, these ANSI colour names are used. Glyph differentiation becomes the primary signal mechanism.</div>
+<div class="fallback-grid">
+  <div class="fallback-card">
+    <div class="fallback-header" style="background: #000; color: #d0d0ff;">Dark Themes</div>
+    <div class="fallback-body" style="background: #111; color: #ccc;">
+      <div class="fb-row"><span class="fb-label">bg</span><div class="fb-chip" style="background:#000; border:1px solid #333;"></div><span class="fb-val">black</span></div>
+      <div class="fb-row"><span class="fb-label">fg</span><div class="fb-chip" style="background:#fff;"></div><span class="fb-val">white</span></div>
+      <div class="fb-row"><span class="fb-label">accent (Cairn)</span><div class="fb-chip" style="background:#ff00ff;"></div><span class="fb-val">magenta</span></div>
+      <div class="fb-row"><span class="fb-label">accent (Peat)</span><div class="fb-chip" style="background:#00ffff;"></div><span class="fb-val">cyan</span></div>
+      <div class="fb-row"><span class="fb-label">accent.secondary</span><div class="fb-chip" style="background:#ffff00;"></div><span class="fb-val">yellow</span></div>
+      <div class="fb-row"><span class="fb-label">energy.low</span><div class="fb-chip" style="background:#555;"></div><span class="fb-val">bright black</span></div>
+      <div class="fb-row"><span class="fb-label">overflow.critical</span><div class="fb-chip" style="background:#ff0000;"></div><span class="fb-val">red</span></div>
+    </div>
+  </div>
+  <div class="fallback-card">
+    <div class="fallback-header" style="background: #f0e8d8; color: #401600;">Light Themes</div>
+    <div class="fallback-body" style="background: #f8f4ee; color: #333;">
+      <div class="fb-row"><span class="fb-label" style="color:#777;">bg</span><div class="fb-chip" style="background:#fff; border:1px solid #ccc;"></div><span class="fb-val" style="color:#333;">white</span></div>
+      <div class="fb-row"><span class="fb-label" style="color:#777;">fg</span><div class="fb-chip" style="background:#000;"></div><span class="fb-val" style="color:#333;">black</span></div>
+      <div class="fb-row"><span class="fb-label" style="color:#777;">accent (Fell)</span><div class="fb-chip" style="background:#008000;"></div><span class="fb-val" style="color:#333;">green</span></div>
+      <div class="fb-row"><span class="fb-label" style="color:#777;">accent (Kiln)</span><div class="fb-chip" style="background:#ff0000;"></div><span class="fb-val" style="color:#333;">red</span></div>
+      <div class="fb-row"><span class="fb-label" style="color:#777;">accent.secondary</span><div class="fb-chip" style="background:#ffff00; border:1px solid #ccc;"></div><span class="fb-val" style="color:#333;">yellow</span></div>
+      <div class="fb-row"><span class="fb-label" style="color:#777;">energy.low</span><div class="fb-chip" style="background:#ddd; border:1px solid #ccc;"></div><span class="fb-val" style="color:#333;">bright white</span></div>
+      <div class="fb-row"><span class="fb-label" style="color:#777;">overflow.critical</span><div class="fb-chip" style="background:#ff0000;"></div><span class="fb-val" style="color:#333;">red</span></div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 60px; color: #555; font-size: 11px; text-align: center;">
+  Wyrd Colour Palettes · v0.2 · Source: <a href="https://www.reasonable.work/colors/" style="color:#888;">reasonable.work/colors</a> · LCH colour space
+</div>
+
+</body>
+</html>

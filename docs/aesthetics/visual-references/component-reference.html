@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wyrd — Component Reference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a1a;
+    color: #ccc;
+    font-family: 'Inter', -apple-system, sans-serif;
+    padding: 48px 40px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+
+  .page-subtitle {
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 48px;
+  }
+
+  h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 48px;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #333;
+  }
+
+  .theme-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .theme-card {
+    border-radius: 6px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    border: 1px solid;
+  }
+
+  /* Theme backgrounds */
+  .t-ev { background: #000; color: #f6f6f6; border-color: #3e3e3e; }
+  .t-pt { background: #000; color: #d7fff7; border-color: #00443c; }
+  .t-ki { background: #fff8f5; color: #401600; border-color: #ffded1; }
+  .t-os { background: #fff8ef; color: #371d00; border-color: #ffe0b2; }
+
+  .theme-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.6;
+  }
+
+  /* Energy indicators */
+  .energy-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    gap: 8px;
+  }
+  .energy-bar {
+    height: 14px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    font-size: 11px;
+    width: 120px;
+  }
+  .energy-label { font-size: 11px; }
+
+  /* Cairn energy */
+  .t-ev .e-deep { background: #794aff; color: #f6f6f6; }
+  .t-ev .e-med  { background: #b98300; color: #f6f6f6; }
+  .t-ev .e-low  { background: #6f6f6f; color: #f6f6f6; }
+
+  /* Peat energy */
+  .t-pt .e-deep { background: #009e8c; color: #d7fff7; }
+  .t-pt .e-med  { background: #b98300; color: #d7fff7; }
+  .t-pt .e-low  { background: #6f6f6f; color: #d7fff7; }
+
+  /* Kiln energy */
+  .t-ki .e-deep { background: #cd3c00; color: #fff8f5; }
+  .t-ki .e-med  { background: #ac5c00; color: #fff8f5; }
+  .t-ki .e-low  { background: #8b8b8b; color: #fff8f5; }
+
+  /* Fell energy */
+  .t-os .e-deep { background: #004908; color: #fff8ef; }
+  .t-os .e-med  { background: #82002c; color: #fff8ef; }
+  .t-os .e-low  { background: #926700; color: #fff8ef; }
+
+  /* Budget glyphs */
+  .budget-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .budget-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .bg-track {
+    flex: 1;
+    height: 8px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bg-fill { height: 100%; border-radius: 2px; }
+
+  .t-ev .bg-track { background: #222; }
+  .t-pt .bg-track { background: #002722; }
+  .t-ki .bg-track { background: #ffded1; }
+  .t-os .bg-track { background: #ffe0b2; }
+
+  .t-ev .b-ok { color: #9b70ff; } .t-ev .bf-ok { background: #9b70ff; }
+  .t-ev .b-cau { color: #d57300; } .t-ev .bf-cau { background: #d57300; }
+  .t-ev .b-ov { color: #ff4647; } .t-ev .bf-ov { background: #ff4647; }
+
+  .t-pt .b-ok { color: #009e8c; } .t-pt .bf-ok { background: #009e8c; }
+  .t-pt .b-cau { color: #d57300; } .t-pt .bf-cau { background: #d57300; }
+  .t-pt .b-ov { color: #ff4647; } .t-pt .bf-ov { background: #ff4647; }
+
+  .t-ki .b-ok { color: #cd3c00; } .t-ki .bf-ok { background: #cd3c00; }
+  .t-ki .b-cau { color: #ac5c00; } .t-ki .bf-cau { background: #ac5c00; }
+  .t-ki .b-ov { color: #e0002b; } .t-ki .bf-ov { background: #e0002b; }
+
+  .t-os .b-ok { color: #004908; } .t-os .bf-ok { background: #004908; }
+  .t-os .b-cau { color: #cd3c00; } .t-os .bf-cau { background: #cd3c00; }
+  .t-os .b-ov { color: #e0002b; } .t-os .bf-ov { background: #e0002b; }
+
+  /* Edge display */
+  .edge-demo { display: flex; flex-direction: column; gap: 3px; }
+  .t-ev .ed-arrow { color: #9b70ff; }
+  .t-ev .ed-block { color: #d57300; }
+  .t-ev .ed-wait { color: #8b8b8b; }
+  .t-ev .ed-link { color: #9b70ff; }
+  .t-ev .ed-age { color: #d57300; }
+
+  .t-pt .ed-arrow { color: #009e8c; }
+  .t-pt .ed-block { color: #d57300; }
+  .t-pt .ed-wait { color: #6f6f6f; }
+  .t-pt .ed-link { color: #009e8c; }
+  .t-pt .ed-age { color: #d57300; }
+
+  .t-ki .ed-arrow { color: #cd3c00; }
+  .t-ki .ed-block { color: #ac5c00; }
+  .t-ki .ed-wait { color: #752100; }
+  .t-ki .ed-link { color: #cd3c00; }
+  .t-ki .ed-age { color: #ac5c00; }
+
+  .t-os .ed-arrow { color: #004908; }
+  .t-os .ed-block { color: #cd3c00; }
+  .t-os .ed-wait { color: #926700; }
+  .t-os .ed-link { color: #004908; }
+  .t-os .ed-age { color: #cd3c00; }
+
+  /* Calendar event */
+  .cal-demo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cal-bar {
+    height: 14px;
+    border-radius: 2px;
+    width: 100px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    font-size: 11px;
+    font-style: italic;
+  }
+  .t-ev .cal-bar { border: 1px dashed #8b8b8b; color: #8b8b8b; }
+  .t-pt .cal-bar { border: 1px dashed #6f6f6f; color: #6f6f6f; }
+  .t-ki .cal-bar { border: 1px dashed #752100; color: #752100; }
+  .t-os .cal-bar { border: 1px dashed #926700; color: #926700; }
+
+  /* Section headers */
+  .t-ev .sec-hdr { color: #8b8b8b; }
+  .t-pt .sec-hdr { color: #6f6f6f; }
+  .t-ki .sec-hdr { color: #752100; }
+  .t-os .sec-hdr { color: #926700; }
+  .sec-hdr { font-size: 10px; letter-spacing: 0.2em; margin-bottom: 6px; }
+
+  /* Selection highlight */
+  .sel-demo {
+    padding: 4px 8px;
+    border-radius: 3px;
+    display: inline-block;
+    font-size: 12px;
+  }
+  .t-ev .sel-demo { background: #2d0fbf; outline: 1px solid #9b70ff; }
+  .t-pt .sel-demo { background: #00443c; outline: 1px solid #009e8c; }
+  .t-ki .sel-demo { background: #ffdfc6; outline: 1px solid #cd3c00; }
+  .t-os .sel-demo { background: #d5f200; outline: 1px solid #004908; color: #371d00; }
+
+  /* Overflow / displacement */
+  .t-ev .ovf { color: #d57300; }
+  .t-pt .ovf { color: #d57300; }
+  .t-ki .ovf { color: #ac5c00; }
+  .t-os .ovf { color: #cd3c00; }
+  .t-ev .ovf-crit { color: #ff4647; }
+  .t-pt .ovf-crit { color: #ff4647; }
+  .t-ki .ovf-crit { color: #e0002b; }
+  .t-os .ovf-crit { color: #e0002b; }
+
+  /* Accent colours */
+  .t-ev .acc-pri { color: #9b70ff; }
+  .t-ev .acc-sec { color: #d57300; }
+  .t-pt .acc-pri { color: #009e8c; }
+  .t-pt .acc-sec { color: #d57300; }
+  .t-ki .acc-pri { color: #cd3c00; }
+  .t-ki .acc-sec { color: #e0002b; }
+  .t-os .acc-pri { color: #004908; }
+  .t-os .acc-sec { color: #82002c; }
+
+  /* Status bar demo */
+  .statusbar-demo {
+    border-radius: 4px;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  .t-ev .statusbar-demo { background: #222; border: 1px solid #3e3e3e; }
+  .t-pt .statusbar-demo { background: #002722; border: 1px solid #00443c; }
+  .t-ki .statusbar-demo { background: #fff8f3; border: 1px solid #ffded1; }
+  .t-os .statusbar-demo { background: #fff9e5; border: 1px solid #ffe0b2; }
+
+  /* Muted text */
+  .t-ev .muted { color: #8b8b8b; }
+  .t-pt .muted { color: #6f6f6f; }
+  .t-ki .muted { color: #752100; }
+  .t-os .muted { color: #926700; }
+
+  .notes {
+    color: #666;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<h1>Wyrd Component Reference</h1>
+<div class="page-subtitle">All UI elements rendered across the four shipping themes</div>
+
+<!-- ENERGY INDICATORS -->
+<h2>Energy Indicators</h2>
+<div class="notes">Three energy levels use paired colour + fill character signals. Fill character varies independently of colour for colour-blind safety.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="energy-row"><div class="energy-bar e-deep">█████████</div><span class="energy-label">Deep</span></div>
+    <div class="energy-row"><div class="energy-bar e-med">▓▓▓▓▓▓▓▓▓</div><span class="energy-label">Medium</span></div>
+    <div class="energy-row"><div class="energy-bar e-low">░░░░░░░░░</div><span class="energy-label">Low</span></div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="energy-row"><div class="energy-bar e-deep">█████████</div><span class="energy-label">Deep</span></div>
+    <div class="energy-row"><div class="energy-bar e-med">▓▓▓▓▓▓▓▓▓</div><span class="energy-label">Medium</span></div>
+    <div class="energy-row"><div class="energy-bar e-low">░░░░░░░░░</div><span class="energy-label">Low</span></div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="energy-row"><div class="energy-bar e-deep">█████████</div><span class="energy-label">Deep</span></div>
+    <div class="energy-row"><div class="energy-bar e-med">▓▓▓▓▓▓▓▓▓</div><span class="energy-label">Medium</span></div>
+    <div class="energy-row"><div class="energy-bar e-low">░░░░░░░░░</div><span class="energy-label">Low</span></div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="energy-row"><div class="energy-bar e-deep">█████████</div><span class="energy-label">Deep</span></div>
+    <div class="energy-row"><div class="energy-bar e-med">▓▓▓▓▓▓▓▓▓</div><span class="energy-label">Medium</span></div>
+    <div class="energy-row"><div class="energy-bar e-low">░░░░░░░░░</div><span class="energy-label">Low</span></div>
+  </div>
+</div>
+
+<!-- BUDGET STATUS -->
+<h2>Budget Status</h2>
+<div class="notes">Envelope progress uses three states with paired glyph + colour: ● OK (full), ◐ caution (approaching limit), ○ over (exceeded).</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="budget-demo">
+      <div class="budget-item"><span class="b-ok">●</span> EPA <div class="bg-track"><div class="bg-fill bf-ok" style="width:65%;"></div></div></div>
+      <div class="budget-item"><span class="b-cau">◐</span> Records <div class="bg-track"><div class="bg-fill bf-cau" style="width:84%;"></div></div></div>
+      <div class="budget-item"><span class="b-ov">○</span> Baby <div class="bg-track"><div class="bg-fill bf-ov" style="width:100%;"></div></div></div>
+    </div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="budget-demo">
+      <div class="budget-item"><span class="b-ok">●</span> EPA <div class="bg-track"><div class="bg-fill bf-ok" style="width:65%;"></div></div></div>
+      <div class="budget-item"><span class="b-cau">◐</span> Records <div class="bg-track"><div class="bg-fill bf-cau" style="width:84%;"></div></div></div>
+      <div class="budget-item"><span class="b-ov">○</span> Baby <div class="bg-track"><div class="bg-fill bf-ov" style="width:100%;"></div></div></div>
+    </div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="budget-demo">
+      <div class="budget-item"><span class="b-ok">●</span> EPA <div class="bg-track"><div class="bg-fill bf-ok" style="width:65%;"></div></div></div>
+      <div class="budget-item"><span class="b-cau">◐</span> Records <div class="bg-track"><div class="bg-fill bf-cau" style="width:84%;"></div></div></div>
+      <div class="budget-item"><span class="b-ov">○</span> Baby <div class="bg-track"><div class="bg-fill bf-ov" style="width:100%;"></div></div></div>
+    </div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="budget-demo">
+      <div class="budget-item"><span class="b-ok">●</span> EPA <div class="bg-track"><div class="bg-fill bf-ok" style="width:65%;"></div></div></div>
+      <div class="budget-item"><span class="b-cau">◐</span> Records <div class="bg-track"><div class="bg-fill bf-cau" style="width:84%;"></div></div></div>
+      <div class="budget-item"><span class="b-ov">○</span> Baby <div class="bg-track"><div class="bg-fill bf-ov" style="width:100%;"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDGE DISPLAY -->
+<h2>Edge Display</h2>
+<div class="notes">Directional arrows and type-specific glyphs. The ⊘ glyph and ageing suffix draw attention to stale commitments.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="edge-demo">
+      <div><span class="ed-arrow">←</span> blocks: <span class="ed-link">Portfolio</span></div>
+      <div><span class="ed-arrow">→</span> parent: <span class="ed-link">EPA prep</span></div>
+      <div><span class="ed-block">⊘</span> waiting: Dan <span class="ed-age">· 12d</span></div>
+      <div><span class="ed-wait">◇</span> related: Cypher notes</div>
+    </div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="edge-demo">
+      <div><span class="ed-arrow">←</span> blocks: <span class="ed-link">Portfolio</span></div>
+      <div><span class="ed-arrow">→</span> parent: <span class="ed-link">EPA prep</span></div>
+      <div><span class="ed-block">⊘</span> waiting: Dan <span class="ed-age">· 12d</span></div>
+      <div><span class="ed-wait">◇</span> related: Cypher notes</div>
+    </div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="edge-demo">
+      <div><span class="ed-arrow">←</span> blocks: <span class="ed-link">Portfolio</span></div>
+      <div><span class="ed-arrow">→</span> parent: <span class="ed-link">EPA prep</span></div>
+      <div><span class="ed-block">⊘</span> waiting: Dan <span class="ed-age">· 12d</span></div>
+      <div><span class="ed-wait">◇</span> related: Cypher notes</div>
+    </div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="edge-demo">
+      <div><span class="ed-arrow">←</span> blocks: <span class="ed-link">Portfolio</span></div>
+      <div><span class="ed-arrow">→</span> parent: <span class="ed-link">EPA prep</span></div>
+      <div><span class="ed-block">⊘</span> waiting: Dan <span class="ed-age">· 12d</span></div>
+      <div><span class="ed-wait">◇</span> related: Cypher notes</div>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR EVENTS -->
+<h2>Calendar Events</h2>
+<div class="notes">Dashed lines and italic text distinguish read-only calendar events from tasks.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="cal-demo"><span style="color:#8b8b8b; font-size:11px;">10:15</span> <div class="cal-bar">┄┄┄┄┄┄┄┄</div> <span style="color:#8b8b8b; font-style:italic; font-size:11px;">Stand-up</span></div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="cal-demo"><span style="color:#6f6f6f; font-size:11px;">10:15</span> <div class="cal-bar">┄┄┄┄┄┄┄┄</div> <span style="color:#6f6f6f; font-style:italic; font-size:11px;">Stand-up</span></div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="cal-demo"><span style="color:#752100; font-size:11px;">10:15</span> <div class="cal-bar">┄┄┄┄┄┄┄┄</div> <span style="color:#752100; font-style:italic; font-size:11px;">Stand-up</span></div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="cal-demo"><span style="color:#926700; font-size:11px;">10:15</span> <div class="cal-bar">┄┄┄┄┄┄┄┄</div> <span style="color:#926700; font-style:italic; font-size:11px;">Stand-up</span></div>
+  </div>
+</div>
+
+<!-- SELECTION HIGHLIGHT -->
+<h2>Selection Highlight</h2>
+<div class="notes">Focused element background and accent outline for the selected item.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="sel-demo">Selected item</div>
+    <div style="margin-top: 8px; font-size: 11px;"><span class="muted">bg: #2d0fbf · border: #9b70ff</span></div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="sel-demo">Selected item</div>
+    <div style="margin-top: 8px; font-size: 11px;"><span class="muted">bg: #00443c · border: #009e8c</span></div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="sel-demo">Selected item</div>
+    <div style="margin-top: 8px; font-size: 11px;"><span class="muted">bg: #ffdfc6 · border: #cd3c00</span></div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="sel-demo">Selected item</div>
+    <div style="margin-top: 8px; font-size: 11px;"><span class="muted">bg: #d5f200 · border: #004908</span></div>
+  </div>
+</div>
+
+<!-- OVERFLOW / TIME DISPLACEMENT -->
+<h2>Overflow &amp; Time Displacement</h2>
+<div class="notes">The ◆ diamond glyph signals overrun. Two tiers: warn (approaching) and critical (hard overrun).</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="ovf">◆ 47m on EPA (45m planned)</div>
+    <div class="ovf" style="margin-top:4px;">◆ 2h unscheduled</div>
+    <div class="ovf-crit" style="margin-top:4px;">◆ 3 tasks displaced</div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="ovf">◆ 47m on EPA (45m planned)</div>
+    <div class="ovf" style="margin-top:4px;">◆ 2h unscheduled</div>
+    <div class="ovf-crit" style="margin-top:4px;">◆ 3 tasks displaced</div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="ovf">◆ 47m on EPA (45m planned)</div>
+    <div class="ovf" style="margin-top:4px;">◆ 2h unscheduled</div>
+    <div class="ovf-crit" style="margin-top:4px;">◆ 3 tasks displaced</div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="ovf">◆ 47m on EPA (45m planned)</div>
+    <div class="ovf" style="margin-top:4px;">◆ 2h unscheduled</div>
+    <div class="ovf-crit" style="margin-top:4px;">◆ 3 tasks displaced</div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<h2>Status Bar</h2>
+<div class="notes">Full-width bar spanning both panes. Capture hint left, timer/status right.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="statusbar-demo">
+      <span class="muted" style="font-style:italic;">[capture bar]</span>
+      <span class="ovf">◆ 47m on EPA (45m)</span>
+    </div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="statusbar-demo">
+      <span class="muted" style="font-style:italic;">[capture bar]</span>
+      <span class="ovf">◆ 47m on EPA (45m)</span>
+    </div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="statusbar-demo">
+      <span class="muted" style="font-style:italic;">[capture bar]</span>
+      <span class="ovf">◆ 47m on EPA (45m)</span>
+    </div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="statusbar-demo">
+      <span class="muted" style="font-style:italic;">[capture bar]</span>
+      <span class="ovf">◆ 47m on EPA (45m)</span>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION HEADERS -->
+<h2>Section Headers</h2>
+<div class="notes">Uppercase with letter-spacing, styled in each theme's muted text colour.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="sec-hdr">TODAY'S SCHEDULE</div>
+    <div class="sec-hdr">EDGES</div>
+    <div class="sec-hdr">BUDGETS</div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="sec-hdr">TODAY'S SCHEDULE</div>
+    <div class="sec-hdr">EDGES</div>
+    <div class="sec-hdr">BUDGETS</div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="sec-hdr">TODAY'S SCHEDULE</div>
+    <div class="sec-hdr">EDGES</div>
+    <div class="sec-hdr">BUDGETS</div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="sec-hdr">TODAY'S SCHEDULE</div>
+    <div class="sec-hdr">EDGES</div>
+    <div class="sec-hdr">BUDGETS</div>
+  </div>
+</div>
+
+<!-- EMPTY STATES -->
+<h2>Empty States</h2>
+<div class="notes">Muted text message when a view returns no results. Never a blank pane.</div>
+<div class="theme-strip" style="margin-top: 16px;">
+  <div class="theme-card t-ev">
+    <div class="theme-label">Cairn</div>
+    <div class="muted" style="font-style: italic; font-size: 11px;">No tasks scheduled for today.</div>
+    <div class="muted" style="font-style: italic; font-size: 11px; margin-top: 8px;">Nothing waiting on anyone right now.</div>
+  </div>
+  <div class="theme-card t-pt">
+    <div class="theme-label">Peat</div>
+    <div class="muted" style="font-style: italic; font-size: 11px;">No tasks scheduled for today.</div>
+    <div class="muted" style="font-style: italic; font-size: 11px; margin-top: 8px;">Nothing waiting on anyone right now.</div>
+  </div>
+  <div class="theme-card t-ki">
+    <div class="theme-label">Kiln</div>
+    <div class="muted" style="font-style: italic; font-size: 11px;">No tasks scheduled for today.</div>
+    <div class="muted" style="font-style: italic; font-size: 11px; margin-top: 8px;">Nothing waiting on anyone right now.</div>
+  </div>
+  <div class="theme-card t-os">
+    <div class="theme-label">Fell</div>
+    <div class="muted" style="font-style: italic; font-size: 11px;">No tasks scheduled for today.</div>
+    <div class="muted" style="font-style: italic; font-size: 11px; margin-top: 8px;">Nothing waiting on anyone right now.</div>
+  </div>
+</div>
+
+<div style="margin-top: 60px; color: #555; font-size: 11px; text-align: center; font-family: 'Inter', sans-serif;">
+  Wyrd Component Reference · v0.2 · All colours from Reasonable Colors (reasonable.work/colors)
+</div>
+
+</body>
+</html>
