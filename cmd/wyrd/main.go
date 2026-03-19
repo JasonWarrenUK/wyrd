@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
+	"github.com/jasonwarrenuk/wyrd/internal/query"
 	"github.com/jasonwarrenuk/wyrd/internal/store"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -212,21 +213,14 @@ func queryCmd(storePath *string) *cobra.Command {
 		Short: "Run a Cypher query and print results",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := openStore(*storePath)
+			s, err := openStore(*storePath)
 			if err != nil {
 				return err
 			}
-			// The query engine is implemented by a separate agent.
-			// Stub: print a helpful message until it is wired in.
-			return runQueryStub(args[0])
+			engine := query.NewEngine(s.Index(), 0)
+			return cli.RunQuery(engine, types.RealClock{}, cli.QueryOptions{QueryString: args[0]}, os.Stdout)
 		},
 	}
-}
-
-// runQueryStub prints a stub message for the query command.
-func runQueryStub(query string) error {
-	fmt.Fprintf(os.Stdout, "Query engine not yet available.\nQuery: %s\n", query)
-	return nil
 }
 
 // viewCmd implements `wyrd view`.
