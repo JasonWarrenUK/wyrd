@@ -216,9 +216,31 @@ func extractJSONField(data []byte, field string) string {
 		return ""
 	}
 	rest = rest[1:]
-	end := strings.IndexByte(rest, '"')
-	if end < 0 {
-		return ""
+	// Scan for the closing quote, respecting backslash escapes.
+	var out strings.Builder
+	for i := 0; i < len(rest); i++ {
+		ch := rest[i]
+		if ch == '\\' && i+1 < len(rest) {
+			i++
+			switch rest[i] {
+			case '"':
+				out.WriteByte('"')
+			case '\\':
+				out.WriteByte('\\')
+			case 'n':
+				out.WriteByte('\n')
+			case 't':
+				out.WriteByte('\t')
+			default:
+				out.WriteByte('\\')
+				out.WriteByte(rest[i])
+			}
+			continue
+		}
+		if ch == '"' {
+			return out.String()
+		}
+		out.WriteByte(ch)
 	}
-	return rest[:end]
+	return ""
 }
