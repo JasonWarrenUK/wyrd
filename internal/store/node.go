@@ -248,6 +248,9 @@ func (s *Store) RemoveType(id string, typeName string) error {
 			filtered = append(filtered, t)
 		}
 	}
+	if len(filtered) == 0 {
+		return &types.ValidationError{Field: "types", Message: "cannot remove the last type — a node must have at least one type"}
+	}
 	raw["types"] = filtered
 	raw["modified"] = s.clock.Now().UTC().Format(time.RFC3339)
 
