@@ -1,0 +1,27 @@
+{
+  "type_name": "task",
+  "fields": {
+    "status": {
+      "type": "enum",
+      "values": ["inbox", "ready", "in_progress", "blocked", "done", "dropped"],
+      "default": "inbox"
+    },
+    "energy": {
+      "type": "enum",
+      "values": ["low", "medium", "deep"],
+      "default": "medium"
+    },
+    "contexts": {
+      "type": "string_array",
+      "default": []
+    },
+    "people": {
+      "type": "string_array",
+      "default": []
+    },
+    "due": {
+      "type": "date",
+      "optional": true
+    }
+  }
+}
