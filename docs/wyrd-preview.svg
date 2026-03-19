@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 684 432" width="684" height="432">
+  <rect width="684" height="432" fill="#1c1917" rx="6"/>
+  <style>
+    text { font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 13px; }
+    .dim  { fill: #57534e; }
+    .mute { fill: #78716c; }
+    .fg   { fill: #e7e5e4; }
+    .amb  { fill: #d97706; }
+    .damb { fill: #92400e; }
+    .red  { fill: #dc2626; }
+    .grn  { fill: #65a30d; }
+  </style>
+
+  <!-- line height 18px, top padding 20px → first baseline at y=36 -->
+
+  <text x="18" y="36"><tspan class="dim">┌──────────────────────────────────────────────────────────────────────────┐</tspan></text>
+
+  <text x="18" y="54"><tspan class="dim">│</tspan><tspan>                                                                          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="72"><tspan class="dim">│</tspan><tspan class="fg">   </tspan><tspan class="mute">08:00</tspan><tspan class="fg"> </tspan><tspan class="amb">▓▓▓▓▓▓▓▓</tspan><tspan class="fg"> Docs update                </tspan><tspan class="mute"># Client Project</tspan><tspan class="fg">             </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="90"><tspan class="dim">│</tspan><tspan class="fg">   </tspan><tspan class="mute">09:30</tspan><tspan class="fg"> </tspan><tspan class="amb">████████</tspan><tspan class="fg"> Rhea sprint                                             </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="108"><tspan class="dim">│</tspan><tspan class="fg">   </tspan><tspan class="mute">10:00</tspan><tspan class="fg"> </tspan><tspan class="mute">┄┄┄┄┄┄┄┄</tspan><tspan class="fg"> Stand-up                   </tspan><tspan class="mute">Body content here...</tspan><tspan class="fg">         </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="126"><tspan class="dim">│</tspan><tspan class="fg">   </tspan><tspan class="mute">10:45</tspan><tspan class="fg"> </tspan><tspan class="amb">▓▓▓▓▓▓</tspan><tspan class="fg">   TWCB deep work                                          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="144"><tspan class="dim">│</tspan><tspan class="fg">   </tspan><tspan class="mute">11:45</tspan><tspan class="fg"> </tspan><tspan class="mute">░░</tspan><tspan class="fg">       Triage                     status  </tspan><tspan class="amb">in_progress</tspan><tspan class="fg">          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="162"><tspan class="dim">│</tspan><tspan class="fg">                                             energy  </tspan><tspan class="damb">▓▓</tspan><tspan class="fg"> </tspan><tspan class="amb">deep</tspan><tspan class="fg">             </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="180"><tspan class="dim">│</tspan><tspan class="fg">   </tspan><tspan class="amb">◆</tspan><tspan class="fg"> 47m unscheduled · 1 task displaced      due     </tspan><tspan class="mute">2026-04-01</tspan><tspan class="fg">           </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="198"><tspan class="dim">│</tspan><tspan class="fg">                                                                          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="216"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="damb">||==&gt;&gt; EDGES</tspan><tspan class="fg">                 </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="234"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="red">←</tspan><tspan class="fg"> blocks: </tspan><tspan class="mute">Portfolio draft</tspan><tspan class="fg">    </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="252"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="mute">⊘ waiting: Dan · 12d</tspan><tspan class="fg">         </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="270"><tspan class="dim">│</tspan><tspan class="fg">                                                                          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="288"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="damb">||==&gt;&gt; BUDGETS</tspan><tspan class="fg">               </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="306"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="grn">●</tspan><tspan class="fg"> EPA     </tspan><tspan class="grn">9.5/12h</tspan><tspan class="fg">            </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="324"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="amb">◐</tspan><tspan class="fg"> Records </tspan><tspan class="amb">£42/£50</tspan><tspan class="fg">            </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="342"><tspan class="dim">│</tspan><tspan class="fg">                                             </tspan><tspan class="red">○</tspan><tspan class="fg"> Baby    </tspan><tspan class="red">£580/£500</tspan><tspan class="fg">          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="360"><tspan class="dim">│</tspan><tspan class="fg">                                                                          </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="378"><tspan class="dim">├──────────────────────────────────────────────────────────────────────────┤</tspan></text>
+
+  <text x="18" y="396"><tspan class="dim">│</tspan><tspan class="fg"> </tspan><tspan class="mute">[capture bar]</tspan><tspan class="fg">                                 </tspan><tspan class="amb">◆ 47m on Project (45m)</tspan><tspan class="fg">     </tspan><tspan class="dim">│</tspan></text>
+
+  <text x="18" y="414"><tspan class="dim">└──────────────────────────────────────────────────────────────────────────┘</tspan></text>
+</svg>
