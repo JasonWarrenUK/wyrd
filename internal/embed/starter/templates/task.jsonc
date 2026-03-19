@@ -1,0 +1,28 @@
+{
+	// Task template — defines fields for actionable items.
+	"type_name": "task",
+	"fields": {
+		"status": {
+			"type": "enum",
+			"values": ["inbox", "active", "waiting", "done", "archived"],
+			"default": "inbox",
+			"description": "Current status of the task"
+		},
+		"due": {
+			"type": "date",
+			"optional": true,
+			"description": "Due date for the task"
+		},
+		"energy": {
+			"type": "enum",
+			"values": ["deep", "medium", "low"],
+			"optional": true,
+			"description": "Energy level required to complete the task"
+		},
+		"estimate": {
+			"type": "number",
+			"optional": true,
+			"description": "Time estimate in minutes"
+		}
+	}
+}

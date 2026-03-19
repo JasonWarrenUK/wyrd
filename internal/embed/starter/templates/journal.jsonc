@@ -1,0 +1,17 @@
+{
+	// Journal template — defines fields for daily journal entries.
+	"type_name": "journal",
+	"fields": {
+		"date": {
+			"type": "date",
+			"required": true,
+			"description": "Date of the journal entry"
+		},
+		"mood": {
+			"type": "enum",
+			"values": ["great", "good", "neutral", "low", "rough"],
+			"optional": true,
+			"description": "Mood at time of writing"
+		}
+	}
+}
