@@ -177,15 +177,14 @@ Amount must be a positive decimal number.`,
 			if err != nil {
 				return err
 			}
-			id, err := cli.Spend(s, cli.SpendOptions{
+			if err := cli.Spend(s, s.Index(), cli.SpendOptions{
 				Category: args[0],
 				Amount:   amount,
 				Note:     args[2],
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Logged spend %s\n", id)
+			fmt.Fprintln(os.Stdout, "Spend recorded.")
 			return nil
 		},
 	}
