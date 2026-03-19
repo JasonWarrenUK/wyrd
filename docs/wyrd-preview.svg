@@ -1,149 +1,118 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 684 432" width="684" height="432">
-  <rect width="684" height="432" fill="#1c1917" rx="6"/>
-  <style>
-    text {
-      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', 'Monaco', 'Consolas', monospace;
-      font-size: 13px;
-    }
-  </style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 428" width="720" height="428">
+  <defs>
+    <style>
+      text {
+        font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+        font-size: 13.5px;
+      }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="720" height="428" fill="#1c1917" rx="6"/>
 
   <!--
-    Each coloured run is its own <text x= y=> element.
-    char width = 7.8px; x(col) = 18 + col * 7.8
-    col  0 → x=18   (│ border)
-    col  4 → x=49   (timestamp)
-    col 10 → x=96   (energy bar)
-    col 19 → x=166  (task body)
-    col 45 → x=369  (right pane)
-    col 76 → x=611  (closing │)
-    line-height=18px; first baseline y=36
+    Use SVG rectangles for the box border so alignment is pixel-perfect
+    and independent of font metrics.
+
+    Box: x=14, y=14, width=692, height=382
+    Divider line (horizontal, above capture bar): y=390
+    Vertical column divider between panes: x=364 (approx col 44 of 76)
+
+    Content left pane:  x=22 .. x=362
+    Content right pane: x=372 .. x=698
+
+    Line height: 18px; first content baseline: y=50
   -->
 
-  <!-- ── ROW 1: top border ── -->
-  <text x="18"  y="36"  fill="#57534e">┌──────────────────────────────────────────────────────────────────────────┐</text>
+  <!-- Outer box -->
+  <rect x="14" y="14" width="692" height="382" fill="none" stroke="#57534e" stroke-width="1"/>
+  <!-- Horizontal rule above capture bar -->
+  <line x1="14" y1="390" x2="706" y2="390" stroke="#57534e" stroke-width="1"/>
+  <!-- Bottom line (closes box below capture bar) -->
+  <rect x="14" y="390" width="692" height="24" fill="none" stroke="#57534e" stroke-width="1"/>
 
-  <!-- ── ROW 2: empty ── -->
-  <text x="18"  y="54"  fill="#57534e">│</text>
-  <text x="611" y="54"  fill="#57534e">│</text>
+  <!--
+    Text rows. Left pane content starts x=22, right pane x=380.
+    Rows at y = 50, 68, 86, 104, 122, 140, 158, 176, 194, 212, 230, 248,
+                266, 284, 302, 320, 338, 356, 374
+    Line height = 18px
+  -->
 
-  <!-- ── ROW 3: 08:00 ── -->
-  <text x="18"  y="72"  fill="#57534e">│</text>
-  <text x="49"  y="72"  fill="#78716c">08:00</text>
-  <text x="96"  y="72"  fill="#d97706">▓▓▓▓▓▓▓▓</text>
-  <text x="166" y="72"  fill="#e7e5e4">Docs update</text>
-  <text x="369" y="72"  fill="#78716c"># Client Project</text>
-  <text x="611" y="72"  fill="#57534e">│</text>
+  <!-- ── ROW 1: 08:00 schedule ── -->
+  <text x="22"  y="50" fill="#78716c">08:00</text>
+  <text x="74"  y="50" fill="#d97706">▓▓▓▓▓▓▓▓</text>
+  <text x="150" y="50" fill="#e7e5e4">Docs update</text>
+  <text x="380" y="50" fill="#78716c"># Client Project</text>
 
-  <!-- ── ROW 4: 09:30 ── -->
-  <text x="18"  y="90"  fill="#57534e">│</text>
-  <text x="49"  y="90"  fill="#78716c">09:30</text>
-  <text x="96"  y="90"  fill="#d97706">████████</text>
-  <text x="166" y="90"  fill="#e7e5e4">Rhea sprint</text>
-  <text x="611" y="90"  fill="#57534e">│</text>
+  <!-- ── ROW 2: 09:30 ── -->
+  <text x="22"  y="68" fill="#78716c">09:30</text>
+  <text x="74"  y="68" fill="#d97706">████████</text>
+  <text x="150" y="68" fill="#e7e5e4">Rhea sprint</text>
 
-  <!-- ── ROW 5: 10:00 Stand-up ── -->
-  <text x="18"  y="108" fill="#57534e">│</text>
-  <text x="49"  y="108" fill="#78716c">10:00</text>
-  <text x="96"  y="108" fill="#78716c">┄┄┄┄┄┄┄┄</text>
-  <text x="166" y="108" fill="#e7e5e4">Stand-up</text>
-  <text x="369" y="108" fill="#78716c">Body content here...</text>
-  <text x="611" y="108" fill="#57534e">│</text>
+  <!-- ── ROW 3: 10:00 ── -->
+  <text x="22"  y="86" fill="#78716c">10:00</text>
+  <text x="74"  y="86" fill="#78716c">┄┄┄┄┄┄┄┄</text>
+  <text x="150" y="86" fill="#e7e5e4">Stand-up</text>
+  <text x="380" y="86" fill="#78716c">Body content here...</text>
 
-  <!-- ── ROW 6: 10:45 ── -->
-  <text x="18"  y="126" fill="#57534e">│</text>
-  <text x="49"  y="126" fill="#78716c">10:45</text>
-  <text x="96"  y="126" fill="#d97706">▓▓▓▓▓▓</text>
-  <text x="166" y="126" fill="#e7e5e4">TWCB deep work</text>
-  <text x="611" y="126" fill="#57534e">│</text>
+  <!-- ── ROW 4: 10:45 ── -->
+  <text x="22"  y="104" fill="#78716c">10:45</text>
+  <text x="74"  y="104" fill="#d97706">▓▓▓▓▓▓</text>
+  <text x="150" y="104" fill="#e7e5e4">TWCB deep work</text>
 
-  <!-- ── ROW 7: 11:45 Triage | status in_progress ── -->
-  <text x="18"  y="144" fill="#57534e">│</text>
-  <text x="49"  y="144" fill="#78716c">11:45</text>
-  <text x="96"  y="144" fill="#78716c">░░</text>
-  <text x="166" y="144" fill="#e7e5e4">Triage</text>
-  <text x="369" y="144" fill="#e7e5e4">status</text>
-  <text x="416" y="144" fill="#d97706">in_progress</text>
-  <text x="611" y="144" fill="#57534e">│</text>
+  <!-- ── ROW 5: 11:45 ── -->
+  <text x="22"  y="122" fill="#78716c">11:45</text>
+  <text x="74"  y="122" fill="#78716c">░░</text>
+  <text x="150" y="122" fill="#e7e5e4">Triage</text>
+  <text x="380" y="122" fill="#e7e5e4">status</text>
+  <text x="435" y="122" fill="#d97706">in_progress</text>
 
-  <!-- ── ROW 8: energy | ▓▓ deep ── -->
-  <text x="18"  y="162" fill="#57534e">│</text>
-  <text x="369" y="162" fill="#e7e5e4">energy</text>
-  <text x="416" y="162" fill="#92400e">▓▓</text>
-  <text x="432" y="162" fill="#d97706">deep</text>
-  <text x="611" y="162" fill="#57534e">│</text>
+  <!-- ── ROW 6: energy ── -->
+  <text x="380" y="140" fill="#e7e5e4">energy</text>
+  <text x="435" y="140" fill="#92400e">▓▓</text>
+  <text x="452" y="140" fill="#d97706">deep</text>
 
-  <!-- ── ROW 9: ◆ 47m unscheduled | due 2026-04-01 ── -->
-  <text x="18"  y="180" fill="#57534e">│</text>
-  <text x="34"  y="180" fill="#d97706">◆</text>
-  <text x="42"  y="180" fill="#e7e5e4">47m unscheduled · 1 task displaced</text>
-  <text x="369" y="180" fill="#e7e5e4">due</text>
-  <text x="416" y="180" fill="#78716c">2026-04-01</text>
-  <text x="611" y="180" fill="#57534e">│</text>
+  <!-- ── ROW 7: ◆ unscheduled | due ── -->
+  <text x="22"  y="158" fill="#d97706">◆</text>
+  <text x="35"  y="158" fill="#e7e5e4">47m unscheduled · 1 task displaced</text>
+  <text x="380" y="158" fill="#e7e5e4">due</text>
+  <text x="435" y="158" fill="#78716c">2026-04-01</text>
 
-  <!-- ── ROW 10: empty ── -->
-  <text x="18"  y="198" fill="#57534e">│</text>
-  <text x="611" y="198" fill="#57534e">│</text>
+  <!-- ── ROW 8: empty ── -->
 
-  <!-- ── ROW 11: EDGES header ── -->
-  <text x="18"  y="216" fill="#57534e">│</text>
-  <text x="369" y="216" fill="#92400e">||==&gt;&gt; EDGES</text>
-  <text x="611" y="216" fill="#57534e">│</text>
+  <!-- ── ROW 9: EDGES ── -->
+  <text x="380" y="194" fill="#92400e">||==&gt;&gt; EDGES</text>
 
-  <!-- ── ROW 12: ← blocks: Portfolio draft ── -->
-  <text x="18"  y="234" fill="#57534e">│</text>
-  <text x="369" y="234" fill="#dc2626">←</text>
-  <text x="377" y="234" fill="#e7e5e4">blocks:</text>
-  <text x="432" y="234" fill="#78716c">Portfolio draft</text>
-  <text x="611" y="234" fill="#57534e">│</text>
+  <!-- ── ROW 10: ← blocks ── -->
+  <text x="380" y="212" fill="#dc2626">←</text>
+  <text x="392" y="212" fill="#e7e5e4">blocks:</text>
+  <text x="449" y="212" fill="#78716c">Portfolio draft</text>
 
-  <!-- ── ROW 13: ⊘ waiting ── -->
-  <text x="18"  y="252" fill="#57534e">│</text>
-  <text x="369" y="252" fill="#78716c">⊘ waiting: Dan · 12d</text>
-  <text x="611" y="252" fill="#57534e">│</text>
+  <!-- ── ROW 11: ⊘ waiting ── -->
+  <text x="380" y="230" fill="#78716c">⊘ waiting: Dan · 12d</text>
 
-  <!-- ── ROW 14: empty ── -->
-  <text x="18"  y="270" fill="#57534e">│</text>
-  <text x="611" y="270" fill="#57534e">│</text>
+  <!-- ── ROW 12: empty ── -->
 
-  <!-- ── ROW 15: BUDGETS header ── -->
-  <text x="18"  y="288" fill="#57534e">│</text>
-  <text x="369" y="288" fill="#92400e">||==&gt;&gt; BUDGETS</text>
-  <text x="611" y="288" fill="#57534e">│</text>
+  <!-- ── ROW 13: BUDGETS ── -->
+  <text x="380" y="266" fill="#92400e">||==&gt;&gt; BUDGETS</text>
 
-  <!-- ── ROW 16: ● EPA 9.5/12h ── -->
-  <text x="18"  y="306" fill="#57534e">│</text>
-  <text x="369" y="306" fill="#65a30d">●</text>
-  <text x="377" y="306" fill="#e7e5e4">EPA</text>
-  <text x="416" y="306" fill="#65a30d">9.5/12h</text>
-  <text x="611" y="306" fill="#57534e">│</text>
+  <!-- ── ROW 14: ● EPA ── -->
+  <text x="380" y="284" fill="#65a30d">●</text>
+  <text x="392" y="284" fill="#e7e5e4">EPA</text>
+  <text x="449" y="284" fill="#65a30d">9.5/12h</text>
 
-  <!-- ── ROW 17: ◐ Records £42/£50 ── -->
-  <text x="18"  y="324" fill="#57534e">│</text>
-  <text x="369" y="324" fill="#d97706">◐</text>
-  <text x="377" y="324" fill="#e7e5e4">Records</text>
-  <text x="416" y="324" fill="#d97706">£42/£50</text>
-  <text x="611" y="324" fill="#57534e">│</text>
+  <!-- ── ROW 15: ◐ Records ── -->
+  <text x="380" y="302" fill="#d97706">◐</text>
+  <text x="392" y="302" fill="#e7e5e4">Records</text>
+  <text x="449" y="302" fill="#d97706">£42/£50</text>
 
-  <!-- ── ROW 18: ○ Baby £580/£500 ── -->
-  <text x="18"  y="342" fill="#57534e">│</text>
-  <text x="369" y="342" fill="#dc2626">○</text>
-  <text x="377" y="342" fill="#e7e5e4">Baby</text>
-  <text x="416" y="342" fill="#dc2626">£580/£500</text>
-  <text x="611" y="342" fill="#57534e">│</text>
+  <!-- ── ROW 16: ○ Baby ── -->
+  <text x="380" y="320" fill="#dc2626">○</text>
+  <text x="392" y="320" fill="#e7e5e4">Baby</text>
+  <text x="449" y="320" fill="#dc2626">£580/£500</text>
 
-  <!-- ── ROW 19: empty ── -->
-  <text x="18"  y="360" fill="#57534e">│</text>
-  <text x="611" y="360" fill="#57534e">│</text>
-
-  <!-- ── ROW 20: divider ── -->
-  <text x="18"  y="378" fill="#57534e">├──────────────────────────────────────────────────────────────────────────┤</text>
-
-  <!-- ── ROW 21: capture bar ── -->
-  <text x="18"  y="396" fill="#57534e">│</text>
-  <text x="26"  y="396" fill="#78716c">[capture bar]</text>
-  <text x="369" y="396" fill="#d97706">◆ 47m on Project (45m)</text>
-  <text x="611" y="396" fill="#57534e">│</text>
-
-  <!-- ── ROW 22: bottom border ── -->
-  <text x="18"  y="414" fill="#57534e">└──────────────────────────────────────────────────────────────────────────┘</text>
+  <!-- ── CAPTURE BAR ── -->
+  <text x="22"  y="408" fill="#78716c">[capture bar]</text>
+  <text x="380" y="408" fill="#d97706">◆ 47m on Project (45m)</text>
 </svg>
