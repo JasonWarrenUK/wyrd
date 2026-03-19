@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -336,7 +337,7 @@ func unmarshalJSON(data []byte, v interface{}) error {
 }
 
 func isNotExist(err error) bool {
-	return os.IsNotExist(err)
+	return errors.Is(err, os.ErrNotExist)
 }
 
 func removeFile(path string) error {
