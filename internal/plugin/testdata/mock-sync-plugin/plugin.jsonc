@@ -1,0 +1,18 @@
+{
+  // Mock sync plugin used in unit tests.
+  "name": "mock-sync",
+  "version": "0.1.0",
+  "description": "A minimal mock plugin for testing the sync protocol.",
+  "executable": "mock-sync-plugin",
+  "executable_type": "script",
+  "capabilities": ["sync", "action"],
+  "sync": {
+    "triggers": ["manual"],
+    "node_types": ["task"],
+    "edge_types": []
+  },
+  "action": {
+    "label": "Mock Action",
+    "applicable_types": ["task"]
+  }
+}
