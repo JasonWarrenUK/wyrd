@@ -1,0 +1,340 @@
+package tui
+
+import (
+	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// CommandFunc is the function executed when a palette command is invoked.
+// args contains the tokens after the command name.
+type CommandFunc func(args []string) tea.Cmd
+
+// Command represents a single entry in the command palette.
+type Command struct {
+	// Name is the primary command token (e.g. "quit", "theme").
+	Name string
+
+	// Description is shown next to the name in the palette.
+	Description string
+
+	// Hint is the keyboard shortcut, if any.
+	Hint string
+
+	// Execute is called when the command is confirmed.
+	Execute CommandFunc
+}
+
+// PaletteMode distinguishes between the typed command mode and the fuzzy
+// search mode opened with Ctrl+K.
+type PaletteMode int
+
+const (
+	// PaletteModeCLI is the ":" triggered mode — behaves like a command line.
+	PaletteModeCLI PaletteMode = iota
+
+	// PaletteModeFuzzy is the Ctrl+K triggered mode — shows a filtered list.
+	PaletteModeFuzzy
+)
+
+// PaletteState holds all mutable state for the command palette overlay.
+// It is embedded in the root App model and is zero-value safe (inactive).
+type PaletteState struct {
+	active   bool
+	mode     PaletteMode
+	input    textinput.Model
+	commands []Command
+	filtered []Command
+	cursor   int
+	theme    *ActiveTheme
+}
+
+// NewPaletteState builds an inactive PaletteState pre-loaded with the
+// built-in commands. Additional commands are registered via Register.
+func NewPaletteState(theme *ActiveTheme) PaletteState {
+	ti := textinput.New()
+	ti.Prompt = ": "
+	ti.CharLimit = 256
+
+	ps := PaletteState{
+		input:    ti,
+		theme:    theme,
+		commands: builtinCommands(),
+	}
+	return ps
+}
+
+// builtinCommands returns the initial command set for the palette.
+func builtinCommands() []Command {
+	return []Command{
+		{
+			Name:        "quit",
+			Description: "Exit Wyrd",
+			Hint:        "q",
+			Execute: func(_ []string) tea.Cmd {
+				return tea.Quit
+			},
+		},
+		{
+			Name:        "theme",
+			Description: "Switch to a named theme (e.g. theme ember-violet)",
+			Hint:        "",
+			Execute:     nil, // wired up in app.go via RegisterCommand
+		},
+		{
+			Name:        "sync",
+			Description: "Sync with remote",
+			Hint:        "",
+			Execute:     nil, // placeholder for Phase 4
+		},
+		{
+			Name:        "help",
+			Description: "Show help overlay",
+			Hint:        "?",
+			Execute:     nil, // placeholder for Phase 4
+		},
+	}
+}
+
+// Register adds a command to the palette. If a command with the same name
+// already exists it is replaced.
+func (ps *PaletteState) Register(cmd Command) {
+	for i, c := range ps.commands {
+		if c.Name == cmd.Name {
+			ps.commands[i] = cmd
+			return
+		}
+	}
+	ps.commands = append(ps.commands, cmd)
+}
+
+// Open activates the palette in the given mode and clears any previous input.
+func (ps *PaletteState) Open(mode PaletteMode) {
+	ps.active = true
+	ps.mode = mode
+	ps.cursor = 0
+	ps.input.Reset()
+	if mode == PaletteModeFuzzy {
+		ps.input.Prompt = "  "
+		ps.input.Placeholder = "Search commands…"
+	} else {
+		ps.input.Prompt = ": "
+		ps.input.Placeholder = ""
+	}
+	ps.input.Focus()
+	ps.filter("")
+}
+
+// Close deactivates the palette.
+func (ps *PaletteState) Close() {
+	ps.active = false
+	ps.input.Blur()
+}
+
+// IsActive reports whether the palette overlay is visible.
+func (ps *PaletteState) IsActive() bool {
+	return ps.active
+}
+
+// filter updates the filtered command list based on the current query.
+func (ps *PaletteState) filter(query string) {
+	query = strings.TrimSpace(strings.ToLower(query))
+	if query == "" {
+		ps.filtered = make([]Command, len(ps.commands))
+		copy(ps.filtered, ps.commands)
+		return
+	}
+	ps.filtered = ps.filtered[:0]
+	for _, c := range ps.commands {
+		if strings.Contains(strings.ToLower(c.Name), query) ||
+			strings.Contains(strings.ToLower(c.Description), query) {
+			ps.filtered = append(ps.filtered, c)
+		}
+	}
+}
+
+// Update handles keyboard input while the palette is active.
+// Returns the updated state, an optional result command, and whether the
+// palette should remain open.
+func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
+	if !ps.active {
+		return ps, nil, false
+	}
+
+	switch m := msg.(type) {
+	case tea.KeyMsg:
+		switch m.String() {
+		case "esc", "ctrl+c":
+			ps.Close()
+			return ps, nil, false
+
+		case "enter":
+			cmd := ps.confirm()
+			ps.Close()
+			return ps, cmd, false
+
+		case "up", "ctrl+p":
+			if ps.cursor > 0 {
+				ps.cursor--
+			}
+			return ps, nil, true
+
+		case "down", "ctrl+n", "tab":
+			if ps.cursor < len(ps.filtered)-1 {
+				ps.cursor++
+			}
+			return ps, nil, true
+
+		default:
+			var inputCmd tea.Cmd
+			ps.input, inputCmd = ps.input.Update(msg)
+			query := ps.input.Value()
+			if ps.mode == PaletteModeCLI {
+				// In CLI mode we filter by the first token.
+				tokens := strings.Fields(query)
+				if len(tokens) > 0 {
+					ps.filter(tokens[0])
+				} else {
+					ps.filter("")
+				}
+			} else {
+				ps.filter(query)
+			}
+			if ps.cursor >= len(ps.filtered) {
+				ps.cursor = max(0, len(ps.filtered)-1)
+			}
+			return ps, inputCmd, true
+		}
+	}
+
+	var inputCmd tea.Cmd
+	ps.input, inputCmd = ps.input.Update(msg)
+	return ps, inputCmd, true
+}
+
+// confirm attempts to execute the selected or typed command.
+func (ps *PaletteState) confirm() tea.Cmd {
+	raw := strings.TrimSpace(ps.input.Value())
+
+	if ps.mode == PaletteModeFuzzy {
+		// Fuzzy mode — execute the highlighted item.
+		if ps.cursor < len(ps.filtered) {
+			c := ps.filtered[ps.cursor]
+			if c.Execute != nil {
+				return c.Execute(nil)
+			}
+		}
+		return nil
+	}
+
+	// CLI mode — parse "name arg1 arg2 …"
+	tokens := strings.Fields(raw)
+	if len(tokens) == 0 {
+		return nil
+	}
+	name := tokens[0]
+	args := tokens[1:]
+	for _, c := range ps.commands {
+		if c.Name == name {
+			if c.Execute != nil {
+				return c.Execute(args)
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+// View renders the palette overlay as a centred modal box.
+func (ps *PaletteState) View(width, height int) string {
+	if !ps.active {
+		return ""
+	}
+
+	boxWidth := width * 2 / 3
+	if boxWidth < 40 {
+		boxWidth = 40
+	}
+	if boxWidth > 80 {
+		boxWidth = 80
+	}
+
+	var sb strings.Builder
+
+	// Header.
+	titleStyle := lipgloss.NewStyle().
+		Foreground(ps.theme.AccentPrimary()).
+		Bold(true).
+		Width(boxWidth - 4)
+
+	title := "COMMAND PALETTE"
+	if ps.mode == PaletteModeFuzzy {
+		title = "SEARCH COMMANDS"
+	}
+	sb.WriteString(titleStyle.Render(title))
+	sb.WriteString("\n")
+
+	// Input field.
+	inputStyle := lipgloss.NewStyle().
+		Width(boxWidth - 4).
+		Foreground(ps.theme.FgPrimary())
+	sb.WriteString(inputStyle.Render(ps.input.View()))
+	sb.WriteString("\n")
+
+	// Divider.
+	divStyle := lipgloss.NewStyle().Foreground(ps.theme.Border())
+	sb.WriteString(divStyle.Render(strings.Repeat("─", boxWidth-4)))
+	sb.WriteString("\n")
+
+	// Filtered command list.
+	maxVisible := 10
+	for i, cmd := range ps.filtered {
+		if i >= maxVisible {
+			break
+		}
+		cursor := "  "
+		nameStyle := lipgloss.NewStyle().
+			Width(boxWidth - 10).
+			Foreground(ps.theme.FgPrimary())
+		hintStyle := lipgloss.NewStyle().
+			Foreground(ps.theme.FgMuted())
+
+		if i == ps.cursor {
+			cursor = "> "
+			nameStyle = nameStyle.Foreground(ps.theme.AccentPrimary()).Bold(true)
+		}
+
+		line := cursor + nameStyle.Render(cmd.Name+" — "+cmd.Description)
+		if cmd.Hint != "" {
+			line += " " + hintStyle.Render("["+cmd.Hint+"]")
+		}
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+
+	boxStyle := lipgloss.NewStyle().
+		Background(ps.theme.BgSecondary()).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(ps.theme.AccentPrimary()).
+		Padding(1, 2).
+		Width(boxWidth)
+
+	rendered := boxStyle.Render(sb.String())
+
+	// Centre horizontally.
+	leftPad := (width - lipgloss.Width(rendered)) / 2
+	if leftPad < 0 {
+		leftPad = 0
+	}
+	return strings.Repeat(" ", leftPad) + rendered
+}
+
+// max returns the larger of two ints.
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
