@@ -1,0 +1,29 @@
+# Compiled binaries
+/bin/
+dist/
+wyrd
+wyrd-merge-driver
+
+# Go build cache
+*.test
+*.out
+
+# macOS
+.DS_Store
+
+# Editor
+.zed/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Test output
+coverage.out
+coverage.html
+
+# Development store (user data — not committed)
+# The user's actual /store is managed as its own git repo.
+# Only the embedded starter assets (internal/embed/starter/) are committed here.
