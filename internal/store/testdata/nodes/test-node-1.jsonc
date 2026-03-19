@@ -1,0 +1,10 @@
+{
+  // Test node for store tests
+  "id": "00000000-0000-0000-0000-000000000001",
+  "body": "Test task node",
+  "types": ["task"],
+  "created": "2026-03-17T10:30:00Z",
+  "modified": "2026-03-17T10:30:00Z",
+  "status": "inbox",
+  "energy": "medium"
+}
