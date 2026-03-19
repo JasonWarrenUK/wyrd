@@ -1,0 +1,22 @@
+#!/bin/sh
+# Mock sync plugin for Wyrd unit tests.
+# Reads a single JSON-lines message from stdin and responds appropriately.
+
+read -r line
+
+op=$(echo "$line" | sed 's/.*"op":"\([^"]*\)".*/\1/')
+
+case "$op" in
+  sync)
+    printf '{"op":"upsert_node","node":{"body":"Test task","types":["task"],"source":{"type":"mock","id":"item-1","url":"https://example.com/item/1"}}}\n'
+    printf '{"op":"upsert_edge","edge":{"type":"related","from":"placeholder-from","to":"placeholder-to"}}\n'
+    printf '{"op":"done","summary":{"created":1,"updated":0,"errors":0}}\n'
+    ;;
+  action)
+    printf '{"op":"upsert_node","node":{"body":"Updated by action","types":["task"],"source":{"type":"mock","id":"action-1","url":"https://example.com/action/1"}}}\n'
+    printf '{"op":"done","summary":{"created":0,"updated":1,"errors":0}}\n'
+    ;;
+  *)
+    printf '{"op":"error","error":"unknown op"}\n'
+    ;;
+esac
