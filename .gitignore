@@ -27,3 +27,4 @@ coverage.html
 # Development store (user data — not committed)
 # The user's actual /store is managed as its own git repo.
 # Only the embedded starter assets (internal/embed/starter/) are committed here.
+/.claude
