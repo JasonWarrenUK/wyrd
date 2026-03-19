@@ -230,14 +230,12 @@ func viewCmd(storePath *string) *cobra.Command {
 		Short: "Run a saved view and print results",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := openStore(*storePath)
+			s, err := openStore(*storePath)
 			if err != nil {
 				return err
 			}
-			// The query engine is implemented by a separate agent.
-			// Stub: print a helpful message until it is wired in.
-			fmt.Fprintf(os.Stdout, "Query engine not yet available.\nView: %s\n", args[0])
-			return nil
+			engine := query.NewEngine(s.Index(), 0)
+			return cli.RunView(s, engine, types.RealClock{}, args[0], os.Stdout)
 		},
 	}
 }
