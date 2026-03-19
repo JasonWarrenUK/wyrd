@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 	"io"
-	"os/exec"
 
+	wyrdSync "github.com/jasonwarrenuk/wyrd/internal/sync"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -22,40 +22,10 @@ func Sync(store types.StoreFS, opts SyncOptions, out io.Writer) error {
 		storePath = store.StorePath()
 	}
 
-	steps := []struct {
-		name string
-		fn   func() error
-	}{
-		{"Staging changes", func() error { return gitRun(storePath, "add", ".") }},
-		{"Committing", func() error {
-			return gitRun(storePath, "commit", "-m", "wyrd: sync", "--allow-empty")
-		}},
-		{"Pulling from remote", func() error {
-			return gitRun(storePath, "pull", "--rebase", "--autostash")
-		}},
-		{"Pushing to remote", func() error {
-			return gitRun(storePath, "push")
-		}},
+	fmt.Fprintln(out, "Syncing...")
+	if err := wyrdSync.Sync(storePath); err != nil {
+		return err
 	}
-
-	for _, step := range steps {
-		fmt.Fprintf(out, "  → %s...\n", step.name)
-		if err := step.fn(); err != nil {
-			return fmt.Errorf("%s failed: %w\n\nCheck that 'sync_remote' is set in your config and the remote is reachable", step.name, err)
-		}
-	}
-
 	fmt.Fprintln(out, "Sync complete.")
-	return nil
-}
-
-// gitRun runs a git subcommand in the given directory.
-func gitRun(dir string, args ...string) error {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git %v: %s", args, string(out))
-	}
 	return nil
 }
