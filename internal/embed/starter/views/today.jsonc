@@ -1,0 +1,8 @@
+{
+	// Today view — shows all active tasks due today or with no due date.
+	"name": "today",
+	"pinned": true,
+	"query": "MATCH (n) WHERE 'task' IN n.types AND n.status IN ['inbox', 'active'] RETURN n",
+	"display": "list",
+	"columns": ["body", "status", "energy", "due"]
+}

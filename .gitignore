@@ -1,8 +1,8 @@
 # Compiled binaries
 /bin/
 dist/
-wyrd
-wyrd-merge-driver
+/wyrd
+/wyrd-merge-driver
 
 # Go build cache
 *.test

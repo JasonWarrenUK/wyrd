@@ -1,0 +1,49 @@
+{
+	// Cairn theme — a warm, earthy colour palette.
+	"name": "cairn",
+	"source": "https://github.com/jasonwarrenuk/wyrd",
+	"tiers": {
+		"truecolor": {
+			"bg": {
+				"primary": "#1c1917",
+				"secondary": "#292524"
+			},
+			"fg": {
+				"primary": "#e7e5e4",
+				"muted": "#78716c"
+			},
+			"accent": {
+				"primary": "#d97706",
+				"secondary": "#92400e"
+			},
+			"border": "#44403c",
+			"selection": "#3d3530",
+			"status_bar": "#292524",
+			"energy": {
+				"deep": "#dc2626",
+				"medium": "#d97706",
+				"low": "#65a30d"
+			},
+			"overflow": {
+				"warn": "#f59e0b",
+				"critical": "#dc2626"
+			},
+			"budget": {
+				"ok": "#65a30d",
+				"caution": "#f59e0b",
+				"over": "#dc2626"
+			}
+		}
+	},
+	"glyphs": {
+		"energy_deep": "◆",
+		"energy_medium": "◈",
+		"energy_low": "◇",
+		"overflow": "⚠",
+		"blocked": "⊘",
+		"waiting": "⏳",
+		"budget_ok": "✓",
+		"budget_caution": "~",
+		"budget_over": "✗"
+	}
+}

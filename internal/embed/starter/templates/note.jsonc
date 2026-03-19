@@ -1,0 +1,16 @@
+{
+	// Note template — defines fields for reference notes.
+	"type_name": "note",
+	"fields": {
+		"title": {
+			"type": "string",
+			"required": true,
+			"description": "Title of the note"
+		},
+		"tags": {
+			"type": "string_array",
+			"optional": true,
+			"description": "Tags for categorisation"
+		}
+	}
+}

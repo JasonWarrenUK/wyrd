@@ -1,0 +1,15 @@
+{
+	// Wyrd configuration — edit to customise your setup.
+	// store_path: absolute path to the store directory (auto-set on first run)
+	"store_path": "",
+	// theme: name of the active theme (without extension)
+	"theme": "cairn",
+	// editor: command to open nodes for editing (defaults to $EDITOR, then vi)
+	"editor": "",
+	// default_view: view shown on startup
+	"default_view": "today",
+	// sync_remote: git remote URL for wyrd sync
+	"sync_remote": "",
+	// max_traversal_depth: cap for variable-length edge traversal in queries
+	"max_traversal_depth": 5
+}
