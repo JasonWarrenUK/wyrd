@@ -141,12 +141,22 @@ func New(cfg Config) (Model, error) {
 	// store, no matching nodes), fall back to the empty placeholder so the
 	// app still launches cleanly.
 	//
-	// WL.7: once user-configurable saved views are supported, load the
-	// "dashboard" view from the store here and pass its query to RunDashboard
-	// instead of DefaultDashboardQuery().
+	// A saved view named "dashboard" in the store overrides the default queries
+	// and columns. Individual keys in view.Queries override only the matching
+	// category; missing keys fall back to DefaultDashboardQuery.
 	var leftPane PaneModel = NewEmptyPane(theme)
 	if cfg.QueryRunner != nil {
-		result, err := RunDashboard(cfg.QueryRunner, clock, DefaultDashboardQuery())
+		dq := DefaultDashboardQuery()
+		cols := dashboardColumns
+		if cfg.Store != nil {
+			if view, err := cfg.Store.ReadView("dashboard"); err == nil {
+				dq = DashboardQueryFromView(view)
+				if len(view.Columns) > 0 {
+					cols = view.Columns
+				}
+			}
+		}
+		result, err := RunDashboard(cfg.QueryRunner, clock, dq, cols)
 		if err == nil {
 			leftPane = newNodeListPane(result)
 		}

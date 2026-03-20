@@ -21,10 +21,14 @@ type nodeListPane struct {
 }
 
 // newNodeListPane constructs a pane from a QueryResult. The renderer uses the
-// dashboard column set and default palette.
+// columns from the result (falling back to dashboardColumns when empty).
 func newNodeListPane(result types.QueryResult) nodeListPane {
+	cols := result.Columns
+	if len(cols) == 0 {
+		cols = dashboardColumns
+	}
 	return nodeListPane{
-		renderer:    views.NewListRenderer(dashboardColumns),
+		renderer:    views.NewListRenderer(cols),
 		result:      result,
 		selectedIdx: 0,
 		width:       80,

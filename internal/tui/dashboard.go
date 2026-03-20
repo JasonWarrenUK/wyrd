@@ -64,15 +64,42 @@ LIMIT 5`,
 	}
 }
 
+// DashboardQueryFromView builds a DashboardQuery from a saved view, overriding
+// only the individual queries that are non-empty. Missing keys fall back to the
+// DefaultDashboardQuery values.
+func DashboardQueryFromView(view *types.SavedView) DashboardQuery {
+	dq := DefaultDashboardQuery()
+	if view == nil || view.Queries == nil {
+		return dq
+	}
+	if q, ok := view.Queries["tasks"]; ok && q != "" {
+		dq.Tasks = q
+	}
+	if q, ok := view.Queries["notes"]; ok && q != "" {
+		dq.Notes = q
+	}
+	if q, ok := view.Queries["journals"]; ok && q != "" {
+		dq.Journals = q
+	}
+	return dq
+}
+
 // RunDashboard executes the three dashboard queries and merges their results
 // into a single QueryResult grouped by category (tasks → notes → journals)
 // with tasks and notes sorted by ascending date. Journal order is preserved
 // as returned by the query (most-recent-first DESC from the store).
 //
+// cols controls which columns appear in the final result. Pass nil to use
+// the default dashboardColumns set.
+//
 // If a query returns no rows or fails, that category is silently omitted
 // rather than surfacing an error — a partially populated dashboard is more
 // useful than a blank screen.
-func RunDashboard(runner types.QueryRunner, clock types.Clock, cfg DashboardQuery) (types.QueryResult, error) {
+func RunDashboard(runner types.QueryRunner, clock types.Clock, cfg DashboardQuery, cols ...[]string) (types.QueryResult, error) {
+	columns := dashboardColumns
+	if len(cols) > 0 && len(cols[0]) > 0 {
+		columns = cols[0]
+	}
 	tasks, err := runCategory(runner, clock, cfg.Tasks)
 	if err != nil {
 		return types.QueryResult{}, fmt.Errorf("dashboard tasks query: %w", err)
@@ -101,8 +128,8 @@ func RunDashboard(runner types.QueryRunner, clock types.Clock, cfg DashboardQuer
 	merged = append(merged, journals...)
 
 	return types.QueryResult{
-		Columns: dashboardColumns,
-		Rows:    projectColumns(merged, dashboardColumns),
+		Columns: columns,
+		Rows:    projectColumns(merged, columns),
 	}, nil
 }
 

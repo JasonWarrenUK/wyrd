@@ -55,8 +55,13 @@ type SavedView struct {
 	// Pinned controls whether the view appears in the TUI sidebar.
 	Pinned bool `json:"pinned,omitempty"`
 
-	// Query is the Cypher query string.
-	Query string `json:"query"`
+	// Query is the Cypher query string for single-query views.
+	Query string `json:"query,omitempty"`
+
+	// Queries holds named query strings for multi-query dashboard views.
+	// Recognised keys: "tasks", "notes", "journals".
+	// Any key absent or empty falls back to the DefaultDashboardQuery value.
+	Queries map[string]string `json:"queries,omitempty"`
 
 	// Display is the rendering mode.
 	Display DisplayMode `json:"display,omitempty"`
