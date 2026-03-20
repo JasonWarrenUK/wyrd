@@ -66,7 +66,11 @@ Store layout on disk:
 
 ### Query engine (`internal/query/`)
 
-Read-only Cypher subset. `query.NewEngine(index, maxDepth)` returns an `Engine`. `Engine.Run(query, clock)` parses with [Participle](https://github.com/alecthomas/participle) (LL(1) parser combinator), then evaluates against the `GraphIndex`. Mutations are rejected. Returns `*QueryResult{Columns []string, Rows []map[string]any}`.
+**The query language is an implementation of the Cypher graph query language** (as used by Neo4j), restricted to a read-only subset. The goal is Cypher compatibility: new syntax additions should follow the Cypher spec, not invent new conventions.
+
+`query.NewEngine(index, maxDepth)` returns an `Engine`. `Engine.Run(query, clock)` parses with [Participle](https://github.com/alecthomas/participle) (LL(1) parser combinator), then evaluates against the `GraphIndex`. Mutations are rejected. Returns `*QueryResult{Columns []string, Rows []map[string]any}`.
+
+Supported built-in date variables: `$today`, `$now`, `$week_start`, `$month_start` — with optional arithmetic offsets (e.g. `$today + 7d`). Not yet implemented but planned: `UNION` (tracked in roadmap).
 
 ### CLI layer (`internal/cli/` + `cmd/wyrd/main.go`)
 
@@ -80,7 +84,19 @@ Uses the system `git` binary via `exec.Command` (not a Go git library). `sync.Sy
 
 ### TUI (`internal/tui/`)
 
-Bubble Tea + Lipgloss. Not wired to the CLI yet — `wyrd` with no args currently prints "TUI coming soon". Theme system uses Cairn palette by default.
+Bubble Tea + Lipgloss. Wired as the default `wyrd` command (no args launches the TUI). Theme system uses Cairn palette by default. The split-pane layout, keyboard model, command palette, and status bar are all in place; content views implement the `PaneModel` interface.
+
+---
+
+## Roadmap files (`docs/roadmaps/`)
+
+**Always analyse the full dependency chain before editing a roadmap file.** Each task carries explicit `depends on` annotations and the Mermaid progress map encodes the same graph. Adding, removing, or re-scoping a task can unblock or block other tasks downstream.
+
+Checklist when editing a roadmap:
+1. Identify every task that lists the changed task as a dependency.
+2. Update their `depends on` annotations if the dependency is renamed or split.
+3. Update the Mermaid graph nodes and edges to match.
+4. Re-evaluate blocked/open status for all affected tasks.
 
 ---
 
