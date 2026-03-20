@@ -118,10 +118,23 @@ type UnaryExpr struct {
 
 func (*UnaryExpr) exprNode() {}
 
-// PropertyExpr accesses a property on a variable: n.status
+// PropertyExpr accesses a property on a variable: n.status or n.date.due
+// Properties holds one or more path segments after the variable name.
+// Single-segment: ["status"] for n.status
+// Two-segment:    ["date", "due"] for n.date.due
 type PropertyExpr struct {
-	Variable string
-	Property string
+	Variable   string
+	Properties []string
+}
+
+// Property returns the single property name for backward-compatible callers.
+// Panics if Properties has more than one segment — use Properties directly
+// when chained access is possible.
+func (e *PropertyExpr) Property() string {
+	if len(e.Properties) == 1 {
+		return e.Properties[0]
+	}
+	return e.Properties[0]
 }
 
 func (*PropertyExpr) exprNode() {}

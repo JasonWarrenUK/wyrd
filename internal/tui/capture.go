@@ -125,8 +125,8 @@ func (c *CaptureBar) Submit() (*CaptureResult, error) {
 	}
 
 	if nodeType == "journal" {
-		// Journal nodes carry today's date rather than the inbox status.
-		node.Properties["date"] = now.Format("2006-01-02")
+		// Journal nodes carry the creation date as date.about.
+		node.Date.About = &now
 		delete(node.Properties, "status")
 	} else if nodeType == "note" {
 		// Notes do not carry a status.

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -129,12 +130,38 @@ func (s *Store) Close() error {
 
 // WriteNode persists a node to disk atomically.
 func (s *Store) WriteNode(node *types.Node) error {
+	createdStr := node.Created.UTC().Format("2006-01-02T15:04:05Z")
+	modifiedStr := node.Modified.UTC().Format("2006-01-02T15:04:05Z")
+
+	// Build the nested date object from node.Date.
+	// node.Date.Created/Modified mirror node.Created/Modified.
+	dateObj := map[string]interface{}{
+		"created":  createdStr,
+		"modified": modifiedStr,
+	}
+	if node.Date.Due != nil {
+		dateObj["due"] = node.Date.Due.UTC().Format(time.RFC3339)
+	}
+	if node.Date.About != nil {
+		dateObj["about"] = node.Date.About.UTC().Format(time.RFC3339)
+	}
+	if node.Date.Schedule != nil {
+		dateObj["schedule"] = node.Date.Schedule.UTC().Format(time.RFC3339)
+	}
+	if node.Date.Start != nil {
+		dateObj["start"] = node.Date.Start.UTC().Format(time.RFC3339)
+	}
+	if node.Date.SnoozeUntil != nil {
+		dateObj["snooze_until"] = node.Date.SnoozeUntil.UTC().Format(time.RFC3339)
+	}
+
 	raw := map[string]interface{}{
 		"id":       node.ID,
 		"body":     node.Body,
 		"types":    node.Types,
-		"created":  node.Created.UTC().Format("2006-01-02T15:04:05Z"),
-		"modified": node.Modified.UTC().Format("2006-01-02T15:04:05Z"),
+		"created":  createdStr,
+		"modified": modifiedStr,
+		"date":     dateObj,
 	}
 	if node.Title != "" {
 		raw["title"] = node.Title

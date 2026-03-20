@@ -57,10 +57,9 @@ func Journal(store types.StoreFS, opts JournalOptions) (string, error) {
 		Types:    []string{"journal"},
 		Created:  now,
 		Modified: now,
-		Properties: map[string]interface{}{
-			"date": date,
-		},
+		Properties: map[string]interface{}{},
 	}
+	node.Date.About = &now
 
 	if err := store.WriteNode(node); err != nil {
 		return "", fmt.Errorf("writing journal node: %w", err)

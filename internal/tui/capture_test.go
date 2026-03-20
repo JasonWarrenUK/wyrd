@@ -127,9 +127,9 @@ func TestCaptureBar_JournalPrefix(t *testing.T) {
 	if result.Node.Body != "Today was productive" {
 		t.Errorf("unexpected body: %q", result.Node.Body)
 	}
-	// Journal nodes carry a date, not a status.
-	if _, hasDate := result.Node.Properties["date"]; !hasDate {
-		t.Error("expected journal node to have a date property")
+	// Journal nodes carry date.about, not a status.
+	if result.Node.Date.About == nil {
+		t.Error("expected journal node to have date.about set")
 	}
 	if _, hasStatus := result.Node.Properties["status"]; hasStatus {
 		t.Error("journal node should not have a status property")

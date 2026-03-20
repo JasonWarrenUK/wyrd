@@ -40,12 +40,17 @@ func (s *Store) CreateNode(body string, nodeTypes []string) (*types.Node, error)
 	id := uuid.New().String()
 	now := s.clock.Now()
 
+	nowStr := now.UTC().Format(time.RFC3339)
 	raw := map[string]interface{}{
-		"id":       id,
-		"body":     body,
-		"types":    nodeTypes,
-		"created":  now.UTC().Format(time.RFC3339),
-		"modified": now.UTC().Format(time.RFC3339),
+		"id":      id,
+		"body":    body,
+		"types":   nodeTypes,
+		"created": nowStr,
+		"modified": nowStr,
+		"date": map[string]interface{}{
+			"created":  nowStr,
+			"modified": nowStr,
+		},
 	}
 
 	// Merge template fields with defaults (first type takes precedence).
@@ -101,6 +106,9 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	coreFields := map[string]bool{
 		"id": true, "body": true, "title": true, "types": true,
 		"created": true, "modified": true, "source": true,
+		// date object and its flat legacy equivalents
+		"date": true, "due": true, "about": true,
+		"schedule": true, "start": true, "snooze_until": true,
 	}
 
 	for k, v := range raw {
@@ -132,7 +140,63 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	node.Created = core.Created
 	node.Modified = core.Modified
 	node.Source = core.Source
+
+	// Populate DateFields. Prefer the nested "date" object when present;
+	// fall back to flat top-level fields for backward compatibility with
+	// nodes written before WL.8.
+	if dateRaw, ok := raw["date"].(map[string]interface{}); ok {
+		node.Date = parseDateFields(dateRaw)
+	} else {
+		// Old format: created/modified are already on the node; parse any
+		// flat date fields that may exist.
+		node.Date.Created = core.Created
+		node.Date.Modified = core.Modified
+		node.Date.Due = parseDateField(raw["due"])
+		node.Date.About = parseDateField(raw["about"])
+		node.Date.Schedule = parseDateField(raw["schedule"])
+		node.Date.Start = parseDateField(raw["start"])
+		node.Date.SnoozeUntil = parseDateField(raw["snooze_until"])
+	}
+
 	return node, nil
+}
+
+// parseDateFields builds a DateFields from the nested "date" map object.
+func parseDateFields(m map[string]interface{}) types.DateFields {
+	df := types.DateFields{}
+	if t := parseDateField(m["created"]); t != nil {
+		df.Created = *t
+	}
+	if t := parseDateField(m["modified"]); t != nil {
+		df.Modified = *t
+	}
+	df.Due = parseDateField(m["due"])
+	df.About = parseDateField(m["about"])
+	df.Schedule = parseDateField(m["schedule"])
+	df.Start = parseDateField(m["start"])
+	df.SnoozeUntil = parseDateField(m["snooze_until"])
+	return df
+}
+
+// parseDateField converts a raw JSON value to a *time.Time.
+// Accepts RFC3339, date-only "2006-01-02", and time.Time directly.
+func parseDateField(v interface{}) *time.Time {
+	if v == nil {
+		return nil
+	}
+	switch val := v.(type) {
+	case time.Time:
+		return &val
+	case *time.Time:
+		return val
+	case string:
+		for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+			if t, err := time.Parse(layout, val); err == nil {
+				return &t
+			}
+		}
+	}
+	return nil
 }
 
 // UpdateNode applies a map of updates to a node and persists it.
@@ -157,7 +221,12 @@ func (s *Store) UpdateNode(id string, updates map[string]interface{}) (*types.No
 		}
 		raw[k] = v
 	}
-	raw["modified"] = s.clock.Now().UTC().Format(time.RFC3339)
+	nowStr := s.clock.Now().UTC().Format(time.RFC3339)
+	raw["modified"] = nowStr
+	// Keep date.modified in sync when the date object exists.
+	if dateObj, ok := raw["date"].(map[string]interface{}); ok {
+		dateObj["modified"] = nowStr
+	}
 
 	if err := writeJSONC(path, raw); err != nil {
 		return nil, fmt.Errorf("updating node %s: %w", id, err)

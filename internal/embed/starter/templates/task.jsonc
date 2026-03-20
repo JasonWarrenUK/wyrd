@@ -1,5 +1,6 @@
 {
 	// Task template — defines fields for actionable items.
+	// due is now at date.due (a core DateFields field), not a template field.
 	"type_name": "task",
 	"fields": {
 		"status": {
@@ -7,11 +8,6 @@
 			"values": ["inbox", "active", "waiting", "done", "archived"],
 			"default": "inbox",
 			"description": "Current status of the task"
-		},
-		"due": {
-			"type": "date",
-			"optional": true,
-			"description": "Due date for the task"
 		},
 		"energy": {
 			"type": "enum",

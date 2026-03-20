@@ -49,17 +49,17 @@ type DashboardQuery struct {
 func DefaultDashboardQuery() DashboardQuery {
 	return DashboardQuery{
 		Tasks: `MATCH (n:task)
-WHERE n.status <> "archived" AND (n.due <= $today OR n.due IS NULL)
-RETURN n.id AS id, n.title AS title, n.due AS date, "task" AS category
-ORDER BY n.due`,
+WHERE n.status <> "archived" AND (n.date.due <= $today OR n.date.due IS NULL)
+RETURN n.id AS id, n.title AS title, n.date.due AS date, "task" AS category
+ORDER BY n.date.due`,
 
 		Notes: `MATCH (n:note)
 RETURN n.id AS id, n.title AS title, null AS date, "note" AS category
 LIMIT 10`,
 
 		Journals: `MATCH (n:journal)
-RETURN n.id AS id, n.title AS title, n.created AS date, "journal" AS category
-ORDER BY n.created DESC
+RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category
+ORDER BY n.date.created DESC
 LIMIT 5`,
 	}
 }

@@ -35,6 +35,9 @@ func row(category, title string, date interface{}) map[string]interface{} {
 	}
 }
 
+// rowT is an alias for row used in tests that reference the updated query strings.
+var rowT = row
+
 // date is a helper to create a time.Time from a date string.
 func date(s string) time.Time {
 	t, _ := time.Parse("2006-01-02", s)
@@ -54,24 +57,24 @@ func TestRunDashboard_MergesAndOrders(t *testing.T) {
 			cfg.Tasks: {
 				Columns: []string{"id", "title", "date", "category"},
 				Rows: []map[string]interface{}{
-					row("task", "Task B", date("2026-03-18")),
-					row("task", "Task A", date("2026-03-10")),
-					row("task", "Task Undated", nil),
+					rowT("task", "Task B", date("2026-03-18")),
+					rowT("task", "Task A", date("2026-03-10")),
+					rowT("task", "Task Undated", nil),
 				},
 			},
 			cfg.Notes: {
 				Columns: []string{"id", "title", "date", "category"},
 				Rows: []map[string]interface{}{
-					row("note", "Note today", nil),
+					rowT("note", "Note today", nil),
 				},
 			},
 			cfg.Journals: {
 				Columns: []string{"id", "title", "date", "category"},
 				// DESC order from query — most recent first.
 				Rows: []map[string]interface{}{
-					row("journal", "Journal 3", date("2026-03-19")),
-					row("journal", "Journal 2", date("2026-03-15")),
-					row("journal", "Journal 1", date("2026-03-01")),
+					rowT("journal", "Journal 3", date("2026-03-19")),
+					rowT("journal", "Journal 2", date("2026-03-15")),
+					rowT("journal", "Journal 1", date("2026-03-01")),
 				},
 			},
 		},

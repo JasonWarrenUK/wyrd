@@ -526,7 +526,7 @@ func (ev *evaluator) evalExpr(row binding, expr Expression) (interface{}, error)
 	}
 }
 
-// evalProperty resolves variable.property access.
+// evalProperty resolves variable.property (or variable.a.b) access.
 func (ev *evaluator) evalProperty(row binding, e *PropertyExpr) (interface{}, error) {
 	v, ok := row[e.Variable]
 	if !ok {
@@ -535,12 +535,68 @@ func (ev *evaluator) evalProperty(row binding, e *PropertyExpr) (interface{}, er
 
 	switch obj := v.(type) {
 	case *types.Node:
-		return nodeProperty(obj, e.Property), nil
+		return nodePropertyChain(obj, e.Properties), nil
 	case *types.Edge:
-		return edgeProperty(obj, e.Property), nil
+		if len(e.Properties) == 1 {
+			return edgeProperty(obj, e.Properties[0]), nil
+		}
+		return nil, nil
 	default:
 		return nil, nil
 	}
+}
+
+// nodePropertyChain resolves a property path of one or more segments on a node.
+func nodePropertyChain(node *types.Node, props []string) interface{} {
+	if len(props) == 1 {
+		return nodeProperty(node, props[0])
+	}
+	if len(props) == 2 && strings.EqualFold(props[0], "date") {
+		return dateFieldProperty(&node.Date, props[1])
+	}
+	// Fallback: nested map in Properties.
+	if node.Properties != nil {
+		if m, ok := node.Properties[props[0]].(map[string]interface{}); ok {
+			return m[props[1]]
+		}
+	}
+	return nil
+}
+
+// dateFieldProperty returns a single field from a DateFields struct by name.
+func dateFieldProperty(d *types.DateFields, name string) interface{} {
+	switch strings.ToLower(name) {
+	case "created":
+		return d.Created
+	case "modified":
+		return d.Modified
+	case "due":
+		if d.Due != nil {
+			return *d.Due
+		}
+		return nil
+	case "about":
+		if d.About != nil {
+			return *d.About
+		}
+		return nil
+	case "schedule":
+		if d.Schedule != nil {
+			return *d.Schedule
+		}
+		return nil
+	case "start":
+		if d.Start != nil {
+			return *d.Start
+		}
+		return nil
+	case "snooze_until":
+		if d.SnoozeUntil != nil {
+			return *d.SnoozeUntil
+		}
+		return nil
+	}
+	return nil
 }
 
 // nodeProperty extracts a named property from a node, including built-in fields.
@@ -1048,7 +1104,7 @@ func returnItemName(item *ReturnItem) string {
 	}
 	switch e := item.Expr.(type) {
 	case *PropertyExpr:
-		return e.Variable + "." + e.Property
+		return e.Variable + "." + strings.Join(e.Properties, ".")
 	case *VariableExpr:
 		return e.Name
 	case *FunctionCall:

@@ -1,12 +1,8 @@
 {
 	// Journal template — defines fields for daily journal entries.
+	// date.about holds the date this entry is about (a core DateFields field).
 	"type_name": "journal",
 	"fields": {
-		"date": {
-			"type": "date",
-			"required": true,
-			"description": "Date of the journal entry"
-		},
 		"mood": {
 			"type": "enum",
 			"values": ["great", "good", "neutral", "low", "rough"],

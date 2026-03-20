@@ -974,16 +974,19 @@ func (p *parser) parsePrimary() (Expression, error) {
 			return p.parseFunctionCall()
 		}
 
-		// Property access: variable.property
+		// Property access: variable.property (or chained: variable.a.b)
 		if p.peekN(1).kind == tokDot {
 			varName := p.consume().value
-			p.consume() // consume dot
-			propTok := p.peek()
-			if propTok.kind != tokIdent {
-				return nil, p.errorf(propTok, "expected property name after '.' but found %q at line %d column %d", propTok.value, propTok.line, propTok.col)
+			var props []string
+			for p.peek().kind == tokDot {
+				p.consume() // consume dot
+				propTok := p.peek()
+				if propTok.kind != tokIdent {
+					return nil, p.errorf(propTok, "expected property name after '.' but found %q at line %d column %d", propTok.value, propTok.line, propTok.col)
+				}
+				props = append(props, p.consume().value)
 			}
-			p.consume()
-			return &PropertyExpr{Variable: varName, Property: propTok.value}, nil
+			return &PropertyExpr{Variable: varName, Properties: props}, nil
 		}
 
 		// Plain variable reference.
