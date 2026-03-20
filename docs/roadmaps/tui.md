@@ -6,13 +6,14 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
-| **WL**   | `wyrd` prints "TUI coming soon" | Wire entry point in main.go | —                              |
-| **NV**   | Bubbles already dep'd         | List/viewport integration    | WL.1 (need TUI running first)  |
-| **CP**   | Capture bar exists; $EDITOR   | huh forms for input          | WL.1                           |
+| **WL**   | TUI launches; constructor + default pane done (WL.1–WL.5) | Smoke test, configurable dashboard | —  |
+| **NV**   | Bubbles already dep'd         | List/viewport integration    | —                              |
+| **CP**   | Capture bar exists; $EDITOR   | huh forms for input          | —                              |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
-| **LG**   | No structured logging         | charmbracelet/log setup      | WL.1                           |
+| **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
+| **QE**   | Cypher subset implemented     | UNION support                | —                              |
 
 ---
 
@@ -26,6 +27,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
   - [Milestone 5: Logging & Observability](#m5)
   - [Milestone 6: Rituals & Workflows](#m6)
   - [Milestone 7: Documentation Assets](#m7)
+  - [Query Engine Enhancements](#qe)
 - [Progress Map](#map)
 - [Beyond v1](#post-v1)
 
@@ -38,24 +40,26 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m1-doing"><h4>In Progress (Milestone 1)</h4></a>
 
-_(none yet)_
+_(none)_
 
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
-- [ ] WL.1. Replace "TUI coming soon" stub in `cmd/wyrd/main.go` root command with `tui.New(store, index, queryRunner).Start()`
-- [ ] WL.2. Implement `tui.New(store, index, queryRunner)` constructor that satisfies Bubble Tea `Model` interface and wires all injected dependencies
-- [ ] WL.3. Verify store opens correctly before TUI launch; surface `openStore()` errors gracefully (e.g., print and exit rather than panic)
-- [ ] WL.4. Mount a default left pane on startup (node list or dashboard query result)
-- [ ] WL.5. Ensure `q` / `Ctrl+C` exits cleanly and restores terminal state
-- [ ] WL.6. Add smoke test: launch TUI in headless Bubble Tea test mode, verify it initialises without error
+- [ ] WL.6. Add smoke test: launch TUI in headless Bubble Tea test mode, verify it initialises without error — **depends on WL.2, WL.4**
+- [ ] WL.7. Make the default dashboard query user-configurable via a saved view named `dashboard` in the store (`views/dashboard.jsonc`); fall back to the hardcoded default when absent — **depends on WL.4**
+- [ ] WL.8. Add a `date` property to journal node templates so journals can be dated (including future entries); update dashboard query to use `n.date` with `n.created` as fallback — **depends on WL.4**
+- [ ] WL.9. Add first-class `title` field to `Node` (top-level, not in `Properties`); update store serialisation, index, and all renderers to prefer `title` over truncated `body` — **no blockers**
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
 
-_(none — this milestone has no blockers)_
+_(none)_
 
 <a name="m1-done"><h4>Completed (Milestone 1)</h4></a>
 
-_(none yet)_
+- [x] WL.1. Replace "TUI coming soon" stub in `cmd/wyrd/main.go` with `tui.Run(tui.Config{Store, StorePath})`
+- [x] WL.2. Wire `index` and `queryRunner` into `tui.Config` and `tui.New`; pass from `main.go` via `s.Index()` and `query.NewEngine`
+- [x] WL.3. Verify store opens correctly before TUI launch; `openStore()` errors propagate to Cobra → `os.Exit(1)`
+- [x] WL.4. Mount a default dashboard left pane on startup: active tasks due today-or-earlier, today's notes, and 5 most recent journals — grouped by category, sorted by date ascending
+- [x] WL.5. Ensure `q` / `Ctrl+C` exits cleanly and restores terminal state — handled via `tea.WithAltScreen()` + `ActionQuit → tea.Quit`
 
 ---
 
@@ -70,23 +74,20 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] NV.1. Wire `bubbles/list` component into the left pane for node listing — **depends on WL.1**
-- [ ] NV.2. Wire `bubbles/table` component for query result rows (replaces current plain-text tabular renderer) — **depends on WL.1**
-- [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body — **depends on WL.1**
+- [ ] NV.1. Wire `bubbles/list` component into the left pane for node listing
+- [ ] NV.2. Wire `bubbles/table` component for query result rows (replaces current plain-text tabular renderer)
+- [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
 - [ ] NV.4. Implement pane focus toggle (`Ctrl+W`) and visual focus indicator (border colour change) — **depends on NV.1**
 - [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.1**
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
-- [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync) — **depends on WL.1**
+- [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
 - [ ] NV.9. Implement status bar showing: focused node ID, type badges, edge count — **depends on NV.4**
 - [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-- [ ] NV.1. Wire `bubbles/list` component — **depends on WL.1**
-- [ ] NV.2. Wire `bubbles/table` component — **depends on WL.1**
-- [ ] NV.3. Wire `bubbles/viewport` into right pane — **depends on WL.1**
-- [ ] NV.8. Wire `bubbles/spinner` — **depends on WL.1**
+_(none)_
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -105,7 +106,7 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.1. Add `github.com/charmbracelet/huh` dependency — **depends on WL.1**
+- [ ] CP.1. Add `github.com/charmbracelet/huh` dependency
 - [ ] CP.2. Build `huh`-based task creation form (body, type, energy, status) triggered by capture bar `t:` prefix — **depends on CP.1**
 - [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; replaces `$EDITOR` — **depends on CP.1**
 - [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix — **depends on CP.1**
@@ -116,7 +117,6 @@ _(none yet)_
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-- [ ] CP.1. Add huh dependency — **depends on WL.1**
 - [ ] CP.5. Textarea for markdown body — **depends on NV.1, CP.1**
 - [ ] CP.6. Link-to-selected — **depends on CP.2, NV.4**
 
@@ -173,7 +173,7 @@ _(none yet)_
 
 <a name="m5-todo"><h4>To Do (Milestone 5)</h4></a>
 
-- [ ] LG.1. Add `github.com/charmbracelet/log` dependency — **depends on WL.1**
+- [ ] LG.1. Add `github.com/charmbracelet/log` dependency
 - [ ] LG.2. Initialise logger in `main.go`; write to `~/.wyrd/wyrd.log` by default (not stdout, which Bubble Tea owns) — **depends on LG.1**
 - [ ] LG.3. Add `--log-level` flag (`debug`, `info`, `warn`, `error`) and `WYRD_LOG_LEVEL` env var — **depends on LG.2**
 - [ ] LG.4. Thread logger through store operations: log node/edge writes at `debug` level — **depends on LG.2**
@@ -183,7 +183,6 @@ _(none yet)_
 
 <a name="m5-blocked"><h4>Blocked (Milestone 5)</h4></a>
 
-- [ ] LG.1. Add log dependency — **depends on WL.1**
 - [ ] LG.7. TUI log overlay — **depends on LG.2, NV.3**
 
 <a name="m5-done"><h4>Completed (Milestone 5)</h4></a>
@@ -267,6 +266,25 @@ _(none yet)_
 
 ---
 
+<a name="qe"><h3>Query Engine Enhancements</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** Extend the Cypher subset implementation to support features that the TUI and saved views require. All additions must follow Cypher spec conventions, not invent new syntax.
+
+<a name="qe-todo"><h4>To Do (Query Engine)</h4></a>
+
+- [ ] QE.1. Implement `UNION` / `UNION ALL` — combine results from multiple `MATCH` clauses into a single result set; required for dashboard queries that span multiple node types — **no blockers**
+
+<a name="qe-blocked"><h4>Blocked (Query Engine)</h4></a>
+
+_(none)_
+
+<a name="qe-done"><h4>Completed (Query Engine)</h4></a>
+
+_(none yet)_
+
+---
+
 <a name="map"><h2>Progress Map</h2></a>
 
 ```mermaid
@@ -283,25 +301,26 @@ m5["`**Milestone 5**<br/>Logging`"]:::mile
 m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 
-WL1["`*WL.1*<br/>**Wire & Launch**<br/>Replace TUI stub`"]:::open
-WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::open
-WL3["`*WL.3*<br/>**Wire & Launch**<br/>openStore errors`"]:::open
-WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::open
-WL5["`*WL.5*<br/>**Wire & Launch**<br/>Clean exit`"]:::open
+WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::done
+WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
 WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::open
+WL7["`*WL.7*<br/>**Wire & Launch**<br/>Configurable dashboard`"]:::open
+WL8["`*WL.8*<br/>**Wire & Launch**<br/>Journal date field`"]:::open
+WL9["`*WL.9*<br/>**Wire & Launch**<br/>Node title field`"]:::open
+QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
-NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::blocked
-NV2["`*NV.2*<br/>**Navigation**<br/>bubbles/table`"]:::blocked
-NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::blocked
+NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::open
+NV2["`*NV.2*<br/>**Navigation**<br/>bubbles/table`"]:::open
+NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::open
 NV4["`*NV.4*<br/>**Navigation**<br/>Pane focus toggle`"]:::blocked
 NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::blocked
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::blocked
 NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::blocked
-NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::blocked
+NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
 NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::blocked
 NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
 
-CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::blocked
+CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
 CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::blocked
 CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::blocked
 CP4["`*CP.4*<br/>**Capture**<br/>Note form`"]:::blocked
@@ -321,7 +340,7 @@ VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
 VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::blocked
 VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::blocked
 
-LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::blocked
+LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::open
 LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::blocked
 LG3["`*LG.3*<br/>**Logging**<br/>Log level flag`"]:::blocked
 LG4["`*LG.4*<br/>**Logging**<br/>Store logging`"]:::blocked
@@ -348,9 +367,10 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-m1 --> WL1 & WL2 & WL3 & WL4 & WL5 & WL6
+m1 --> WL2 & WL4 & WL6 & WL7 & WL8 & WL9
 
-WL1 --> NV1 & NV2 & NV3 & NV8 & CP1 & LG1
+WL2 & WL4 --> WL6
+WL4 --> WL7 & WL8
 WL2 --> VS7 & RT2 & RT8
 NV1 --> NV4 & NV5 & NV6 & VS1
 NV3 --> NV10 & LG7
@@ -399,9 +419,12 @@ m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 
+QE1 -.->|enables| WL7
+
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;
 classDef open fill:#fff9e5,stroke:#d4ac0d;
+classDef done fill:#e8fce8,stroke:#4caf50;
 classDef mile fill:#c4fffe,stroke:#0097a7,font-weight:bold;
 ```
 
