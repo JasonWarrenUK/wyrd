@@ -99,7 +99,7 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 
 	node := &types.Node{Properties: make(map[string]interface{})}
 	coreFields := map[string]bool{
-		"id": true, "body": true, "types": true,
+		"id": true, "body": true, "title": true, "types": true,
 		"created": true, "modified": true, "source": true,
 	}
 
@@ -114,6 +114,7 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	type coreNode struct {
 		ID       string        `json:"id"`
 		Body     string        `json:"body"`
+		Title    string        `json:"title,omitempty"`
 		Types    []string      `json:"types"`
 		Created  time.Time     `json:"created"`
 		Modified time.Time     `json:"modified"`
@@ -126,6 +127,7 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 
 	node.ID = core.ID
 	node.Body = core.Body
+	node.Title = core.Title
 	node.Types = core.Types
 	node.Created = core.Created
 	node.Modified = core.Modified

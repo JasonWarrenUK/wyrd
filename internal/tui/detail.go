@@ -116,7 +116,7 @@ func (r *DetailRenderer) Render(
 	}
 
 	// --- Title ---
-	title := firstLine(node.Body)
+	title := nodeTitle(node)
 	sb.WriteString(titleStyle.Render(title))
 	sb.WriteString("\n\n")
 
@@ -182,6 +182,15 @@ func isArchivedNode(node *types.Node) bool {
 	}
 	status, _ := node.Properties["status"].(string)
 	return status == "archived"
+}
+
+// nodeTitle returns the node's Title when set, falling back to the first line
+// of Body. Use this for all display contexts that show a node's name.
+func nodeTitle(node *types.Node) string {
+	if node.Title != "" {
+		return node.Title
+	}
+	return firstLine(node.Body)
 }
 
 // firstLine returns the first non-empty line of s.
@@ -282,7 +291,7 @@ func (r *DetailRenderer) renderEdgeLine(
 	}
 	otherLabel := otherID
 	if other, ok := nodesByID[otherID]; ok {
-		otherLabel = firstLine(other.Body)
+		otherLabel = nodeTitle(other)
 	}
 
 	glyph := edgeGlyph(edge.Type, outgoing)
@@ -348,7 +357,7 @@ func (r *DetailRenderer) renderBudgetLine(node *types.Node, now time.Time) strin
 		}
 	}
 	if categoryLabel == "" {
-		categoryLabel = firstLine(node.Body)
+		categoryLabel = nodeTitle(node)
 	}
 
 	// Build a compact progress bar (10 characters wide).

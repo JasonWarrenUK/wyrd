@@ -550,6 +550,8 @@ func nodeProperty(node *types.Node, name string) interface{} {
 		return node.ID
 	case "body":
 		return node.Body
+	case "title":
+		return node.Title
 	case "created":
 		return node.Created
 	case "modified":

@@ -10,9 +10,8 @@ import (
 
 // dashboardColumns defines the display columns for the dashboard pane.
 // id is intentionally excluded from display — it is carried in row data for
-// future selection/navigation but not shown in the list. When WL.9 lands and
-// nodes gain a first-class title field, replace "body" with "title" here.
-var dashboardColumns = []string{"category", "body", "date"}
+// future selection/navigation but not shown in the list.
+var dashboardColumns = []string{"category", "title", "date"}
 
 // DashboardQuery holds the three Cypher queries that together produce the
 // default startup view. Each field can be replaced independently so that
@@ -21,12 +20,13 @@ var dashboardColumns = []string{"category", "body", "date"}
 // When WL.7 is implemented, a saved view named "dashboard" in the store
 // should take precedence over these defaults.
 type DashboardQuery struct {
-	// Tasks selects active tasks due today or earlier.
-	// Expected columns: id, body, date, category.
+	// Tasks selects active tasks due today or earlier, plus undated tasks.
+	// Uses n.due (matching the task template), with IS NULL fallback so tasks
+	// without a due date are included. Expected columns: id, body, date, category.
 	Tasks string
 
-	// Notes selects notes dated today.
-	// Expected columns: id, body, date, category.
+	// Notes selects the 10 most recent notes. Notes have no date field, so no
+	// date filter is applied. Expected columns: id, body, date, category.
 	Notes string
 
 	// Journals selects the most recent journals.
@@ -41,23 +41,24 @@ type DashboardQuery struct {
 // support UNION (see QE.1 in the roadmap). Once QE.1 lands, these can be
 // collapsed into a single query and DashboardQuery can become a single string.
 //
-// Note: journals use n.created as the date because journal nodes do not yet
-// have a dedicated date property (see WL.8). Once WL.8 is done, the journal
-// query should prefer n.date with n.created as fallback.
+// Tasks use n.due (matching the task template) with an IS NULL fallback so
+// undated tasks appear alongside dated ones. Notes have no date field; the
+// query returns the 10 most recent without date filtering. Journals use
+// n.created; once WL.8 lands (structured date object), the journal query
+// should prefer n.date.due with n.created as fallback.
 func DefaultDashboardQuery() DashboardQuery {
 	return DashboardQuery{
 		Tasks: `MATCH (n:task)
-WHERE n.status <> "archived" AND n.date <= $today
-RETURN n.id AS id, n.body AS body, n.date AS date, "task" AS category
-ORDER BY n.date`,
+WHERE n.status <> "archived" AND (n.due <= $today OR n.due IS NULL)
+RETURN n.id AS id, n.title AS title, n.due AS date, "task" AS category
+ORDER BY n.due`,
 
 		Notes: `MATCH (n:note)
-WHERE n.date = $today
-RETURN n.id AS id, n.body AS body, n.date AS date, "note" AS category
-ORDER BY n.date`,
+RETURN n.id AS id, n.title AS title, null AS date, "note" AS category
+LIMIT 10`,
 
 		Journals: `MATCH (n:journal)
-RETURN n.id AS id, n.body AS body, n.created AS date, "journal" AS category
+RETURN n.id AS id, n.title AS title, n.created AS date, "journal" AS category
 ORDER BY n.created DESC
 LIMIT 5`,
 	}

@@ -1,12 +1,8 @@
 {
 	// Note template — defines fields for reference notes.
+	// title is now a core node field, not a template field.
 	"type_name": "note",
 	"fields": {
-		"title": {
-			"type": "string",
-			"required": true,
-			"description": "Title of the note"
-		},
 		"tags": {
 			"type": "string_array",
 			"optional": true,

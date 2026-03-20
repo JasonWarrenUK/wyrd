@@ -205,11 +205,14 @@ func BuildListItems(
 }
 
 // FormatListRow returns a single-line display string for a ListItem row,
-// using columns to determine field order. Falls back to the node body if
-// columns is empty.
+// using columns to determine field order. Falls back to the node title (or
+// body) if columns is empty.
 func FormatListRow(item *ListItem, columns []string) string {
 	if len(columns) == 0 {
 		if item.Node != nil {
+			if item.Node.Title != "" {
+				return item.Node.Title
+			}
 			return item.Node.Body
 		}
 		return fmt.Sprintf("%v", item.Row)

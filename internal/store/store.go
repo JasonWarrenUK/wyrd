@@ -136,6 +136,9 @@ func (s *Store) WriteNode(node *types.Node) error {
 		"created":  node.Created.UTC().Format("2006-01-02T15:04:05Z"),
 		"modified": node.Modified.UTC().Format("2006-01-02T15:04:05Z"),
 	}
+	if node.Title != "" {
+		raw["title"] = node.Title
+	}
 	if node.Source != nil {
 		raw["source"] = node.Source
 	}

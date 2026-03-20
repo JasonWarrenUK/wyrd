@@ -26,10 +26,10 @@ func (s *stubRunner) Run(q string, _ types.Clock) (*types.QueryResult, error) {
 }
 
 // row is a helper to build a result row.
-func row(category, body string, date interface{}) map[string]interface{} {
+func row(category, title string, date interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"category": category,
-		"body":     body,
+		"title":    title,
 		"date":     date,
 		"id":       "dummy-id",
 	}
@@ -52,20 +52,21 @@ func TestRunDashboard_MergesAndOrders(t *testing.T) {
 	runner := &stubRunner{
 		results: map[string]*types.QueryResult{
 			cfg.Tasks: {
-				Columns: []string{"id", "body", "date", "category"},
+				Columns: []string{"id", "title", "date", "category"},
 				Rows: []map[string]interface{}{
 					row("task", "Task B", date("2026-03-18")),
 					row("task", "Task A", date("2026-03-10")),
+					row("task", "Task Undated", nil),
 				},
 			},
 			cfg.Notes: {
-				Columns: []string{"id", "body", "date", "category"},
+				Columns: []string{"id", "title", "date", "category"},
 				Rows: []map[string]interface{}{
-					row("note", "Note today", date("2026-03-20")),
+					row("note", "Note today", nil),
 				},
 			},
 			cfg.Journals: {
-				Columns: []string{"id", "body", "date", "category"},
+				Columns: []string{"id", "title", "date", "category"},
 				// DESC order from query — most recent first.
 				Rows: []map[string]interface{}{
 					row("journal", "Journal 3", date("2026-03-19")),
@@ -81,30 +82,33 @@ func TestRunDashboard_MergesAndOrders(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Expect: 2 tasks + 1 note + 3 journals = 6 rows.
-	if len(result.Rows) != 6 {
-		t.Fatalf("expected 6 rows, got %d", len(result.Rows))
+	// Expect: 3 tasks + 1 note + 3 journals = 7 rows.
+	if len(result.Rows) != 7 {
+		t.Fatalf("expected 7 rows, got %d", len(result.Rows))
 	}
 
-	// Tasks sorted ascending by date.
-	if result.Rows[0]["body"] != "Task A" {
-		t.Errorf("row 0: expected 'Task A', got %q", result.Rows[0]["body"])
+	// Tasks sorted ascending by date; undated task sorts after dated tasks.
+	if result.Rows[0]["title"] != "Task A" {
+		t.Errorf("row 0: expected 'Task A', got %q", result.Rows[0]["title"])
 	}
-	if result.Rows[1]["body"] != "Task B" {
-		t.Errorf("row 1: expected 'Task B', got %q", result.Rows[1]["body"])
+	if result.Rows[1]["title"] != "Task B" {
+		t.Errorf("row 1: expected 'Task B', got %q", result.Rows[1]["title"])
+	}
+	if result.Rows[2]["title"] != "Task Undated" {
+		t.Errorf("row 2: expected 'Task Undated', got %q", result.Rows[2]["title"])
 	}
 
 	// Note follows tasks.
-	if result.Rows[2]["body"] != "Note today" {
-		t.Errorf("row 2: expected 'Note today', got %q", result.Rows[2]["body"])
+	if result.Rows[3]["title"] != "Note today" {
+		t.Errorf("row 3: expected 'Note today', got %q", result.Rows[3]["title"])
 	}
 
 	// Journals reversed to ascending chronological order.
-	if result.Rows[3]["body"] != "Journal 1" {
-		t.Errorf("row 3: expected 'Journal 1', got %q", result.Rows[3]["body"])
+	if result.Rows[4]["title"] != "Journal 1" {
+		t.Errorf("row 4: expected 'Journal 1', got %q", result.Rows[4]["title"])
 	}
-	if result.Rows[5]["body"] != "Journal 3" {
-		t.Errorf("row 5: expected 'Journal 3', got %q", result.Rows[5]["body"])
+	if result.Rows[6]["title"] != "Journal 3" {
+		t.Errorf("row 6: expected 'Journal 3', got %q", result.Rows[6]["title"])
 	}
 }
 
@@ -117,7 +121,7 @@ func TestRunDashboard_Columns(t *testing.T) {
 	runner := &stubRunner{
 		results: map[string]*types.QueryResult{
 			cfg.Tasks: {
-				Columns: []string{"id", "body", "date", "category"},
+				Columns: []string{"id", "title", "date", "category"},
 				Rows:    []map[string]interface{}{row("task", "A task", date("2026-03-20"))},
 			},
 		},

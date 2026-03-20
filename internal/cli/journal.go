@@ -136,12 +136,11 @@ func Note(store types.StoreFS, opts NoteOptions) (string, error) {
 	node := &types.Node{
 		ID:       uuid.New().String(),
 		Body:     body,
+		Title:    opts.Title,
 		Types:    []string{"note"},
 		Created:  now,
 		Modified: now,
-		Properties: map[string]interface{}{
-			"title": opts.Title,
-		},
+		Properties: map[string]interface{}{},
 	}
 
 	if err := store.WriteNode(node); err != nil {

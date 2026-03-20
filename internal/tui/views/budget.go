@@ -140,8 +140,12 @@ func (r *BudgetRenderer) Render(budgetNodes []*types.Node, width int) string {
 
 // resolveEnvelope extracts and computes the fields needed for rendering.
 func (r *BudgetRenderer) resolveEnvelope(node *types.Node) budgetEnvelope {
+	name := node.Body
+	if node.Title != "" {
+		name = node.Title
+	}
 	env := budgetEnvelope{
-		name:   node.Body,
+		name:   name,
 		warnAt: 0.8, // sensible default if not specified
 	}
 

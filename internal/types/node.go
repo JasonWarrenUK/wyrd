@@ -13,6 +13,10 @@ type Node struct {
 	// Body is the primary markdown content. Required.
 	Body string `json:"body"`
 
+	// Title is an optional short display title. When present it is preferred
+	// over the first line of Body for list views and headings.
+	Title string `json:"title,omitempty"`
+
 	// Types is the list of template types applied to this node.
 	// Minimum one type. Determines which conditional fields are active.
 	Types []string `json:"types"`

@@ -1,10 +1,15 @@
 package tui_test
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jasonwarrenuk/wyrd/internal/query"
+	"github.com/jasonwarrenuk/wyrd/internal/store"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // newTestModel creates a Model with no store and no theme files on disk.
@@ -197,5 +202,84 @@ func TestMountLeftAndRight(t *testing.T) {
 	v := m.View()
 	if v == "" {
 		t.Error("expected non-empty view after mounting panes")
+	}
+}
+
+// TestAppBootsWithDashboard is the WL.6 smoke test. It wires the full stack —
+// real store → memIndex → query engine → dashboard → TUI — and verifies the
+// app initialises without error and renders non-empty content containing the
+// expected node bodies.
+func TestAppBootsWithDashboard(t *testing.T) {
+	dir := t.TempDir()
+	clock := types.StubClock{Fixed: time.Date(2026, 3, 20, 0, 0, 0, 0, time.UTC)}
+
+	s, err := store.New(dir, clock)
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	defer s.Close()
+
+	// Seed one node of each dashboard category with explicit titles.
+	taskNode, err := s.CreateNode("Buy groceries", []string{"task"})
+	if err != nil {
+		t.Fatalf("CreateNode task: %v", err)
+	}
+	taskNode.Title = "Buy groceries"
+	if err := s.WriteNode(taskNode); err != nil {
+		t.Fatalf("WriteNode task: %v", err)
+	}
+
+	noteNode, err := s.CreateNode("Meeting notes", []string{"note"})
+	if err != nil {
+		t.Fatalf("CreateNode note: %v", err)
+	}
+	noteNode.Title = "Meeting notes"
+	if err := s.WriteNode(noteNode); err != nil {
+		t.Fatalf("WriteNode note: %v", err)
+	}
+
+	journalNode, err := s.CreateNode("Today I learned Go", []string{"journal"})
+	if err != nil {
+		t.Fatalf("CreateNode journal: %v", err)
+	}
+	journalNode.Title = "Today I learned Go"
+	if err := s.WriteNode(journalNode); err != nil {
+		t.Fatalf("WriteNode journal: %v", err)
+	}
+
+	engine := query.NewEngine(s.Index(), 10)
+
+	m, err := tui.New(tui.Config{
+		Store:       s,
+		StorePath:   dir,
+		Index:       s.Index(),
+		QueryRunner: engine,
+		Clock:       clock,
+	})
+	if err != nil {
+		t.Fatalf("tui.New: %v", err)
+	}
+
+	m = sendWindowSize(t, m, 120, 40)
+
+	v := m.View()
+	if v == "" {
+		t.Fatal("expected non-empty view after boot with dashboard")
+	}
+
+	// Each seeded node body should appear somewhere in the rendered output.
+	for _, body := range []string{"Buy groceries", "Meeting notes", "Today I learned Go"} {
+		if !strings.Contains(v, body) {
+			t.Errorf("expected %q in dashboard view, not found", body)
+		}
+	}
+
+	// Verify clean quit.
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd == nil {
+		t.Fatal("expected quit command after 'q'")
+	}
+	if msg := cmd(); msg != tea.Quit() {
+		t.Errorf("expected tea.Quit, got %v", msg)
 	}
 }

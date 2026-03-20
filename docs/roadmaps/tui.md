@@ -6,7 +6,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
-| **WL**   | TUI launches; constructor + default pane done (WL.1–WL.5) | Smoke test, configurable dashboard | —  |
+| **WL**   | TUI launches; constructor + default pane done (WL.1–WL.6) | Configurable dashboard, title field | —  |
 | **NV**   | Bubbles already dep'd         | List/viewport integration    | —                              |
 | **CP**   | Capture bar exists; $EDITOR   | huh forms for input          | —                              |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
@@ -44,9 +44,8 @@ _(none)_
 
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
-- [ ] WL.6. Add smoke test: launch TUI in headless Bubble Tea test mode, verify it initialises without error — **depends on WL.2, WL.4**
 - [ ] WL.7. Make the default dashboard query user-configurable via a saved view named `dashboard` in the store (`views/dashboard.jsonc`); fall back to the hardcoded default when absent — **depends on WL.4**
-- [ ] WL.8. Add a `date` property to journal node templates so journals can be dated (including future entries); update dashboard query to use `n.date` with `n.created` as fallback — **depends on WL.4**
+- [ ] WL.8. Replace flat date fields with a structured `date {}` object on nodes containing: `created`, `modified`, `due`, `schedule`, `start`, `snooze_until`; update Node struct, templates, store serialisation, index, and query property resolution (e.g. `n.date.due`) — **depends on WL.4**
 - [ ] WL.9. Add first-class `title` field to `Node` (top-level, not in `Properties`); update store serialisation, index, and all renderers to prefer `title` over truncated `body` — **no blockers**
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
@@ -60,6 +59,7 @@ _(none)_
 - [x] WL.3. Verify store opens correctly before TUI launch; `openStore()` errors propagate to Cobra → `os.Exit(1)`
 - [x] WL.4. Mount a default dashboard left pane on startup: active tasks due today-or-earlier, today's notes, and 5 most recent journals — grouped by category, sorted by date ascending
 - [x] WL.5. Ensure `q` / `Ctrl+C` exits cleanly and restores terminal state — handled via `tea.WithAltScreen()` + `ActionQuit → tea.Quit`
+- [x] WL.6. Add smoke test: launch TUI in headless Bubble Tea test mode, verify it initialises without error — **depends on WL.2, WL.4**
 
 ---
 
@@ -143,7 +143,7 @@ _(none yet)_
 - [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1**
 - [ ] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1**
 - [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9**
-- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection — **depends on WL.2**
+- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection
 - [ ] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) — **depends on VS.1, CP.1**
 - [ ] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1**
 - [ ] VS.10. Test all four shipped themes (Cairn, Peat, Kiln, Fell) render correctly at each polish point — **depends on VS.1**
@@ -153,7 +153,6 @@ _(none yet)_
 - [ ] VS.1. Audit and replace hardcoded colours — **depends on NV.1**
 - [ ] VS.2. Active/inactive pane borders — **depends on NV.4**
 - [ ] VS.6. Status bar styling — **depends on NV.9**
-- [ ] VS.7. Command palette styling — **depends on WL.2**
 - [ ] VS.8. Huh form theming — **depends on VS.1, CP.1**
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
@@ -203,23 +202,22 @@ _(none yet)_
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
 - [ ] RT.1. Wire ritual scheduler into TUI startup: check for due rituals, prompt to run — **depends on NV.4, CP.1**
-- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **depends on WL.2**
+- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily)
 - [ ] RT.3. Render `query_summary` and `query_list` steps using existing view renderers inside the ritual pane — **depends on RT.2, NV.2**
 - [ ] RT.4. Implement `prompt` step using `huh` input form — **depends on RT.2, CP.1**
 - [ ] RT.5. Implement `gate` step: block progression unless user confirms; render friction message — **depends on RT.2**
 - [ ] RT.6. Wire deferral sequence (`Esc Esc d`) to snooze ritual and record deferral timestamp — **depends on RT.5**
 - [ ] RT.7. Implement `action` step execution: run store mutation from within ritual (e.g., archive node, update status) — **depends on RT.2**
-- [ ] RT.8. Add `:ritual <name>` command to palette to trigger any ritual on demand — **depends on RT.2, WL.2**
+- [ ] RT.8. Add `:ritual <name>` command to palette to trigger any ritual on demand — **depends on RT.2**
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
 - [ ] RT.1. Ritual scheduler on startup — **depends on NV.4, CP.1**
-- [ ] RT.2. Ritual overlay pane — **depends on WL.2**
 - [ ] RT.3. Query steps in ritual — **depends on RT.2, NV.2**
 - [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1**
 - [ ] RT.5. Gate step — **depends on RT.2**
 - [ ] RT.7. Action step — **depends on RT.2**
-- [ ] RT.8. Palette ritual command — **depends on RT.2, WL.2**
+- [ ] RT.8. Palette ritual command — **depends on RT.2**
 
 <a name="m6-done"><h4>Completed (Milestone 6)</h4></a>
 
@@ -303,9 +301,9 @@ m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 
 WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::done
 WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
-WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::open
+WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::done
 WL7["`*WL.7*<br/>**Wire & Launch**<br/>Configurable dashboard`"]:::open
-WL8["`*WL.8*<br/>**Wire & Launch**<br/>Journal date field`"]:::open
+WL8["`*WL.8*<br/>**Wire & Launch**<br/>Structured date object`"]:::open
 WL9["`*WL.9*<br/>**Wire & Launch**<br/>Node title field`"]:::open
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
@@ -335,7 +333,7 @@ VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::blocked
 VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::blocked
 VS6["`*VS.6*<br/>**Visual**<br/>Status bar`"]:::blocked
-VS7["`*VS.7*<br/>**Visual**<br/>Command palette`"]:::blocked
+VS7["`*VS.7*<br/>**Visual**<br/>Command palette`"]:::open
 VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
 VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::blocked
 VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::blocked
@@ -349,7 +347,7 @@ LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::blocked
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::blocked
 
 RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::blocked
-RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::blocked
+RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
 RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::blocked
 RT4["`*RT.4*<br/>**Rituals**<br/>Prompt via huh`"]:::blocked
 RT5["`*RT.5*<br/>**Rituals**<br/>Gate step`"]:::blocked
