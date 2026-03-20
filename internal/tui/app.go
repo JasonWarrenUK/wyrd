@@ -7,6 +7,9 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
+// Compile-time check: nodeListPane must satisfy PaneModel.
+var _ PaneModel = nodeListPane{}
+
 // switchThemeMsg is an internal message that triggers a runtime theme switch.
 type switchThemeMsg struct {
 	name string
@@ -67,6 +70,18 @@ type Config struct {
 
 	// ThemeName is the theme to load. Defaults to the first available theme.
 	ThemeName string
+
+	// Index is the in-memory graph index. When provided alongside QueryRunner,
+	// the dashboard left pane is populated on startup.
+	Index types.GraphIndex
+
+	// QueryRunner executes Cypher queries against the Index.
+	// Used to run the default (or user-configured) dashboard query on launch.
+	QueryRunner types.QueryRunner
+
+	// Clock is used for date variable resolution in queries (e.g. $today).
+	// Defaults to types.RealClock{} when nil.
+	Clock types.Clock
 }
 
 // New builds the initial App Model. It may be called with an empty / nil store.
@@ -115,11 +130,35 @@ func New(cfg Config) (Model, error) {
 	layout := NewLayout(80, 24, theme)
 	statusBar.SetWidth(80)
 
+	// Resolve the clock — default to real wall time when not supplied.
+	clock := cfg.Clock
+	if clock == nil {
+		clock = types.RealClock{}
+	}
+
+	// Build the initial left pane. When a QueryRunner is available, run the
+	// dashboard query and mount the result. If the query fails (e.g. empty
+	// store, no matching nodes), fall back to the empty placeholder so the
+	// app still launches cleanly.
+	//
+	// WL.7: once user-configurable saved views are supported, load the
+	// "dashboard" view from the store here and pass its query to RunDashboard
+	// instead of DefaultDashboardQuery().
+	var leftPane PaneModel = NewEmptyPane(theme)
+	if cfg.QueryRunner != nil {
+		result, err := RunDashboard(cfg.QueryRunner, clock, DefaultDashboardQuery())
+		if err == nil {
+			leftPane = newNodeListPane(result)
+		}
+		// On error: silently use empty pane — a working TUI with no data is
+		// better than a crash on first launch.
+	}
+
 	m := Model{
 		theme:     theme,
 		storePath: storePath,
 		layout:    layout,
-		leftPane:  NewEmptyPane(theme),
+		leftPane:  leftPane,
 		rightPane: NewEmptyPane(theme),
 		focus:     FocusLeft,
 		keyMap:    keyMap,

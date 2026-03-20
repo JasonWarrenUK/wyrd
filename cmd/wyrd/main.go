@@ -57,8 +57,11 @@ property graph. Run without arguments to launch the TUI.`,
 			}
 			defer s.Close()
 			return tui.Run(tui.Config{
-				Store:     s,
-				StorePath: storePath,
+				Store:       s,
+				StorePath:   storePath,
+				Index:       s.Index(),
+				QueryRunner: query.NewEngine(s.Index(), 0),
+				Clock:       types.RealClock{},
 			})
 		},
 	}
