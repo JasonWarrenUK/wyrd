@@ -12,6 +12,7 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
 	"github.com/jasonwarrenuk/wyrd/internal/query"
 	"github.com/jasonwarrenuk/wyrd/internal/store"
+	"github.com/jasonwarrenuk/wyrd/internal/tui"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -50,8 +51,15 @@ func rootCmd() *cobra.Command {
 		Long: `Wyrd is a terminal-based personal productivity tool backed by a flat-file
 property graph. Run without arguments to launch the TUI.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(os.Stdout, "TUI coming soon")
-			return nil
+			s, err := openStore(storePath)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+			return tui.Run(tui.Config{
+				Store:     s,
+				StorePath: storePath,
+			})
 		},
 	}
 
