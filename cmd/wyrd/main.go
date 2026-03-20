@@ -57,6 +57,7 @@ property graph. Run without arguments to launch the TUI.`,
 
 	root.PersistentFlags().StringVar(&storePath, "store", defaultStorePath(), "path to the Wyrd store directory")
 
+	root.AddCommand(initCmd(&storePath))
 	root.AddCommand(addCmd(&storePath))
 	root.AddCommand(journalCmd(&storePath))
 	root.AddCommand(noteCmd(&storePath))
@@ -70,6 +71,23 @@ property graph. Run without arguments to launch the TUI.`,
 	root.AddCommand(compactCmd(&storePath))
 
 	return root
+}
+
+// initCmd implements `wyrd init`.
+func initCmd(storePath *string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "init",
+		Short: "Initialise a new Wyrd store",
+		Long: `Create the store directory structure, copy starter files,
+run git init, and write .gitattributes for the merge driver.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cli.Init(*storePath); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "Wyrd store initialised at %s\n", *storePath)
+			return nil
+		},
+	}
 }
 
 // addCmd implements `wyrd add`.
