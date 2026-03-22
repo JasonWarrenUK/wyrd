@@ -6,7 +6,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
-| **WL**   | TUI launches; constructor + default pane done (WL.1–WL.6) | Configurable dashboard, title field | —  |
+| **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | Bubbles already dep'd         | List/viewport integration    | —                              |
 | **CP**   | Capture bar exists; $EDITOR   | huh forms for input          | —                              |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
@@ -44,9 +44,7 @@ _(none)_
 
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
-- [ ] WL.7. Make the default dashboard query user-configurable via a saved view named `dashboard` in the store (`views/dashboard.jsonc`); fall back to the hardcoded default when absent — **depends on WL.4**
-- [ ] WL.8. Replace flat date fields with a structured `date {}` object on nodes containing: `created`, `modified`, `due`, `schedule`, `start`, `snooze_until`; update Node struct, templates, store serialisation, index, and query property resolution (e.g. `n.date.due`) — **depends on WL.4**
-- [ ] WL.9. Add first-class `title` field to `Node` (top-level, not in `Properties`); update store serialisation, index, and all renderers to prefer `title` over truncated `body` — **no blockers**
+_(none)_
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
 
@@ -60,6 +58,9 @@ _(none)_
 - [x] WL.4. Mount a default dashboard left pane on startup: active tasks due today-or-earlier, today's notes, and 5 most recent journals — grouped by category, sorted by date ascending
 - [x] WL.5. Ensure `q` / `Ctrl+C` exits cleanly and restores terminal state — handled via `tea.WithAltScreen()` + `ActionQuit → tea.Quit`
 - [x] WL.6. Add smoke test: launch TUI in headless Bubble Tea test mode, verify it initialises without error — **depends on WL.2, WL.4**
+- [x] WL.7. Make the default dashboard query user-configurable via a saved view named `dashboard` in the store (`views/dashboard.jsonc`); fall back to the hardcoded default when absent — **depends on WL.4**
+- [x] WL.8. Replace flat date fields with a structured `date {}` object on nodes containing: `created`, `modified`, `due`, `schedule`, `start`, `snooze_until`; update Node struct, templates, store serialisation, index, and query property resolution (e.g. `n.date.due`) — **depends on WL.4**
+- [x] WL.9. Add first-class `title` field to `Node` (top-level, not in `Properties`); update store serialisation, index, and all renderers to prefer `title` over truncated `body` — **no blockers**
 
 ---
 
@@ -302,9 +303,6 @@ m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::done
 WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
 WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::done
-WL7["`*WL.7*<br/>**Wire & Launch**<br/>Configurable dashboard`"]:::open
-WL8["`*WL.8*<br/>**Wire & Launch**<br/>Structured date object`"]:::open
-WL9["`*WL.9*<br/>**Wire & Launch**<br/>Node title field`"]:::open
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
 NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::open
@@ -365,10 +363,9 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-m1 --> WL2 & WL4 & WL6 & WL7 & WL8 & WL9
+m1 --> WL2 & WL4 & WL6
 
 WL2 & WL4 --> WL6
-WL4 --> WL7 & WL8
 WL2 --> VS7 & RT2 & RT8
 NV1 --> NV4 & NV5 & NV6 & VS1
 NV3 --> NV10 & LG7
@@ -417,7 +414,6 @@ m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 
-QE1 -.->|enables| WL7
 
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;
