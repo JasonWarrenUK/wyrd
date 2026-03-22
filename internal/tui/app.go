@@ -158,7 +158,7 @@ func New(cfg Config) (Model, error) {
 		}
 		result, err := RunDashboard(cfg.QueryRunner, clock, dq, cols)
 		if err == nil {
-			leftPane = newNodeListPane(result)
+			leftPane = newNodeListPane(result, theme)
 		}
 		// On error: silently use empty pane — a working TUI with no data is
 		// better than a crash on first launch.

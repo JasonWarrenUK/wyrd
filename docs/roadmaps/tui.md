@@ -8,7 +8,8 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | Bubbles already dep'd         | List/viewport integration    | —                              |
-| **CP**   | Capture bar exists; $EDITOR   | huh forms for input          | —                              |
+| **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
+| **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
@@ -27,6 +28,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
   - [Milestone 5: Logging & Observability](#m5)
   - [Milestone 6: Rituals & Workflows](#m6)
   - [Milestone 7: Documentation Assets](#m7)
+  - [CLI Input](#cli)
   - [Query Engine Enhancements](#qe)
 - [Progress Map](#map)
 - [Beyond v1](#post-v1)
@@ -78,7 +80,7 @@ _(none yet)_
 - [ ] NV.1. Wire `bubbles/list` component into the left pane for node listing
 - [ ] NV.2. Wire `bubbles/table` component for query result rows (replaces current plain-text tabular renderer)
 - [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
-- [ ] NV.4. Implement pane focus toggle (`Ctrl+W`) and visual focus indicator (border colour change) — **depends on NV.1**
+- [ ] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired — **depends on NV.1**
 - [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.1**
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
@@ -107,19 +109,25 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
+- [ ] CP.0. Wire `CaptureBar` into `app.go`: mount on `Model`, bind `i` key in `KeyMap`, route character input and backspace to it when focused, show live input and full placeholder text in status bar — **no blockers**
 - [ ] CP.1. Add `github.com/charmbracelet/huh` dependency
-- [ ] CP.2. Build `huh`-based task creation form (body, type, energy, status) triggered by capture bar `t:` prefix — **depends on CP.1**
-- [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; replaces `$EDITOR` — **depends on CP.1**
-- [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix — **depends on CP.1**
+- [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
+- [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; set `Title` on the node; replaces `$EDITOR` — **depends on CP.0, CP.1**
+- [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; set `Title` on the node — **depends on CP.0, CP.1**
 - [ ] CP.5. Integrate `bubbles/textarea` for multiline markdown body input within forms — **depends on NV.1, CP.1**
 - [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2, NV.4**
 - [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.1**
-- [ ] CP.8. Wire capture bar focus (`Space` or `/`) to open the appropriate form based on prefix — **depends on CP.2, CP.3, CP.4**
+- [ ] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix — **depends on CP.0, CP.2, CP.3, CP.4**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
+- [ ] CP.2. Task creation form — **depends on CP.0, CP.1**
+- [ ] CP.3. Journal form — **depends on CP.0, CP.1**
+- [ ] CP.4. Note creation form — **depends on CP.0, CP.1**
 - [ ] CP.5. Textarea for markdown body — **depends on NV.1, CP.1**
 - [ ] CP.6. Link-to-selected — **depends on CP.2, NV.4**
+- [ ] CP.7. Spend form — **depends on CP.1**
+- [ ] CP.8. Capture bar form dispatch — **depends on CP.0, CP.2, CP.3, CP.4**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -265,6 +273,29 @@ _(none yet)_
 
 ---
 
+<a name="cli"><h3>CLI Input</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** CLI node creation uses a wyrd-native interface rather than spawning `$EDITOR`. All creation flows prompt for every mandatory field for the given node type. Users can always discover valid options (e.g. budget categories) without reading source code.
+
+<a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
+
+- [ ] CL.1. Replace `$EDITOR` in `wyrd journal` with a wyrd-native multiline input (Bubble Tea program or `huh` form); set `Title` from the first non-blank line — **depends on CP.1**
+- [ ] CL.2. Replace `$EDITOR` in `wyrd note` with a wyrd-native multiline input; retain title prompt, set `Title` on the node — **depends on CP.1**
+- [ ] CL.3. Fix `wyrd add` to prompt for `Title` as a required field; currently creates tasks with no title — **no blockers**
+- [ ] CL.4. When `wyrd spend <category>` fails with "budget category not found", list all available budget categories from the store — **no blockers**
+
+<a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
+
+- [ ] CL.1. Replace `$EDITOR` for journal — **depends on CP.1**
+- [ ] CL.2. Replace `$EDITOR` for note — **depends on CP.1**
+
+<a name="cli-done"><h4>Completed (CLI Input)</h4></a>
+
+_(none yet)_
+
+---
+
 <a name="qe"><h3>Query Engine Enhancements</h3></a>
 
 > [!IMPORTANT]
@@ -299,6 +330,7 @@ m4["`**Milestone 4**<br/>Visual Polish`"]:::mile
 m5["`**Milestone 5**<br/>Logging`"]:::mile
 m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
+mcli["`**CLI Input**`"]:::mile
 
 WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::done
 WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
@@ -308,7 +340,7 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::open
 NV2["`*NV.2*<br/>**Navigation**<br/>bubbles/table`"]:::open
 NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::open
-NV4["`*NV.4*<br/>**Navigation**<br/>Pane focus toggle`"]:::blocked
+NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::blocked
 NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::blocked
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::blocked
 NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::blocked
@@ -316,6 +348,7 @@ NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
 NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::blocked
 NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
 
+CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
 CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
 CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::blocked
 CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::blocked
@@ -323,7 +356,12 @@ CP4["`*CP.4*<br/>**Capture**<br/>Note form`"]:::blocked
 CP5["`*CP.5*<br/>**Capture**<br/>Textarea body`"]:::blocked
 CP6["`*CP.6*<br/>**Capture**<br/>Link-to-selected`"]:::blocked
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::blocked
-CP8["`*CP.8*<br/>**Capture**<br/>Capture bar focus`"]:::blocked
+CP8["`*CP.8*<br/>**Capture**<br/>Form dispatch`"]:::blocked
+
+CL1["`*CL.1*<br/>**CLI Input**<br/>Journal native input`"]:::blocked
+CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::blocked
+CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
+CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
 VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::blocked
 VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::blocked
@@ -375,12 +413,16 @@ NV9 --> VS6
 NV2 --> RT3
 NV8 --> DA7
 
+CP0 --> CP2 & CP3 & CP4 & CP8
 CP1 --> CP2 & CP3 & CP4 & CP7
-CP2 --> CP6 & CP8 & DA5
+CP2 --> CP6 & DA5
+CP3 & CP4 --> CP8
+CP0 & CP2 & CP3 & CP4 --> CP8
 NV1 --> CP5
 NV4 --> CP6
 NV4 --> RT1
 CP1 --> RT1 & RT4
+CP1 --> CL1 & CL2
 
 VS1 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
 NV4 --> VS2
@@ -408,11 +450,12 @@ DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
 m2 --> NV1 & NV2 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10
-m3 --> CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
+m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
+mcli --> CL1 & CL2 & CL3 & CL4
 
 
 classDef default fill:#fff7fb,stroke:#ccc;

@@ -1,67 +1,100 @@
 package tui
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/jasonwarrenuk/wyrd/internal/tui/views"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
-// nodeListPane is a PaneModel that renders a QueryResult as a scrollable list
-// using the views.ListRenderer. It supports basic j/k keyboard navigation.
-//
-// This is an intentionally minimal implementation. NV.1 (bubbles/list
-// integration) will replace the raw renderer with a proper Bubbles component
-// that adds filtering, momentum scrolling, and mouse support.
-type nodeListPane struct {
-	renderer    *views.ListRenderer
-	result      types.QueryResult
-	selectedIdx int
-	width       int
-	height      int
+// nodeListItem wraps a single row from a QueryResult so it satisfies the
+// list.DefaultItem interface required by bubbles/list.
+type nodeListItem struct {
+	// row holds the raw column→value map from the query result.
+	row map[string]interface{}
+
+	// title is the pre-formatted single-line string shown in the list.
+	title string
+
+	// id is the node UUID carried for future selection/navigation.
+	id string
 }
 
-// newNodeListPane constructs a pane from a QueryResult. The renderer uses the
-// columns from the result (falling back to dashboardColumns when empty).
-func newNodeListPane(result types.QueryResult) nodeListPane {
+// Title implements list.DefaultItem. Returns the pre-formatted display string.
+func (i nodeListItem) Title() string { return i.title }
+
+// Description implements list.DefaultItem. Unused — items render as single lines.
+func (i nodeListItem) Description() string { return "" }
+
+// FilterValue implements list.Item. The full title string is searchable.
+func (i nodeListItem) FilterValue() string { return i.title }
+
+// NodeID returns the UUID of the underlying node for navigation.
+func (i nodeListItem) NodeID() string { return i.id }
+
+// nodeListPane is a PaneModel that renders a QueryResult as a scrollable list
+// using the charmbracelet/bubbles list component. It provides built-in j/k
+// navigation, fuzzy filtering, and mouse support.
+type nodeListPane struct {
+	list    list.Model
+	columns []string
+	width   int
+	height  int
+}
+
+// newNodeListPane constructs a pane from a QueryResult, wiring the theme
+// colours into the bubbles/list delegate styles.
+func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane {
 	cols := result.Columns
 	if len(cols) == 0 {
 		cols = dashboardColumns
 	}
+
+	items := rowsToItems(result.Rows, cols)
+
+	delegate := buildDelegate(theme)
+	l := list.New(items, delegate, 80, 22)
+
+	// Disable all built-in chrome — we own the surrounding frame.
+	l.SetShowTitle(false)
+	l.SetShowFilter(false)
+	l.SetShowStatusBar(false)
+	l.SetShowPagination(false)
+	l.SetShowHelp(false)
+	l.SetFilteringEnabled(false)
+
 	return nodeListPane{
-		renderer:    views.NewListRenderer(cols),
-		result:      result,
-		selectedIdx: 0,
-		width:       80,
-		height:      24,
+		list:    l,
+		columns: cols,
+		width:   80,
+		height:  22,
 	}
 }
 
-// Update handles window resize and j/k navigation keys.
+// Update handles window resize and forwards all other messages to the
+// bubbles/list component, which manages its own j/k/mouse/filter state.
 func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		p.width = msg.Width / 2 // left pane gets roughly half the terminal width
+		p.width = msg.Width / 2
 		p.height = msg.Height
+		p.list.SetSize(p.width, p.height)
 		return p, nil
-
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "j", "down":
-			if p.selectedIdx < len(p.result.Rows)-1 {
-				p.selectedIdx++
-			}
-		case "k", "up":
-			if p.selectedIdx > 0 {
-				p.selectedIdx--
-			}
-		}
 	}
-	return p, nil
+
+	var cmd tea.Cmd
+	p.list, cmd = p.list.Update(msg)
+	return p, cmd
 }
 
-// View renders the list using the ListRenderer.
+// View renders the column header followed by the bubbles/list content.
 func (p nodeListPane) View() string {
-	return p.renderer.Render(p.result, p.selectedIdx, p.width)
+	header := renderListHeader(p.columns, p.width)
+	content := p.list.View()
+	return lipgloss.JoinVertical(lipgloss.Left, header, content)
 }
 
 // KeyBindings advertises the navigation keys this pane handles.
@@ -69,5 +102,104 @@ func (p nodeListPane) KeyBindings() []KeyBinding {
 	return []KeyBinding{
 		{Key: "j / ↓", Description: "Move down"},
 		{Key: "k / ↑", Description: "Move up"},
+		{Key: "g / G", Description: "Jump to top / bottom"},
 	}
+}
+
+// SelectedNodeID returns the UUID of the currently highlighted node, or an
+// empty string when the list is empty.
+func (p nodeListPane) SelectedNodeID() string {
+	item := p.list.SelectedItem()
+	if item == nil {
+		return ""
+	}
+	if n, ok := item.(nodeListItem); ok {
+		return n.NodeID()
+	}
+	return ""
+}
+
+// --- helpers -----------------------------------------------------------------
+
+// rowsToItems converts QueryResult rows into bubbles/list items.
+// Each item's title is the formatted display string for that row.
+func rowsToItems(rows []map[string]interface{}, cols []string) []list.Item {
+	items := make([]list.Item, len(rows))
+	for i, row := range rows {
+		id, _ := row["id"].(string)
+		items[i] = nodeListItem{
+			row:   row,
+			title: formatRowTitle(row, cols),
+			id:    id,
+		}
+	}
+	return items
+}
+
+// formatRowTitle produces the single-line display string for a row by joining
+// the non-id column values with a separator.
+func formatRowTitle(row map[string]interface{}, cols []string) string {
+	parts := make([]string, 0, len(cols))
+	for _, col := range cols {
+		if col == "id" {
+			continue
+		}
+		v := row[col]
+		if v == nil {
+			parts = append(parts, "—")
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%v", v))
+	}
+	return strings.Join(parts, "  ")
+}
+
+// buildDelegate constructs a single-line DefaultDelegate styled to the active
+// theme colours.
+func buildDelegate(theme *ActiveTheme) list.DefaultDelegate {
+	d := list.NewDefaultDelegate()
+	d.ShowDescription = false
+	d.SetHeight(1)
+	d.SetSpacing(0)
+
+	// Restyle using theme colours.
+	normalStyle := lipgloss.NewStyle().
+		Foreground(theme.FgPrimary()).
+		Padding(0, 0, 0, 1)
+
+	selectedStyle := lipgloss.NewStyle().
+		Background(theme.Selection()).
+		Foreground(theme.AccentPrimary()).
+		Bold(true).
+		Padding(0, 0, 0, 1)
+
+	d.Styles.NormalTitle = normalStyle
+	d.Styles.NormalDesc = normalStyle
+	d.Styles.SelectedTitle = selectedStyle
+	d.Styles.SelectedDesc = selectedStyle
+	d.Styles.DimmedTitle = lipgloss.NewStyle().
+		Foreground(theme.FgMuted()).
+		Padding(0, 0, 0, 1)
+	d.Styles.DimmedDesc = d.Styles.DimmedTitle
+
+	return d
+}
+
+// renderListHeader renders a styled column-header row matching the pane width.
+func renderListHeader(cols []string, width int) string {
+	// Show only non-id column names, space-separated.
+	headers := make([]string, 0, len(cols))
+	for _, col := range cols {
+		if col == "id" {
+			continue
+		}
+		headers = append(headers, col)
+	}
+
+	style := lipgloss.NewStyle().
+		Bold(true).
+		Padding(0, 0, 0, 1).
+		Width(width)
+
+	return style.Render(strings.Join(headers, "  "))
 }
