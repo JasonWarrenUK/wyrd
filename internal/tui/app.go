@@ -205,6 +205,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.layout.Resize(msg.Width, msg.Height)
 		m.statusBar.SetWidth(msg.Width)
+		m.leftPane, _ = m.leftPane.Update(msg)
+		m.rightPane, _ = m.rightPane.Update(msg)
 		m.ready = true
 		return m, nil
 
@@ -297,6 +299,7 @@ func (m Model) View() string {
 	}
 
 	leftView := m.leftPane.View()
+
 	rightView := m.rightPane.View()
 	statusView := m.statusBar.View()
 

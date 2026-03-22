@@ -46,9 +46,10 @@ func (l *Layout) Resize(width, height int) {
 }
 
 // PaneHeight returns the height available for pane content (excluding the
-// status bar).
+// status bar and the top/bottom pane borders).
 func (l *Layout) PaneHeight() int {
-	h := l.totalHeight - l.statusBarHeight
+	const borderLines = 2 // rounded border: one top, one bottom
+	h := l.totalHeight - l.statusBarHeight - borderLines
 	if h < 1 {
 		return 1
 	}
