@@ -14,6 +14,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
 | **QE**   | Cypher subset implemented     | UNION support                | —                              |
+| **GM**   | No reification support        | relationship template, reify command | —                     |
 
 ---
 
@@ -28,6 +29,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
   - [Milestone 6: Rituals & Workflows](#m6)
   - [Milestone 7: Documentation Assets](#m7)
   - [Query Engine Enhancements](#qe)
+  - [Graph Model Enhancements](#gm)
 - [Progress Map](#map)
 - [Beyond v1](#post-v1)
 
@@ -285,6 +287,33 @@ _(none yet)_
 
 ---
 
+<a name="gm"><h3>Graph Model Enhancements</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** Enable edge-to-node reification so that relationships can themselves be referenced, annotated, and traversed. This uses a standard property-graph pattern: when an edge needs to be "about" something, it is promoted to an intermediary node of type `relationship`, with two replacement edges preserving the original connection. No hypergraph extensions or Cypher syntax changes required.
+
+<a name="gm-doing"><h4>In Progress (Graph Model)</h4></a>
+
+_(none yet)_
+
+<a name="gm-todo"><h4>To Do (Graph Model)</h4></a>
+
+- [ ] GM.1. Create `relationship` node template (`templates/relationship.jsonc`) with fields: `original_type` (string, required), `original_from` (string, required), `original_to` (string, required), `status` (string, default `"active"`) — **no blockers**
+- [ ] GM.2. Implement `wyrd reify <edge-id>` CLI command: reads the edge, creates a `relationship` node with properties + provenance fields, creates two replacement edges (`(from)-[:original_type]->(rel_node)` and `(rel_node)-[:target]->(to)`), deletes the original edge — **depends on GM.1**
+- [ ] GM.3. Add tests for `reify`: verify node creation, edge replacement, provenance fields, and that the original edge is deleted; verify error on non-existent edge ID — **depends on GM.2**
+- [ ] GM.4. Implement auto-reify in `store.CreateEdge`: when `from` or `to` matches an existing edge ID (not a node ID), transparently reify that edge into a `relationship` node before writing — **depends on GM.3**
+- [ ] GM.5. Add TUI edge-detail view: when a `relationship` node is selected, render provenance info (original type, original endpoints) alongside standard node detail — **depends on GM.3, NV.3**
+
+<a name="gm-blocked"><h4>Blocked (Graph Model)</h4></a>
+
+- [ ] GM.5. TUI edge-detail view — **depends on GM.3, NV.3**
+
+<a name="gm-done"><h4>Completed (Graph Model)</h4></a>
+
+_(none yet)_
+
+---
+
 <a name="map"><h2>Progress Map</h2></a>
 
 ```mermaid
@@ -300,6 +329,7 @@ m4["`**Milestone 4**<br/>Visual Polish`"]:::mile
 m5["`**Milestone 5**<br/>Logging`"]:::mile
 m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
+gm["`**Graph Model**<br/>Reification`"]:::mile
 
 WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::done
 WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
@@ -308,6 +338,12 @@ WL7["`*WL.7*<br/>**Wire & Launch**<br/>Configurable dashboard`"]:::open
 WL8["`*WL.8*<br/>**Wire & Launch**<br/>Journal date field`"]:::open
 WL9["`*WL.9*<br/>**Wire & Launch**<br/>Node title field`"]:::open
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
+
+GM1["`*GM.1*<br/>**Graph Model**<br/>relationship template`"]:::open
+GM2["`*GM.2*<br/>**Graph Model**<br/>reify CLI command`"]:::blocked
+GM3["`*GM.3*<br/>**Graph Model**<br/>reify tests`"]:::blocked
+GM4["`*GM.4*<br/>**Graph Model**<br/>auto-reify in CreateEdge`"]:::blocked
+GM5["`*GM.5*<br/>**Graph Model**<br/>TUI edge-detail view`"]:::blocked
 
 NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::open
 NV2["`*NV.2*<br/>**Navigation**<br/>bubbles/table`"]:::open
@@ -421,6 +457,14 @@ m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 
 QE1 -.->|enables| WL7
 
+gm --> GM1 & GM2 & GM3 & GM4 & GM5
+GM1 --> GM2
+GM2 --> GM3
+GM3 --> GM4
+GM3 --> GM5
+NV3 --> GM5
+GM4 -.->|enables| CP6
+
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;
 classDef open fill:#fff9e5,stroke:#d4ac0d;
@@ -434,7 +478,7 @@ classDef mile fill:#c4fffe,stroke:#0097a7,font-weight:bold;
 
 Ideas deferred until core TUI is stable and polished:
 
-- **Graph visualisation** — render edge relationships as ASCII/block-drawing graph in TUI
+- **Graph visualisation** — render edge relationships as ASCII/block-drawing graph in TUI; reified `relationship` nodes (GM) simplify rendering since all entities are nodes
 - **`wyrd compact`** — implement the archive/compaction command (currently placeholder)
 - **Plugin UI** — in-TUI plugin management (install, configure, trigger) rather than CLI-only
 - **Multi-pane layouts** — three-column or dynamic split beyond left/right
