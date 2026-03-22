@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | Bubbles already dep'd         | List/viewport integration    | —                              |
+| **NV**   | NV.1 done (bubbles/list wired) | Viewport, column alignment, focus indicator | —                |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
@@ -77,24 +77,23 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] NV.1. Wire `bubbles/list` component into the left pane for node listing
 - [ ] NV.2. Wire `bubbles/table` component for query result rows (replaces current plain-text tabular renderer)
 - [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
 - [ ] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired — **depends on NV.1**
 - [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.1**
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
-- [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
 - [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
-- [ ] NV.9. Implement status bar showing: focused node ID, type badges, edge count — **depends on NV.4**
-- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
+- [ ] NV.11. Align columns in the left-pane list: the header row (`renderListHeader`) and each item row (`formatRowTitle`) currently use plain `strings.Join("  ")` with no padding, so columns don't line up. Fix: compute max column widths across all rows (same approach as `views.ListRenderer.calculateColumnWidths`), then pad each cell to its column width using `padOrTruncate` before joining. The header must use the same widths. The `bubbles/list` delegate's `Render` method receives the pre-formatted title string from `nodeListItem.Title()`, so all padding logic lives in `rowsToItems`/`formatRowTitle` — not in the delegate itself. Width budget: `pane width - 1` (left padding added by the delegate style). — **depends on NV.1**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-_(none)_
+- [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
+- [ ] NV.9. Implement status bar showing: focused node ID, type badges, edge count — **depends on NV.4**
+- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
-_(none yet)_
+- [x] NV.1. Wire `bubbles/list` component into the left pane for node listing
 
 ---
 
@@ -146,7 +145,7 @@ _(none yet)_
 
 <a name="m4-todo"><h4>To Do (Milestone 4)</h4></a>
 
-- [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars — **depends on NV.1**
+- [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars
 - [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4**
 - [ ] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1**
 - [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1**
@@ -159,7 +158,6 @@ _(none yet)_
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
 
-- [ ] VS.1. Audit and replace hardcoded colours — **depends on NV.1**
 - [ ] VS.2. Active/inactive pane borders — **depends on NV.4**
 - [ ] VS.6. Status bar styling — **depends on NV.9**
 - [ ] VS.8. Huh form theming — **depends on VS.1, CP.1**
@@ -337,16 +335,17 @@ WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
 WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::done
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
-NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::open
+NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::done
 NV2["`*NV.2*<br/>**Navigation**<br/>bubbles/table`"]:::open
 NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::open
-NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::blocked
-NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::blocked
-NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::blocked
+NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::open
+NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::open
+NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::blocked
 NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
 NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::blocked
 NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
+NV11["`*NV.11*<br/>**Navigation**<br/>Column alignment`"]:::open
 
 CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
 CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
@@ -363,7 +362,7 @@ CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::blocked
 CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
-VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::blocked
+VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::open
 VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::blocked
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::blocked
@@ -405,7 +404,7 @@ m1 --> WL2 & WL4 & WL6
 
 WL2 & WL4 --> WL6
 WL2 --> VS7 & RT2 & RT8
-NV1 --> NV4 & NV5 & NV6 & VS1
+NV1 --> NV4 & NV5 & NV6 & NV11 & VS1
 NV3 --> NV10 & LG7
 NV4 --> NV7 & VS2 & RT1
 NV5 --> NV7
@@ -449,7 +448,7 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-m2 --> NV1 & NV2 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10
+m2 --> NV1 & NV2 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV11
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7

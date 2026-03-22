@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -74,6 +75,20 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	}
 }
 
+// listHeight computes the number of rows available for the bubbles/list
+// component. It mirrors Layout.PaneHeight() and subtracts one additional line
+// for the column-header row rendered above the list.
+func listHeight(terminalHeight int) int {
+	const borderLines = 2 // rounded border top + bottom
+	const statusBar = 1
+	const headerLine = 1
+	h := terminalHeight - borderLines - statusBar - headerLine
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
 // Update handles window resize and forwards all other messages to the
 // bubbles/list component, which manages its own j/k/mouse/filter state.
 func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
@@ -81,7 +96,7 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		p.width = msg.Width / 2
 		p.height = msg.Height
-		p.list.SetSize(p.width, p.height)
+		p.list.SetSize(p.width, listHeight(msg.Height))
 		return p, nil
 	}
 
@@ -144,14 +159,31 @@ func formatRowTitle(row map[string]interface{}, cols []string) string {
 		if col == "id" {
 			continue
 		}
-		v := row[col]
-		if v == nil {
-			parts = append(parts, "—")
-			continue
-		}
-		parts = append(parts, fmt.Sprintf("%v", v))
+		parts = append(parts, formatCellValue(row[col]))
 	}
 	return strings.Join(parts, "  ")
+}
+
+// formatCellValue converts a cell value to a display string.
+// time.Time values are formatted as YYYY-MM-DD. Nil values show an em dash.
+func formatCellValue(v interface{}) string {
+	if v == nil {
+		return "—"
+	}
+	switch t := v.(type) {
+	case time.Time:
+		return t.Format("2006-01-02")
+	case *time.Time:
+		if t == nil {
+			return "—"
+		}
+		return t.Format("2006-01-02")
+	}
+	s := fmt.Sprintf("%v", v)
+	if s == "" || s == "<nil>" {
+		return "—"
+	}
+	return s
 }
 
 // buildDelegate constructs a single-line DefaultDelegate styled to the active
