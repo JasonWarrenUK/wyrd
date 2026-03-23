@@ -89,14 +89,15 @@ func (r *DetailRenderer) Render(
 ) string {
 	c := r.Colours
 
+	// IMPORTANT: every style must carry Background(bg) to prevent terminal
+	// default bleeding through at ANSI reset boundaries between segments.
+	// See feedback_statusbar_background_bleed.md — same root cause.
+	bg := r.bg()
+
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.AccentPrimary)).
+		Background(bg).
 		Bold(true)
-
-	var bg lipgloss.TerminalColor = lipgloss.NoColor{}
-	if c.BgPrimary != "" {
-		bg = lipgloss.Color(c.BgPrimary)
-	}
 
 	mutedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.FGMuted)).
@@ -108,6 +109,7 @@ func (r *DetailRenderer) Render(
 
 	sectionHeaderStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.AccentSecondary)).
+		Background(bg).
 		Bold(true)
 
 	isArchived := isArchivedNode(node)
@@ -118,6 +120,7 @@ func (r *DetailRenderer) Render(
 	if isArchived {
 		archivedStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color(c.BudgetOver)).
+			Background(bg).
 			Bold(true)
 		sb.WriteString(archivedStyle.Render("ARCHIVED"))
 		sb.WriteString("\n\n")
@@ -186,6 +189,16 @@ func (r *DetailRenderer) Render(
 	}
 
 	return strings.TrimRight(sb.String(), "\n")
+}
+
+// bg returns the background colour for all inner styles. Every style in
+// the detail renderer must carry this background to prevent terminal default
+// bleeding through at ANSI reset boundaries between styled segments.
+func (r *DetailRenderer) bg() lipgloss.TerminalColor {
+	if r.Colours.BgPrimary != "" {
+		return lipgloss.Color(r.Colours.BgPrimary)
+	}
+	return lipgloss.NoColor{}
 }
 
 // ---- Internal helpers ----
@@ -330,6 +343,7 @@ func (r *DetailRenderer) renderEdgeLine(
 	now time.Time,
 ) string {
 	c := r.Colours
+	bg := r.bg()
 	outgoing := edge.From == nodeID
 
 	// Resolve the other end of the edge.
@@ -343,12 +357,13 @@ func (r *DetailRenderer) renderEdgeLine(
 	}
 
 	glyph := edgeGlyph(edge.Type, outgoing)
-	glyphStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted))
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGPrimary))
-	typeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted))
+	glyphStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted)).Background(bg)
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGPrimary)).Background(bg)
+	typeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted)).Background(bg)
 
-	line := glyphStyle.Render(glyph) + " " +
-		typeStyle.Render(edge.Type+":") + " " +
+	sp := Spacer(1, bg)
+	line := glyphStyle.Render(glyph) + sp +
+		typeStyle.Render(edge.Type+":") + sp +
 		labelStyle.Render(otherLabel)
 
 	// Append age suffix for waiting_on edges.
@@ -357,7 +372,7 @@ func (r *DetailRenderer) renderEdgeLine(
 		days := int(age.Hours() / 24)
 		suffix := fmt.Sprintf(" · %dd", days)
 		ageColour := ageColourForDays(days, c)
-		line += lipgloss.NewStyle().Foreground(lipgloss.Color(ageColour)).Render(suffix)
+		line += lipgloss.NewStyle().Foreground(lipgloss.Color(ageColour)).Background(bg).Render(suffix)
 	}
 
 	return line
@@ -382,6 +397,7 @@ func ageColourForDays(days int, c Colours) string {
 // renderBudgetLine produces a compact one-line budget summary with a progress bar.
 func (r *DetailRenderer) renderBudgetLine(node *types.Node, now time.Time) string {
 	c := r.Colours
+	bg := r.bg()
 	summary := budget.Compute(node, now)
 
 	var statusColour string
@@ -411,13 +427,14 @@ func (r *DetailRenderer) renderBudgetLine(node *types.Node, now time.Time) strin
 	// Build a compact progress bar (10 characters wide).
 	bar := buildProgressBar(summary.Spent, summary.Allocated, 10)
 
-	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColour))
-	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted))
-	primaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGPrimary))
+	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColour)).Background(bg)
+	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted)).Background(bg)
+	primaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGPrimary)).Background(bg)
 
-	return statusStyle.Render(statusGlyph) + " " +
-		primaryStyle.Render(categoryLabel) + " " +
-		mutedStyle.Render(bar) + " " +
+	sp := Spacer(1, bg)
+	return statusStyle.Render(statusGlyph) + sp +
+		primaryStyle.Render(categoryLabel) + sp +
+		mutedStyle.Render(bar) + sp +
 		primaryStyle.Render(fmt.Sprintf("£%.2f", summary.Spent)) +
 		mutedStyle.Render(fmt.Sprintf("/£%.2f", summary.Allocated))
 }

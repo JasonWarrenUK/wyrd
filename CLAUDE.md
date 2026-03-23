@@ -86,6 +86,19 @@ Uses the system `git` binary via `exec.Command` (not a Go git library). `sync.Sy
 
 Bubble Tea + Lipgloss. Wired as the default `wyrd` command (no args launches the TUI). Theme system uses Cairn palette by default. The split-pane layout, keyboard model, command palette, and status bar are all in place; content views implement the `PaneModel` interface.
 
+#### TUI styling rules
+
+Two utilities in `internal/tui/render.go` prevent background-bleed bugs. **Always use them — never use bare strings.**
+
+- **`PadLines(content, width, bg)`** — pads every line to full pane width with `bg`. Call in every `PaneModel.View()` before returning.
+- **`Spacer(n, bg)`** — returns `n` spaces with `bg`. Use instead of `" "` or `strings.Repeat(" ", n)` when joining `Render()` output.
+
+Rules (background bleed has been reintroduced 5+ times — these are non-negotiable):
+1. Every `lipgloss.NewStyle()` in a themed container must carry both `.Background(bg)` **and** `.Foreground(fg)`.
+2. Never concatenate bare string literals between `Render()` calls — use `Spacer(n, bg)`.
+3. Never use `strings.Repeat(" ", n)` for display spacers — use `Spacer(n, bg)`.
+4. Every `PaneModel.View()` implementation must pass its output through `PadLines()` before returning.
+
 ---
 
 ## Roadmap files (`docs/roadmaps/`)

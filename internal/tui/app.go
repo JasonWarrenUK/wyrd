@@ -191,6 +191,12 @@ func New(cfg Config) (Model, error) {
 	if lp, ok := leftPane.(nodeListPane); ok {
 		if id := lp.SelectedNodeID(); id != "" {
 			m.rightPane = m.renderDetail(id)
+			if m.index != nil {
+				if node, err := m.index.GetNode(id); err == nil {
+					edgeCount := len(m.index.EdgesFrom(id)) + len(m.index.EdgesTo(id))
+					m.statusBar.SetNodeInfo(node.ID, node.Types, edgeCount)
+				}
+			}
 		}
 	}
 
@@ -229,6 +235,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case nodeSelectedMsg:
 		m.rightPane = m.renderDetail(msg.nodeID)
+		if m.index != nil {
+			if node, err := m.index.GetNode(msg.nodeID); err == nil {
+				edgeCount := len(m.index.EdgesFrom(msg.nodeID)) + len(m.index.EdgesTo(msg.nodeID))
+				m.statusBar.SetNodeInfo(node.ID, node.Types, edgeCount)
+			}
+		}
 		return m, nil
 
 	case switchThemeMsg:
@@ -331,7 +343,8 @@ func (m Model) View() string {
 		overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
 		if overlay != "" {
 			// Simple approach: replace the middle of the frame with the palette.
-			// The overlay is centred horizontally; we place it at line 3.
+			// The overlay is centred horizontally; we place it at line 2 so
+			// the palette content starts below the pane top border row.
 			lines := splitLines(frame)
 			overlayLines := splitLines(overlay)
 			startLine := 2

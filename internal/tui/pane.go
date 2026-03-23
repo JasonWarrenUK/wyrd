@@ -22,12 +22,19 @@ type KeyBinding struct {
 // PaneModel is the interface that Phase 4 agents implement to provide
 // content within a pane. All state must be held inside the implementation;
 // the frame calls Update and View on every tick.
+//
+// Implementors: View() must return content where every line is padded to the
+// pane width using PadLines(). This ensures the background colour extends to
+// the pane edge even when inner container components (viewport, list) emit
+// backgroundless padding spaces after ANSI-reset boundaries.
 type PaneModel interface {
 	// Update handles a Bubble Tea message and returns the updated pane
 	// model along with any commands to run.
 	Update(msg tea.Msg) (PaneModel, tea.Cmd)
 
 	// View renders the pane content as a string ready for Lipgloss layout.
+	// Every line must be padded to the pane width via PadLines so that
+	// background colour extends to the pane edge without bleed.
 	View() string
 
 	// KeyBindings returns the list of keybindings this pane handles,
@@ -69,18 +76,21 @@ func NewEmptyPane(theme *ActiveTheme) PaneModel {
 // edge lists, and budget sections can be scrolled with j/k, arrow keys,
 // Page Up, and Page Down.
 type viewportPane struct {
-	vp  viewport.Model
-	bg  lipgloss.Color
+	vp         viewport.Model
+	bg         lipgloss.Color
+	rawContent string // unpadded source content; re-padded on resize
 }
 
 // newViewportPane creates a viewportPane sized to the given dimensions and
 // pre-loaded with the provided content string. bg is the theme background
-// colour applied to the viewport style so padding lines don't bleed through.
+// colour. Content is padded via PadLines before being set so every line
+// reaches the viewport width; this prevents terminal-colour bleed at ANSI
+// reset boundaries regardless of what the container component does.
 func newViewportPane(width, height int, content string, bg lipgloss.Color) viewportPane {
 	vp := viewport.New(width, height)
 	vp.Style = lipgloss.NewStyle().Background(bg)
-	vp.SetContent(content)
-	return viewportPane{vp: vp, bg: bg}
+	vp.SetContent(PadLines(content, width, bg))
+	return viewportPane{vp: vp, bg: bg, rawContent: content}
 }
 
 // Update handles scroll key messages forwarded from the root model when the
@@ -99,6 +109,8 @@ func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			d.vp.Height = 1
 		}
 		d.vp.Style = lipgloss.NewStyle().Background(d.bg)
+		// Re-pad to the new width so lines fill the resized viewport.
+		d.vp.SetContent(PadLines(d.rawContent, d.vp.Width, d.bg))
 	default:
 		d.vp, cmd = d.vp.Update(msg)
 	}

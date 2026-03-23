@@ -1,4 +1,4 @@
-.PHONY: build test vet lint clean install
+.PHONY: build test vet lint lint-tui clean install
 
 BINARY_DIR := bin
 WYRD        := $(BINARY_DIR)/wyrd
@@ -24,9 +24,19 @@ test:
 vet:
 	go vet ./...
 
-lint:
+lint: lint-tui
 	@which golangci-lint > /dev/null || (echo "golangci-lint not installed; run: brew install golangci-lint" && exit 1)
 	golangci-lint run
+
+# Catches bare " " / "  " used as separators directly between Render() calls
+# in TUI code. Matches: .Render(...) + " " + and .Render(...) + "  " +
+# Use Spacer(n, bg) instead. See CLAUDE.md TUI styling rules.
+lint-tui:
+	@echo "Checking for bare spacers between Render() calls in TUI code..."
+	@! grep -rn --include='*.go' -E '\.Render\([^)]*\)[[:space:]]*\+[[:space:]]+"[[:space:]]+"[[:space:]]*\+' internal/tui/ \
+		| grep -v '_test.go' \
+		|| (echo "FAIL: bare spacers found between Render() calls — use Spacer(n, bg) instead (see CLAUDE.md TUI styling rules)" && exit 1)
+	@echo "OK"
 
 clean:
 	rm -rf $(BINARY_DIR)

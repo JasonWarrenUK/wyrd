@@ -56,6 +56,7 @@ type nodeListPane struct {
 	rows      []map[string]interface{}
 	width     int
 	height    int
+	theme     *ActiveTheme
 }
 
 // newNodeListPane constructs a pane from a QueryResult, wiring the theme
@@ -89,6 +90,7 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 		rows:      result.Rows,
 		width:     initialWidth,
 		height:    22,
+		theme:     theme,
 	}
 }
 
@@ -143,10 +145,19 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 }
 
 // View renders the column header followed by the bubbles/list content.
+// The combined output is padded via PadLines so every line reaches the pane
+// edge with the correct background colour, preventing terminal bleed.
 func (p nodeListPane) View() string {
-	header := renderListHeader(p.columns, p.colWidths)
+	var bg lipgloss.Color
+	var fg lipgloss.Color
+	if p.theme != nil {
+		bg = p.theme.BgPrimary()
+		fg = p.theme.FgPrimary()
+	}
+	header := renderListHeader(p.columns, p.colWidths, fg, bg)
 	content := p.list.View()
-	return lipgloss.JoinVertical(lipgloss.Left, header, content)
+	raw := lipgloss.JoinVertical(lipgloss.Left, header, content)
+	return PadLines(raw, p.width, bg)
 }
 
 // KeyBindings advertises the navigation keys this pane handles.
@@ -359,8 +370,11 @@ func buildDelegate(theme *ActiveTheme) list.DefaultDelegate {
 
 // renderListHeader renders a styled column-header row with each header name
 // padded to its column width, matching the alignment of the data rows below.
-func renderListHeader(cols []string, colWidths []int) string {
-	style := lipgloss.NewStyle().Bold(true).Padding(0, 0, 0, 1)
+// fg and bg are applied to every cell so colours match the active theme.
+// Inter-column gaps use Spacer() so they carry the background colour — bare
+// string separators would bleed the terminal default at ANSI reset boundaries.
+func renderListHeader(cols []string, colWidths []int, fg, bg lipgloss.Color) string {
+	style := lipgloss.NewStyle().Bold(true).Foreground(fg).Background(bg).Padding(0, 0, 0, 1)
 
 	cells := make([]string, 0, len(cols))
 	wi := 0
@@ -376,5 +390,5 @@ func renderListHeader(cols []string, colWidths []int) string {
 		cells = append(cells, style.Render(listPadOrTruncate(col, w)))
 	}
 
-	return strings.Join(cells, strings.Repeat(" ", listColPadding))
+	return strings.Join(cells, Spacer(listColPadding, bg))
 }

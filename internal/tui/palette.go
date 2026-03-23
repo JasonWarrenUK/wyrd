@@ -261,11 +261,14 @@ func (ps *PaletteState) View(width, height int) string {
 		boxWidth = 80
 	}
 
+	bg := ps.theme.BgSecondary()
+
 	var sb strings.Builder
 
-	// Header.
+	// Header — background must match box bg to prevent bleed at ANSI resets.
 	titleStyle := lipgloss.NewStyle().
 		Foreground(ps.theme.AccentPrimary()).
+		Background(bg).
 		Bold(true).
 		Width(boxWidth - 4)
 
@@ -279,12 +282,13 @@ func (ps *PaletteState) View(width, height int) string {
 	// Input field.
 	inputStyle := lipgloss.NewStyle().
 		Width(boxWidth - 4).
+		Background(bg).
 		Foreground(ps.theme.FgPrimary())
 	sb.WriteString(inputStyle.Render(ps.input.View()))
 	sb.WriteString("\n")
 
 	// Divider.
-	divStyle := lipgloss.NewStyle().Foreground(ps.theme.Border())
+	divStyle := lipgloss.NewStyle().Foreground(ps.theme.Border()).Background(bg)
 	sb.WriteString(divStyle.Render(strings.Repeat("─", boxWidth-4)))
 	sb.WriteString("\n")
 
@@ -294,28 +298,32 @@ func (ps *PaletteState) View(width, height int) string {
 		if i >= maxVisible {
 			break
 		}
-		cursor := "  "
+		// cursor prefix and name/description share the same bg.
+		cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(ps.theme.FgMuted())
+		cursorText := "  "
 		nameStyle := lipgloss.NewStyle().
 			Width(boxWidth - 10).
+			Background(bg).
 			Foreground(ps.theme.FgPrimary())
 		hintStyle := lipgloss.NewStyle().
+			Background(bg).
 			Foreground(ps.theme.FgMuted())
 
 		if i == ps.cursor {
-			cursor = "> "
+			cursorText = "> "
 			nameStyle = nameStyle.Foreground(ps.theme.AccentPrimary()).Bold(true)
 		}
 
-		line := cursor + nameStyle.Render(cmd.Name+" — "+cmd.Description)
+		line := cursorStyle.Render(cursorText) + nameStyle.Render(cmd.Name+" — "+cmd.Description)
 		if cmd.Hint != "" {
-			line += " " + hintStyle.Render("["+cmd.Hint+"]")
+			line += Spacer(1, bg) + hintStyle.Render("["+cmd.Hint+"]")
 		}
 		sb.WriteString(line)
 		sb.WriteString("\n")
 	}
 
 	boxStyle := lipgloss.NewStyle().
-		Background(ps.theme.BgSecondary()).
+		Background(bg).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(ps.theme.AccentPrimary()).
 		Padding(1, 2).
@@ -323,12 +331,22 @@ func (ps *PaletteState) View(width, height int) string {
 
 	rendered := boxStyle.Render(sb.String())
 
-	// Centre horizontally.
+	// Centre horizontally with a styled leading pad so the spaces to the left
+	// of the box carry no background (they should be transparent / terminal
+	// default, since they sit outside the box itself).
 	leftPad := (width - lipgloss.Width(rendered)) / 2
 	if leftPad < 0 {
 		leftPad = 0
 	}
-	return strings.Repeat(" ", leftPad) + rendered
+	if leftPad == 0 {
+		return rendered
+	}
+	pad := strings.Repeat(" ", leftPad)
+	lines := strings.Split(rendered, "\n")
+	for i, l := range lines {
+		lines[i] = pad + l
+	}
+	return strings.Join(lines, "\n")
 }
 
 // max returns the larger of two ints.
