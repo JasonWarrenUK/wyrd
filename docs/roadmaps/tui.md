@@ -7,14 +7,14 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.9, NV.11, NV.13 done | gg/G jump (NV.7), fuzzy filter (NV.6), Glamour (NV.10) | — |
-| **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.9, NV.11, NV.13 done | gg/G jump (NV.7), fuzzy filter (NV.6), broadcast msgs (NV.14), HandleFocusLost (NV.15) | NV.8, NV.10 (need NV.14) |
+| **CP**   | Capture bar built; not wired into app | Add huh dep (CP.1) | CP.0 (needs NV.15), CP.2+ (needs CP.0, CP.1) |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
-| **VS**   | Lipgloss used; no polish pass | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
+| **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
-| **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
+| **RT**   | Ritual runner built; not wired | — | RT.2 (needs NV.15); rest depend on RT.2 |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
-| **QE**   | Cypher subset implemented     | UNION support                | —                              |
+| **QE**   | Cypher subset implemented     | UNION support (QE.1)         | —                              |
 
 ---
 
@@ -79,13 +79,14 @@ _(none yet)_
 
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
-- [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
-- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
-- [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1**
+- [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1, QE.1**
+- [ ] NV.14. Broadcast all messages to all panes unconditionally, not just the focused one — internal ticks (spinner, cursor blink, async callbacks) must reach every mounted pane regardless of focus state; key messages continue to be routed only to the focused pane — **no blockers**
+- [ ] NV.15. Add `HandleFocusLost() tea.Cmd` to the `PaneModel` interface — called by the root model whenever a pane loses focus; allows panes to stop blinking cursors, dismiss sub-overlays, or flush pending input on blur — **no blockers**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-_(none — NV.7 depends on NV.5 which is done)_
+- [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync) — **depends on NV.14**
+- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3 (done), NV.14**
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -110,11 +111,11 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.0. Wire `CaptureBar` into `app.go`: mount on `Model`, bind `i` key in `KeyMap`, route character input and backspace to it when focused, show live input and full placeholder text in status bar — **no blockers**
 - [ ] CP.1. Add `github.com/charmbracelet/huh` dependency
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
+- [ ] CP.0. Wire capture bar — **depends on NV.15**
 - [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
 - [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; set `Title` on the node; replaces `$EDITOR` — **depends on CP.0, CP.1**
 - [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; set `Title` on the node — **depends on CP.0, CP.1**
@@ -143,7 +144,8 @@ _(none yet)_
 - [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars
 - [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4 (done)**
 - [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9 (done)**
-- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection
+- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection — **depends on VS.0 (done)**
+- [ ] VS.11. Implement Layer/Canvas overlay compositing for command palette — replace line-replacement hack in `app.go` with lipgloss v2's compositor — **depends on VS.0 (done)**
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
 
@@ -156,7 +158,7 @@ _(none yet)_
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
-_(none yet)_
+- [x] VS.0. Upgrade Charm ecosystem to v2 (bubbletea `charm.land/bubbletea/v2`, lipgloss `charm.land/lipgloss/v2`, bubbles `charm.land/bubbles/v2`) — enables Layer/Canvas compositing for command palette
 
 ---
 
@@ -177,11 +179,11 @@ _(none yet)_
 - [ ] LG.4. Thread logger through store operations: log node/edge writes at `debug` level — **depends on LG.2**
 - [ ] LG.5. Thread logger through sync: log each git command at `debug`, outcomes at `info`, errors at `error` — **depends on LG.2**
 - [ ] LG.6. Thread logger through query engine: log query text and row count at `debug` — **depends on LG.2**
-- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2, NV.3**
+- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2, NV.3, NV.15**
 
 <a name="m5-blocked"><h4>Blocked (Milestone 5)</h4></a>
 
-- [ ] LG.7. TUI log overlay — **depends on LG.2, NV.3**
+- [ ] LG.7. TUI log overlay — **depends on LG.2, NV.3, NV.15**
 
 <a name="m5-done"><h4>Completed (Milestone 5)</h4></a>
 
@@ -200,21 +202,16 @@ _(none yet)_
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
-- [ ] RT.1. Wire ritual scheduler into TUI startup: check for due rituals, prompt to run — **depends on NV.4 (done), CP.1**
-- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily)
-- [ ] RT.3. Render `query_summary` and `query_list` steps using existing view renderers inside the ritual pane — **depends on RT.2, NV.13 (done)**
-- [ ] RT.4. Implement `prompt` step using `huh` input form — **depends on RT.2, CP.1**
-- [ ] RT.5. Implement `gate` step: block progression unless user confirms; render friction message — **depends on RT.2**
-- [ ] RT.6. Wire deferral sequence (`Esc Esc d`) to snooze ritual and record deferral timestamp — **depends on RT.5**
-- [ ] RT.7. Implement `action` step execution: run store mutation from within ritual (e.g., archive node, update status) — **depends on RT.2**
-- [ ] RT.8. Add `:ritual <name>` command to palette to trigger any ritual on demand — **depends on RT.2**
+_(none — all tasks are blocked)_
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
 - [ ] RT.1. Ritual scheduler on startup — **depends on CP.1**
+- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **depends on NV.15**
 - [ ] RT.3. Query steps in ritual — **depends on RT.2**
 - [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1**
 - [ ] RT.5. Gate step — **depends on RT.2**
+- [ ] RT.6. Wire deferral sequence (`Esc Esc d`) to snooze ritual and record deferral timestamp — **depends on RT.5**
 - [ ] RT.7. Action step — **depends on RT.2**
 - [ ] RT.8. Palette ritual command — **depends on RT.2**
 
@@ -293,7 +290,7 @@ _(none yet)_
 
 <a name="qe-todo"><h4>To Do (Query Engine)</h4></a>
 
-- [ ] QE.1. Implement `UNION` / `UNION ALL` — combine results from multiple `MATCH` clauses into a single result set; required for dashboard queries that span multiple node types — **no blockers**
+- [ ] QE.1. Implement `UNION` / `UNION ALL` — combine results from multiple `MATCH` clauses into a single result set; required for dashboard queries that span multiple node types and for grouped sections (NV.12) — **no blockers**
 
 <a name="qe-blocked"><h4>Blocked (Query Engine)</h4></a>
 
@@ -320,17 +317,19 @@ m5["`**Milestone 5**<br/>Logging`"]:::mile
 m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 mcli["`**CLI Input**`"]:::mile
+mqe["`**Query Engine**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::open
-NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
-
-NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::open
+NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::blocked
+NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
+NV14["`*NV.14*<br/>**Navigation**<br/>Broadcast msgs`"]:::open
+NV15["`*NV.15*<br/>**Navigation**<br/>HandleFocusLost`"]:::open
 
-CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
+CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::blocked
 CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
 CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::blocked
 CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::blocked
@@ -345,6 +344,7 @@ CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::blocked
 CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
+VS0["`*VS.0*<br/>**Visual**<br/>Charm v2 upgrade`"]:::done
 VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::open
 VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::open
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
@@ -355,6 +355,7 @@ VS7["`*VS.7*<br/>**Visual**<br/>Command palette`"]:::open
 VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
 VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::blocked
 VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::blocked
+VS11["`*VS.11*<br/>**Visual**<br/>Overlay compositing`"]:::open
 
 LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::open
 LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::blocked
@@ -365,7 +366,7 @@ LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::blocked
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::blocked
 
 RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::blocked
-RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
+RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::blocked
 RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::blocked
 RT4["`*RT.4*<br/>**Rituals**<br/>Prompt via huh`"]:::blocked
 RT5["`*RT.5*<br/>**Rituals**<br/>Gate step`"]:::blocked
@@ -383,6 +384,9 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
+NV14 --> NV8 & NV10
+NV15 --> CP0 & RT2 & LG7
+
 NV8 --> DA7
 
 CP0 --> CP2 & CP3 & CP4
@@ -392,6 +396,7 @@ CP0 & CP2 & CP3 & CP4 --> CP8
 CP1 --> RT1 & RT4
 CP1 --> CL1 & CL2
 
+VS0 --> VS7 & VS11
 VS1 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
 CP1 --> VS8
 VS3 --> DA3
@@ -408,13 +413,16 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-m2 --> NV6 & NV7 & NV8 & NV10 & NV12
+NV12 -.->|needs| QE1
+
+m2 --> NV6 & NV7 & NV8 & NV10 & NV12 & NV14 & NV15
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
-m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
+m4 --> VS0 & VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10 & VS11
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mcli --> CL1 & CL2 & CL3 & CL4
+mqe --> QE1
 
 
 classDef default fill:#fff7fb,stroke:#ccc;

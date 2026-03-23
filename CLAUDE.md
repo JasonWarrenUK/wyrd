@@ -148,8 +148,9 @@ All in `internal/types/errors.go`. Use these rather than `fmt.Errorf` bare strin
 | Package | Purpose |
 |---------|---------|
 | `github.com/alecthomas/participle/v2` | Cypher parser |
-| `github.com/charmbracelet/bubbletea` | TUI framework |
-| `github.com/charmbracelet/lipgloss` | TUI styling |
+| `charm.land/bubbletea/v2` | TUI framework |
+| `charm.land/lipgloss/v2` | TUI styling |
+| `charm.land/bubbles/v2` | TUI components (list, viewport, textinput, spinner) |
 | `github.com/fsnotify/fsnotify` | Filesystem watcher |
 | `github.com/spf13/cobra` | CLI command framework |
 | `github.com/google/uuid` | UUID v4 generation |

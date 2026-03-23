@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -252,7 +252,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.applyTheme(newTheme)
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		action := m.keyMap.Dispatch(msg)
 		return m.handleAction(action, msg)
 	}
@@ -262,7 +262,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // handleAction translates a resolved KeyAction into state changes.
-func (m Model) handleAction(action KeyAction, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch action {
 	case ActionQuit:
 		m.quitting = true
@@ -322,43 +322,44 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	return m
 }
 
-// View renders the full TUI frame to a string.
-func (m Model) View() string {
+// View renders the full TUI frame.
+func (m Model) View() tea.View {
+	var frame string
 	if m.quitting {
-		return ""
-	}
-	if !m.ready {
-		return "Initialising…"
-	}
+		frame = ""
+	} else if !m.ready {
+		frame = "Initialising…"
+	} else {
+		leftView := m.leftPane.View()
+		rightView := m.rightPane.View()
+		statusView := m.statusBar.View()
 
-	leftView := m.leftPane.View()
+		frame = m.layout.Render(leftView, rightView, statusView, m.focus)
 
-	rightView := m.rightPane.View()
-	statusView := m.statusBar.View()
-
-	frame := m.layout.Render(leftView, rightView, statusView, m.focus)
-
-	// If the palette is active, overlay it on top of the frame.
-	if m.palette.IsActive() {
-		overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
-		if overlay != "" {
-			// Simple approach: replace the middle of the frame with the palette.
-			// The overlay is centred horizontally; we place it at line 2 so
-			// the palette content starts below the pane top border row.
-			lines := splitLines(frame)
-			overlayLines := splitLines(overlay)
-			startLine := 2
-			for i, ol := range overlayLines {
-				idx := startLine + i
-				if idx < len(lines) {
-					lines[idx] = ol
+		// If the palette is active, overlay it on top of the frame.
+		if m.palette.IsActive() {
+			overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
+			if overlay != "" {
+				// Simple approach: replace the middle of the frame with the palette.
+				// The overlay is centred horizontally; we place it at line 2 so
+				// the palette content starts below the pane top border row.
+				lines := splitLines(frame)
+				overlayLines := splitLines(overlay)
+				startLine := 2
+				for i, ol := range overlayLines {
+					idx := startLine + i
+					if idx < len(lines) {
+						lines[idx] = ol
+					}
 				}
+				frame = joinLines(lines)
 			}
-			frame = joinLines(lines)
 		}
 	}
 
-	return frame
+	v := tea.NewView(frame)
+	v.AltScreen = true
+	return v
 }
 
 // MountLeft replaces the left pane content. Phase 4 agents call this to
@@ -414,16 +415,16 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	renderer := NewDetailRenderer()
 	renderer.Width = m.layout.totalWidth / 2
-	renderer.Colours.BgPrimary       = string(m.theme.BgPrimary())
-	renderer.Colours.FGPrimary       = string(m.theme.FgPrimary())
-	renderer.Colours.FGMuted         = string(m.theme.FgMuted())
-	renderer.Colours.AccentPrimary   = string(m.theme.AccentPrimary())
-	renderer.Colours.AccentSecondary = string(m.theme.AccentSecondary())
-	renderer.Colours.BudgetOK        = string(m.theme.BudgetOK())
-	renderer.Colours.BudgetCaution   = string(m.theme.BudgetCaution())
-	renderer.Colours.BudgetOver      = string(m.theme.BudgetOver())
-	renderer.Colours.OverflowWarn    = string(m.theme.OverflowWarn())
-	renderer.Colours.OverflowCrit    = string(m.theme.OverflowCritical())
+	renderer.Colours.BgPrimary       = m.theme.BgPrimary()
+	renderer.Colours.FGPrimary       = m.theme.FgPrimary()
+	renderer.Colours.FGMuted         = m.theme.FgMuted()
+	renderer.Colours.AccentPrimary   = m.theme.AccentPrimary()
+	renderer.Colours.AccentSecondary = m.theme.AccentSecondary()
+	renderer.Colours.BudgetOK        = m.theme.BudgetOK()
+	renderer.Colours.BudgetCaution   = m.theme.BudgetCaution()
+	renderer.Colours.BudgetOver      = m.theme.BudgetOver()
+	renderer.Colours.OverflowWarn    = m.theme.OverflowWarn()
+	renderer.Colours.OverflowCrit    = m.theme.OverflowCritical()
 
 	now := time.Now()
 	if m.clock != nil {
@@ -480,7 +481,7 @@ func Run(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("initialise TUI: %w", err)
 	}
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m)
 	_, err = p.Run()
 	return err
 }

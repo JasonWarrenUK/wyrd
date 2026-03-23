@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 func TestPadLines_ShortLinePadded(t *testing.T) {
-	result := PadLines("hi", 10, "#1a1a2e")
+	result := PadLines("hi", 10, lipgloss.Color("#1a1a2e"))
 	// Visible content must start with "hi"
 	if !strings.HasPrefix(stripANSI(result), "hi") {
 		t.Errorf("expected result to start with 'hi', got: %q", stripANSI(result))
@@ -20,14 +20,14 @@ func TestPadLines_ShortLinePadded(t *testing.T) {
 }
 
 func TestPadLines_ExactWidthUnchangedVisually(t *testing.T) {
-	result := PadLines("hello", 5, "#1a1a2e")
+	result := PadLines("hello", 5, lipgloss.Color("#1a1a2e"))
 	if w := lipgloss.Width(result); w != 5 {
 		t.Errorf("expected width 5, got %d", w)
 	}
 }
 
 func TestPadLines_MultiLine(t *testing.T) {
-	result := PadLines("line one\nline two", 12, "#1a1a2e")
+	result := PadLines("line one\nline two", 12, lipgloss.Color("#1a1a2e"))
 	lines := strings.Split(result, "\n")
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 lines, got %d", len(lines))
@@ -40,14 +40,14 @@ func TestPadLines_MultiLine(t *testing.T) {
 }
 
 func TestPadLines_EmptyContentPassThrough(t *testing.T) {
-	result := PadLines("", 10, "#1a1a2e")
+	result := PadLines("", 10, lipgloss.Color("#1a1a2e"))
 	if result != "" {
 		t.Errorf("expected empty string, got: %q", result)
 	}
 }
 
 func TestPadLines_ZeroWidthPassThrough(t *testing.T) {
-	result := PadLines("hello", 0, "#1a1a2e")
+	result := PadLines("hello", 0, lipgloss.Color("#1a1a2e"))
 	if result != "hello" {
 		t.Errorf("expected unmodified 'hello', got: %q", result)
 	}
@@ -78,7 +78,7 @@ func TestPadLines_OutputWidthIsAlwaysExact(t *testing.T) {
 	// Regardless of whether ANSI colour codes are emitted (they may be
 	// suppressed in non-TTY test environments), lipgloss.Width must report
 	// exactly the requested width.
-	result := PadLines("hi", 10, "#1a1a2e")
+	result := PadLines("hi", 10, lipgloss.Color("#1a1a2e"))
 	if w := lipgloss.Width(result); w != 10 {
 		t.Errorf("expected lipgloss.Width 10, got %d (result: %q)", w, result)
 	}

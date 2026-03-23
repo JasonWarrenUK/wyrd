@@ -3,55 +3,41 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
-// Colour constants used when no theme is injected. These are conservative
-// defaults that look reasonable on most dark terminals.
-const (
-	defaultAccentPrimary   = "#7C8CF8"
-	defaultAccentSecondary = "#A78BFA"
-	defaultFGPrimary       = "#E2E8F0"
-	defaultFGMuted         = "#64748B"
-	defaultBudgetOK        = "#34D399"
-	defaultBudgetCaution   = "#FBBF24"
-	defaultBudgetOver      = "#F87171"
-	defaultOverflowWarn    = "#FB923C"
-	defaultOverflowCrit    = "#EF4444"
-)
-
 // Colours holds the colour values used by DetailRenderer.
-// All fields accept lipgloss-compatible colour strings (hex, ANSI, etc.).
 type Colours struct {
-	AccentPrimary   string
-	AccentSecondary string
-	BgPrimary       string
-	FGPrimary       string
-	FGMuted         string
-	BudgetOK        string
-	BudgetCaution   string
-	BudgetOver      string
-	OverflowWarn    string
-	OverflowCrit    string
+	AccentPrimary   color.Color
+	AccentSecondary color.Color
+	BgPrimary       color.Color
+	FGPrimary       color.Color
+	FGMuted         color.Color
+	BudgetOK        color.Color
+	BudgetCaution   color.Color
+	BudgetOver      color.Color
+	OverflowWarn    color.Color
+	OverflowCrit    color.Color
 }
 
 // defaultColours returns a set of sensible defaults.
 func defaultColours() Colours {
 	return Colours{
-		AccentPrimary:   defaultAccentPrimary,
-		AccentSecondary: defaultAccentSecondary,
-		FGPrimary:       defaultFGPrimary,
-		FGMuted:         defaultFGMuted,
-		BudgetOK:        defaultBudgetOK,
-		BudgetCaution:   defaultBudgetCaution,
-		BudgetOver:      defaultBudgetOver,
-		OverflowWarn:    defaultOverflowWarn,
-		OverflowCrit:    defaultOverflowCrit,
+		AccentPrimary:   lipgloss.Color("#7C8CF8"),
+		AccentSecondary: lipgloss.Color("#A78BFA"),
+		FGPrimary:       lipgloss.Color("#E2E8F0"),
+		FGMuted:         lipgloss.Color("#64748B"),
+		BudgetOK:        lipgloss.Color("#34D399"),
+		BudgetCaution:   lipgloss.Color("#FBBF24"),
+		BudgetOver:      lipgloss.Color("#F87171"),
+		OverflowWarn:    lipgloss.Color("#FB923C"),
+		OverflowCrit:    lipgloss.Color("#EF4444"),
 	}
 }
 
@@ -95,20 +81,20 @@ func (r *DetailRenderer) Render(
 	bg := r.bg()
 
 	titleStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(c.AccentPrimary)).
+		Foreground(c.AccentPrimary).
 		Background(bg).
 		Bold(true)
 
 	mutedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(c.FGMuted)).
+		Foreground(c.FGMuted).
 		Background(bg)
 
 	primaryStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(c.FGPrimary)).
+		Foreground(c.FGPrimary).
 		Background(bg)
 
 	sectionHeaderStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(c.AccentSecondary)).
+		Foreground(c.AccentSecondary).
 		Background(bg).
 		Bold(true)
 
@@ -119,7 +105,7 @@ func (r *DetailRenderer) Render(
 	// --- ARCHIVED banner ---
 	if isArchived {
 		archivedStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color(c.BudgetOver)).
+			Foreground(c.BudgetOver).
 			Background(bg).
 			Bold(true)
 		sb.WriteString(archivedStyle.Render("ARCHIVED"))
@@ -194,9 +180,9 @@ func (r *DetailRenderer) Render(
 // bg returns the background colour for all inner styles. Every style in
 // the detail renderer must carry this background to prevent terminal default
 // bleeding through at ANSI reset boundaries between styled segments.
-func (r *DetailRenderer) bg() lipgloss.TerminalColor {
-	if r.Colours.BgPrimary != "" {
-		return lipgloss.Color(r.Colours.BgPrimary)
+func (r *DetailRenderer) bg() color.Color {
+	if r.Colours.BgPrimary != nil {
+		return r.Colours.BgPrimary
 	}
 	return lipgloss.NoColor{}
 }
@@ -357,9 +343,9 @@ func (r *DetailRenderer) renderEdgeLine(
 	}
 
 	glyph := edgeGlyph(edge.Type, outgoing)
-	glyphStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted)).Background(bg)
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGPrimary)).Background(bg)
-	typeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted)).Background(bg)
+	glyphStyle := lipgloss.NewStyle().Foreground(c.FGMuted).Background(bg)
+	labelStyle := lipgloss.NewStyle().Foreground(c.FGPrimary).Background(bg)
+	typeStyle := lipgloss.NewStyle().Foreground(c.FGMuted).Background(bg)
 
 	sp := Spacer(1, bg)
 	line := glyphStyle.Render(glyph) + sp +
@@ -372,18 +358,18 @@ func (r *DetailRenderer) renderEdgeLine(
 		days := int(age.Hours() / 24)
 		suffix := fmt.Sprintf(" · %dd", days)
 		ageColour := ageColourForDays(days, c)
-		line += lipgloss.NewStyle().Foreground(lipgloss.Color(ageColour)).Background(bg).Render(suffix)
+		line += lipgloss.NewStyle().Foreground(ageColour).Background(bg).Render(suffix)
 	}
 
 	return line
 }
 
-// ageColourForDays returns the appropriate colour string based on edge age.
+// ageColourForDays returns the appropriate colour based on edge age.
 //
 //   - 0–7 days:  muted
 //   - 8–14 days: overflow warn colour
 //   - 15+ days:  overflow critical colour
-func ageColourForDays(days int, c Colours) string {
+func ageColourForDays(days int, c Colours) color.Color {
 	switch {
 	case days <= 7:
 		return c.FGMuted
@@ -400,7 +386,7 @@ func (r *DetailRenderer) renderBudgetLine(node *types.Node, now time.Time) strin
 	bg := r.bg()
 	summary := budget.Compute(node, now)
 
-	var statusColour string
+	var statusColour color.Color
 	var statusGlyph string
 	switch summary.Status {
 	case budget.BudgetOK:
@@ -427,9 +413,9 @@ func (r *DetailRenderer) renderBudgetLine(node *types.Node, now time.Time) strin
 	// Build a compact progress bar (10 characters wide).
 	bar := buildProgressBar(summary.Spent, summary.Allocated, 10)
 
-	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColour)).Background(bg)
-	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGMuted)).Background(bg)
-	primaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(c.FGPrimary)).Background(bg)
+	statusStyle := lipgloss.NewStyle().Foreground(statusColour).Background(bg)
+	mutedStyle := lipgloss.NewStyle().Foreground(c.FGMuted).Background(bg)
+	primaryStyle := lipgloss.NewStyle().Foreground(c.FGPrimary).Background(bg)
 
 	sp := Spacer(1, bg)
 	return statusStyle.Render(statusGlyph) + sp +

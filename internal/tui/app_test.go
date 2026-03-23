@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/query"
 	"github.com/jasonwarrenuk/wyrd/internal/store"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
@@ -61,7 +61,7 @@ func TestInitDoesNotPanic(t *testing.T) {
 func TestViewBeforeWindowSize(t *testing.T) {
 	m := newTestModel(t)
 	v := m.View()
-	if v == "" {
+	if v.Content == "" {
 		t.Error("expected a non-empty placeholder before WindowSizeMsg")
 	}
 }
@@ -72,7 +72,7 @@ func TestViewAfterWindowSize(t *testing.T) {
 	m := newTestModel(t)
 	m = sendWindowSize(t, m, 120, 40)
 	v := m.View()
-	if v == "" {
+	if v.Content == "" {
 		t.Error("expected non-empty view after WindowSizeMsg")
 	}
 }
@@ -85,7 +85,7 @@ func TestTerminalResize(t *testing.T) {
 	for _, s := range sizes {
 		m = sendWindowSize(t, m, s[0], s[1])
 		v := m.View()
-		if v == "" {
+		if v.Content == "" {
 			t.Errorf("empty view after resize to %dx%d", s[0], s[1])
 		}
 	}
@@ -96,7 +96,7 @@ func TestQuitAction(t *testing.T) {
 	m := newTestModel(t)
 	m = sendWindowSize(t, m, 80, 24)
 
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd == nil {
 		t.Fatal("expected a non-nil command after 'q'")
 	}
@@ -119,21 +119,21 @@ func TestSwitchPaneFocus(t *testing.T) {
 	}
 
 	// Press Ctrl+W — should switch to right pane.
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlW})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
 	m2, ok := updated.(tui.Model)
 	if !ok {
 		t.Fatalf("unexpected type %T", updated)
 	}
 
 	// Press Ctrl+W again — should switch back to left.
-	updated2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyCtrlW})
+	updated2, _ := m2.Update(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
 	m3, ok := updated2.(tui.Model)
 	if !ok {
 		t.Fatalf("unexpected type %T", updated2)
 	}
 
 	// Both views should be non-empty.
-	if m2.View() == "" || m3.View() == "" {
+	if m2.View().Content == "" || m3.View().Content == "" {
 		t.Error("view was empty after pane switch")
 	}
 }
@@ -143,14 +143,14 @@ func TestCommandPaletteOpensOnColon(t *testing.T) {
 	m := newTestModel(t)
 	m = sendWindowSize(t, m, 80, 24)
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: ':', Text: ":"})
 	m2, ok := updated.(tui.Model)
 	if !ok {
 		t.Fatalf("unexpected type %T", updated)
 	}
 
 	v := m2.View()
-	if v == "" {
+	if v.Content == "" {
 		t.Error("expected non-empty view with palette open")
 	}
 }
@@ -161,15 +161,15 @@ func TestPaletteClosesOnEscape(t *testing.T) {
 	m = sendWindowSize(t, m, 80, 24)
 
 	// Open palette.
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: ':', Text: ":"})
 	m2 := updated.(tui.Model)
 
 	// Close with Escape.
-	updated2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	updated2, _ := m2.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	m3 := updated2.(tui.Model)
 
 	v := m3.View()
-	if v == "" {
+	if v.Content == "" {
 		t.Error("expected non-empty view after palette close")
 	}
 }
@@ -187,7 +187,7 @@ func TestKeyboardInputRoutedToFocusedPane(t *testing.T) {
 	}()
 
 	// Press an unrecognised key — should be silently forwarded to the pane.
-	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	_, _ = m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
 }
 
 // TestMountLeftAndRight verifies that custom pane implementations can be
@@ -200,7 +200,7 @@ func TestMountLeftAndRight(t *testing.T) {
 	m.MountRight(tui.NewEmptyPane(m.Theme()))
 
 	v := m.View()
-	if v == "" {
+	if v.Content == "" {
 		t.Error("expected non-empty view after mounting panes")
 	}
 }
@@ -263,19 +263,19 @@ func TestAppBootsWithDashboard(t *testing.T) {
 	m = sendWindowSize(t, m, 120, 40)
 
 	v := m.View()
-	if v == "" {
+	if v.Content == "" {
 		t.Fatal("expected non-empty view after boot with dashboard")
 	}
 
 	// Each seeded node body should appear somewhere in the rendered output.
 	for _, body := range []string{"Buy groceries", "Meeting notes", "Today I learned Go"} {
-		if !strings.Contains(v, body) {
+		if !strings.Contains(v.Content, body) {
 			t.Errorf("expected %q in dashboard view, not found", body)
 		}
 	}
 
 	// Verify clean quit.
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd == nil {
 		t.Fatal("expected quit command after 'q'")
 	}
