@@ -378,6 +378,10 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 		if m.captureBar == nil {
 			return m, nil
 		}
+		// Don't steal focus if a form is active in the right pane.
+		if _, isForm := m.rightPane.(formPane); isForm {
+			return m.updateFocusedPane(msg)
+		}
 		var selectedID string
 		if lp, ok := m.leftPane.(nodeListPane); ok {
 			selectedID = lp.SelectedNodeID()
