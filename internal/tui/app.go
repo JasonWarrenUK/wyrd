@@ -283,12 +283,16 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 		return m, tea.Quit
 
 	case ActionSwitchPane:
+		// Notify the pane losing focus before toggling.
+		var lostCmd tea.Cmd
 		if m.focus == FocusLeft {
+			lostCmd = m.leftPane.HandleFocusLost()
 			m.focus = FocusRight
 		} else {
+			lostCmd = m.rightPane.HandleFocusLost()
 			m.focus = FocusLeft
 		}
-		return m, nil
+		return m, lostCmd
 
 	case ActionCommandPalette:
 		m.palette.Open(PaletteModeCLI)

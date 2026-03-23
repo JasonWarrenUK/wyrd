@@ -333,6 +333,42 @@ func TestSpinnerStopRemovesFromView(t *testing.T) {
 	}
 }
 
+// --- NV.15: focus-lost tests ---
+
+// spyPane is a minimal PaneModel that records whether HandleFocusLost was called.
+type spyPane struct {
+	focusLostCalled bool
+}
+
+func (s *spyPane) Update(_ tea.Msg) (tui.PaneModel, tea.Cmd) { return s, nil }
+func (s *spyPane) View() string                              { return "spy" }
+func (s *spyPane) KeyBindings() []tui.KeyBinding             { return nil }
+func (s *spyPane) HandleFocusLost() tea.Cmd {
+	s.focusLostCalled = true
+	return nil
+}
+
+// TestFocusLostCalledOnSwitch mounts a spy pane on the left, switches focus
+// to the right, and asserts that HandleFocusLost was called on the spy.
+func TestFocusLostCalledOnSwitch(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	spy := &spyPane{}
+	m.MountLeft(spy)
+
+	// Focus starts on the left; switch to right — left pane loses focus.
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
+	_, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+
+	if !spy.focusLostCalled {
+		t.Error("expected HandleFocusLost to be called on the left pane after focus switch")
+	}
+}
+
 // TestJumpToTopDoesNotPanic verifies that alt+shift+up is routed to the
 // focused pane without panicking.
 func TestJumpToTopDoesNotPanic(t *testing.T) {

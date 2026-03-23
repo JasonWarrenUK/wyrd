@@ -42,6 +42,11 @@ type PaneModel interface {
 	// KeyBindings returns the list of keybindings this pane handles,
 	// used to populate the command palette.
 	KeyBindings() []KeyBinding
+
+	// HandleFocusLost is called by the root model immediately before focus
+	// moves away from this pane. Implementations may return a command (e.g.
+	// to flush pending state) or nil for a no-op.
+	HandleFocusLost() tea.Cmd
 }
 
 // emptyPane is the default PaneModel shown when no content has been mounted.
@@ -67,6 +72,9 @@ func (e emptyPane) View() string {
 func (e emptyPane) KeyBindings() []KeyBinding {
 	return nil
 }
+
+// HandleFocusLost is a no-op for the empty pane.
+func (e emptyPane) HandleFocusLost() tea.Cmd { return nil }
 
 // NewEmptyPane returns a PaneModel that renders a muted placeholder.
 func NewEmptyPane(theme *ActiveTheme) PaneModel {
@@ -137,3 +145,6 @@ func (d viewportPane) KeyBindings() []KeyBinding {
 		{Key: "G", Description: "Scroll to bottom"},
 	}
 }
+
+// HandleFocusLost is a no-op for the viewport pane.
+func (d viewportPane) HandleFocusLost() tea.Cmd { return nil }
