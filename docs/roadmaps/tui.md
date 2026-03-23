@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.11 done | Viewport, focus indicator, grouped sections | —                |
+| **NV**   | NV.1, NV.11, NV.13 done | Viewport (NV.3), focus indicator (NV.4), j/k sync (NV.5) | —                |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
@@ -77,10 +77,9 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] NV.2. Wire `bubbles/table` component for query result rows (replaces current plain-text tabular renderer)
-- [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
+- [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body — **depends on NV.13**
 - [ ] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired — **depends on NV.1**
-- [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.1**
+- [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.13**
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
 - [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1**
@@ -95,6 +94,7 @@ _(none yet)_
 
 - [x] NV.1. Wire `bubbles/list` component into the left pane for node listing
 - [x] NV.11. Align columns in the left-pane list using computed column widths; header and data rows pad cells to the same widths
+- [x] NV.13. Wire left pane selection to right pane; cursor movement emits `nodeSelectedMsg`; right pane renders node title, body, metadata, and edges
 
 ---
 
@@ -211,7 +211,7 @@ _(none yet)_
 
 - [ ] RT.1. Wire ritual scheduler into TUI startup: check for due rituals, prompt to run — **depends on NV.4, CP.1**
 - [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily)
-- [ ] RT.3. Render `query_summary` and `query_list` steps using existing view renderers inside the ritual pane — **depends on RT.2, NV.2**
+- [ ] RT.3. Render `query_summary` and `query_list` steps using existing view renderers inside the ritual pane — **depends on RT.2, NV.13**
 - [ ] RT.4. Implement `prompt` step using `huh` input form — **depends on RT.2, CP.1**
 - [ ] RT.5. Implement `gate` step: block progression unless user confirms; render friction message — **depends on RT.2**
 - [ ] RT.6. Wire deferral sequence (`Esc Esc d`) to snooze ritual and record deferral timestamp — **depends on RT.5**
@@ -221,7 +221,7 @@ _(none yet)_
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
 - [ ] RT.1. Ritual scheduler on startup — **depends on NV.4, CP.1**
-- [ ] RT.3. Query steps in ritual — **depends on RT.2, NV.2**
+- [ ] RT.3. Query steps in ritual — **depends on RT.2, NV.13**
 - [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1**
 - [ ] RT.5. Gate step — **depends on RT.2**
 - [ ] RT.7. Action step — **depends on RT.2**
@@ -337,7 +337,7 @@ WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::done
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
 NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::done
-NV2["`*NV.2*<br/>**Navigation**<br/>bubbles/table`"]:::open
+NV13["`*NV.13*<br/>**Navigation**<br/>Selection → detail`"]:::done
 NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::open
 NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::open
 NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::open
@@ -406,12 +406,13 @@ m1 --> WL2 & WL4 & WL6
 
 WL2 & WL4 --> WL6
 WL2 --> VS7 & RT2 & RT8
-NV1 --> NV4 & NV5 & NV6 & NV11 & VS1
+NV1 --> NV4 & NV6 & NV11 & NV13 & VS1
+NV13 --> NV3 & NV5
 NV3 --> NV10 & LG7
 NV4 --> NV7 & VS2 & RT1
 NV5 --> NV7
 NV9 --> VS6
-NV2 --> RT3
+NV13 --> RT3
 NV8 --> DA7
 
 CP0 --> CP2 & CP3 & CP4 & CP8
@@ -442,7 +443,7 @@ LG2 --> LG7
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6
 RT2 --> RT3
-NV2 --> RT3
+NV13 --> RT3
 RT5 --> DA6
 CP1 --> RT4
 
@@ -451,7 +452,7 @@ DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
 NV1 --> NV12
-m2 --> NV1 & NV2 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV11 & NV12
+m2 --> NV1 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV11 & NV12 & NV13
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7

@@ -59,3 +59,13 @@ func (e emptyPane) KeyBindings() []KeyBinding {
 func NewEmptyPane(theme *ActiveTheme) PaneModel {
 	return emptyPane{theme: theme}
 }
+
+// detailPane is a PaneModel that renders a pre-rendered detail string.
+// It is replaced wholesale whenever a new node is selected.
+type detailPane struct {
+	content string
+}
+
+func (d detailPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) { return d, nil }
+func (d detailPane) View() string                             { return d.content }
+func (d detailPane) KeyBindings() []KeyBinding                { return nil }

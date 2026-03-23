@@ -106,6 +106,12 @@ func listHeight(terminalHeight int) int {
 	return h
 }
 
+// nodeSelectedMsg is emitted by nodeListPane whenever the cursor moves to a
+// different item. app.go catches this and populates the right pane.
+type nodeSelectedMsg struct {
+	nodeID string
+}
+
 // Update handles window resize and forwards all other messages to the
 // bubbles/list component, which manages its own j/k/mouse/filter state.
 func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
@@ -121,8 +127,18 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		return p, nil
 	}
 
+	prevIndex := p.list.Index()
 	var cmd tea.Cmd
 	p.list, cmd = p.list.Update(msg)
+
+	// Emit a selection message when the cursor moves to a different item.
+	if p.list.Index() != prevIndex {
+		if id := p.SelectedNodeID(); id != "" {
+			selCmd := func() tea.Msg { return nodeSelectedMsg{nodeID: id} }
+			cmd = tea.Batch(cmd, selCmd)
+		}
+	}
+
 	return p, cmd
 }
 

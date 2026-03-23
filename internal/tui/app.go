@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -50,6 +51,12 @@ type Model struct {
 
 	// statusBar is the bottom status bar.
 	statusBar StatusBar
+
+	// index is the in-memory graph, used to fetch node detail on selection.
+	index types.GraphIndex
+
+	// clock is used for age calculations in the detail renderer.
+	clock types.Clock
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -174,7 +181,17 @@ func New(cfg Config) (Model, error) {
 		keyMap:    keyMap,
 		palette:   palette,
 		statusBar: statusBar,
+		index:     cfg.Index,
+		clock:     clock,
 		ready:     false,
+	}
+
+	// Pre-populate the right pane with the first selected item so the detail
+	// pane is not blank on startup.
+	if lp, ok := leftPane.(nodeListPane); ok {
+		if id := lp.SelectedNodeID(); id != "" {
+			m.rightPane = m.renderDetail(id)
+		}
 	}
 
 	return m, nil
@@ -208,6 +225,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.leftPane, _ = m.leftPane.Update(msg)
 		m.rightPane, _ = m.rightPane.Update(msg)
 		m.ready = true
+		return m, nil
+
+	case nodeSelectedMsg:
+		m.rightPane = m.renderDetail(msg.nodeID)
 		return m, nil
 
 	case switchThemeMsg:
@@ -355,6 +376,39 @@ func (m *Model) RegisterKeyBinding(binding KeyBinding, action KeyAction) {
 // derive their own Lipgloss styles from the theme colours.
 func (m *Model) Theme() *ActiveTheme {
 	return m.theme
+}
+
+// renderDetail fetches a node by ID and renders it into a detailPane.
+// Returns an emptyPane when the index is unavailable or the node is not found.
+func (m Model) renderDetail(nodeID string) PaneModel {
+	if m.index == nil || nodeID == "" {
+		return NewEmptyPane(m.theme)
+	}
+	node, err := m.index.GetNode(nodeID)
+	if err != nil {
+		return NewEmptyPane(m.theme)
+	}
+
+	// Collect all edges connected to this node.
+	edges := append(m.index.EdgesFrom(nodeID), m.index.EdgesTo(nodeID)...)
+
+	// Build a lookup map for resolving edge targets in the renderer.
+	allNodes := m.index.AllNodes()
+	nodesByID := make(map[string]*types.Node, len(allNodes))
+	for _, n := range allNodes {
+		nodesByID[n.ID] = n
+	}
+
+	renderer := NewDetailRenderer()
+	renderer.Width = m.layout.totalWidth / 2
+
+	now := time.Now()
+	if m.clock != nil {
+		now = m.clock.Now()
+	}
+
+	content := renderer.Render(node, edges, nodesByID, nil, now)
+	return detailPane{content: content}
 }
 
 // splitLines splits a string on newlines.
