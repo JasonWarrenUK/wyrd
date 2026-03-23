@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,14 +37,25 @@ func (i nodeListItem) FilterValue() string { return i.title }
 // NodeID returns the UUID of the underlying node for navigation.
 func (i nodeListItem) NodeID() string { return i.id }
 
+const (
+	// listColPadding is the number of spaces inserted between columns.
+	listColPadding = 2
+	// listColEllipsis is appended to truncated cell values.
+	listColEllipsis = "…"
+	// listMinColWidth is the smallest a column will be rendered before truncation.
+	listMinColWidth = 4
+)
+
 // nodeListPane is a PaneModel that renders a QueryResult as a scrollable list
 // using the charmbracelet/bubbles list component. It provides built-in j/k
 // navigation, fuzzy filtering, and mouse support.
 type nodeListPane struct {
-	list    list.Model
-	columns []string
-	width   int
-	height  int
+	list      list.Model
+	columns   []string
+	colWidths []int
+	rows      []map[string]interface{}
+	width     int
+	height    int
 }
 
 // newNodeListPane constructs a pane from a QueryResult, wiring the theme
@@ -54,10 +66,13 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 		cols = dashboardColumns
 	}
 
-	items := rowsToItems(result.Rows, cols)
+	const initialWidth = 80
+	const delegatePad = 1 // left padding added by the delegate style
+	widths := calculateColWidths(result.Rows, cols, initialWidth-delegatePad)
+	items := rowsToItems(result.Rows, cols, widths)
 
 	delegate := buildDelegate(theme)
-	l := list.New(items, delegate, 80, 22)
+	l := list.New(items, delegate, initialWidth, 22)
 
 	// Disable all built-in chrome — we own the surrounding frame.
 	l.SetShowTitle(false)
@@ -68,10 +83,12 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	l.SetFilteringEnabled(false)
 
 	return nodeListPane{
-		list:    l,
-		columns: cols,
-		width:   80,
-		height:  22,
+		list:      l,
+		columns:   cols,
+		colWidths: widths,
+		rows:      result.Rows,
+		width:     initialWidth,
+		height:    22,
 	}
 }
 
@@ -94,9 +111,13 @@ func listHeight(terminalHeight int) int {
 func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		const delegatePad = 1
 		p.width = msg.Width / 2
 		p.height = msg.Height
 		p.list.SetSize(p.width, listHeight(msg.Height))
+		// Recompute column widths for the new inner pane width and rebuild items.
+		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
+		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths))
 		return p, nil
 	}
 
@@ -107,7 +128,7 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 
 // View renders the column header followed by the bubbles/list content.
 func (p nodeListPane) View() string {
-	header := renderListHeader(p.columns, p.width)
+	header := renderListHeader(p.columns, p.colWidths)
 	content := p.list.View()
 	return lipgloss.JoinVertical(lipgloss.Left, header, content)
 }
@@ -137,31 +158,128 @@ func (p nodeListPane) SelectedNodeID() string {
 // --- helpers -----------------------------------------------------------------
 
 // rowsToItems converts QueryResult rows into bubbles/list items.
-// Each item's title is the formatted display string for that row.
-func rowsToItems(rows []map[string]interface{}, cols []string) []list.Item {
+// Each item's title is the formatted, column-aligned display string for that row.
+// colWidths must be the same length as the non-id columns in cols.
+func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int) []list.Item {
 	items := make([]list.Item, len(rows))
 	for i, row := range rows {
 		id, _ := row["id"].(string)
 		items[i] = nodeListItem{
 			row:   row,
-			title: formatRowTitle(row, cols),
+			title: formatRowTitle(row, cols, colWidths),
 			id:    id,
 		}
 	}
 	return items
 }
 
-// formatRowTitle produces the single-line display string for a row by joining
-// the non-id column values with a separator.
-func formatRowTitle(row map[string]interface{}, cols []string) string {
+// formatRowTitle produces the single-line display string for a row.
+// Each non-id cell is padded or truncated to its column width, then joined
+// with listColPadding spaces so all rows align with the header.
+func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int) string {
 	parts := make([]string, 0, len(cols))
+	wi := 0
 	for _, col := range cols {
 		if col == "id" {
 			continue
 		}
-		parts = append(parts, formatCellValue(row[col]))
+		w := 0
+		if wi < len(colWidths) {
+			w = colWidths[wi]
+		}
+		wi++
+		parts = append(parts, listPadOrTruncate(formatCellValue(row[col]), w))
 	}
-	return strings.Join(parts, "  ")
+	return strings.Join(parts, strings.Repeat(" ", listColPadding))
+}
+
+// calculateColWidths computes the display width for each non-id column.
+// Widths are sized to fit the widest header or cell value; if the total exceeds
+// totalWidth, columns are scaled down proportionally (floor listMinColWidth).
+func calculateColWidths(rows []map[string]interface{}, cols []string, totalWidth int) []int {
+	// Collect non-id columns only.
+	displayCols := make([]string, 0, len(cols))
+	for _, c := range cols {
+		if c != "id" {
+			displayCols = append(displayCols, c)
+		}
+	}
+	n := len(displayCols)
+	if n == 0 {
+		return nil
+	}
+
+	// Compute natural widths from header names and cell values.
+	natural := make([]int, n)
+	for i, col := range displayCols {
+		natural[i] = utf8.RuneCountInString(col)
+	}
+	for _, row := range rows {
+		for i, col := range displayCols {
+			w := utf8.RuneCountInString(formatCellValue(row[col]))
+			if w > natural[i] {
+				natural[i] = w
+			}
+		}
+	}
+
+	// Account for padding between columns.
+	padding := (n - 1) * listColPadding
+	available := totalWidth - padding
+	if available < n*listMinColWidth {
+		available = n * listMinColWidth
+	}
+
+	totalNatural := 0
+	for _, w := range natural {
+		totalNatural += w
+	}
+
+	widths := make([]int, n)
+	if totalNatural <= available {
+		// Content fits — distribute remaining space proportionally to natural widths.
+		copy(widths, natural)
+		slack := available - totalNatural
+		if slack > 0 && totalNatural > 0 {
+			distributed := 0
+			for i, w := range natural {
+				extra := slack * w / totalNatural
+				widths[i] = w + extra
+				distributed += extra
+			}
+			// Give any rounding remainder to the last column.
+			widths[n-1] += slack - distributed
+		}
+	} else {
+		// Scale down proportionally, floor at listMinColWidth.
+		for i, w := range natural {
+			scaled := w * available / totalNatural
+			if scaled < listMinColWidth {
+				scaled = listMinColWidth
+			}
+			widths[i] = scaled
+		}
+	}
+
+	return widths
+}
+
+// listPadOrTruncate pads s with spaces to exactly width runes, or truncates
+// it with an ellipsis if it exceeds width.
+func listPadOrTruncate(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= width {
+		return s + strings.Repeat(" ", width-len(runes))
+	}
+	ellipsisWidth := utf8.RuneCountInString(listColEllipsis)
+	cutAt := width - ellipsisWidth
+	if cutAt < 0 {
+		cutAt = 0
+	}
+	return string(runes[:cutAt]) + listColEllipsis
 }
 
 // formatCellValue converts a cell value to a display string.
@@ -194,8 +312,11 @@ func buildDelegate(theme *ActiveTheme) list.DefaultDelegate {
 	d.SetHeight(1)
 	d.SetSpacing(0)
 
-	// Restyle using theme colours.
+	// Restyle using theme colours. Background must be set on all styles so
+	// that the right-hand padding spaces are coloured rather than defaulting
+	// to the terminal background, which produces a black strip on the right.
 	normalStyle := lipgloss.NewStyle().
+		Background(theme.BgPrimary()).
 		Foreground(theme.FgPrimary()).
 		Padding(0, 0, 0, 1)
 
@@ -205,33 +326,39 @@ func buildDelegate(theme *ActiveTheme) list.DefaultDelegate {
 		Bold(true).
 		Padding(0, 0, 0, 1)
 
+	dimmedStyle := lipgloss.NewStyle().
+		Background(theme.BgPrimary()).
+		Foreground(theme.FgMuted()).
+		Padding(0, 0, 0, 1)
+
 	d.Styles.NormalTitle = normalStyle
 	d.Styles.NormalDesc = normalStyle
 	d.Styles.SelectedTitle = selectedStyle
 	d.Styles.SelectedDesc = selectedStyle
-	d.Styles.DimmedTitle = lipgloss.NewStyle().
-		Foreground(theme.FgMuted()).
-		Padding(0, 0, 0, 1)
-	d.Styles.DimmedDesc = d.Styles.DimmedTitle
+	d.Styles.DimmedTitle = dimmedStyle
+	d.Styles.DimmedDesc = dimmedStyle
 
 	return d
 }
 
-// renderListHeader renders a styled column-header row matching the pane width.
-func renderListHeader(cols []string, width int) string {
-	// Show only non-id column names, space-separated.
-	headers := make([]string, 0, len(cols))
+// renderListHeader renders a styled column-header row with each header name
+// padded to its column width, matching the alignment of the data rows below.
+func renderListHeader(cols []string, colWidths []int) string {
+	style := lipgloss.NewStyle().Bold(true).Padding(0, 0, 0, 1)
+
+	cells := make([]string, 0, len(cols))
+	wi := 0
 	for _, col := range cols {
 		if col == "id" {
 			continue
 		}
-		headers = append(headers, col)
+		w := 0
+		if wi < len(colWidths) {
+			w = colWidths[wi]
+		}
+		wi++
+		cells = append(cells, style.Render(listPadOrTruncate(col, w)))
 	}
 
-	style := lipgloss.NewStyle().
-		Bold(true).
-		Padding(0, 0, 0, 1).
-		Width(width)
-
-	return style.Render(strings.Join(headers, "  "))
+	return strings.Join(cells, strings.Repeat(" ", listColPadding))
 }

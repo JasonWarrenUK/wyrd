@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1 done (bubbles/list wired) | Viewport, column alignment, focus indicator | —                |
+| **NV**   | NV.1, NV.11 done | Viewport, focus indicator, grouped sections | —                |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
@@ -83,7 +83,7 @@ _(none yet)_
 - [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.1**
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
-- [ ] NV.11. Align columns in the left-pane list: the header row (`renderListHeader`) and each item row (`formatRowTitle`) currently use plain `strings.Join("  ")` with no padding, so columns don't line up. Fix: compute max column widths across all rows (same approach as `views.ListRenderer.calculateColumnWidths`), then pad each cell to its column width using `padOrTruncate` before joining. The header must use the same widths. The `bubbles/list` delegate's `Render` method receives the pre-formatted title string from `nodeListItem.Title()`, so all padding logic lives in `rowsToItems`/`formatRowTitle` — not in the delegate itself. Width budget: `pane width - 1` (left padding added by the delegate style). — **depends on NV.1**
+- [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
@@ -94,6 +94,7 @@ _(none yet)_
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
 - [x] NV.1. Wire `bubbles/list` component into the left pane for node listing
+- [x] NV.11. Align columns in the left-pane list using computed column widths; header and data rows pad cells to the same widths
 
 ---
 
@@ -345,7 +346,8 @@ NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::blocked
 NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
 NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::blocked
 NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
-NV11["`*NV.11*<br/>**Navigation**<br/>Column alignment`"]:::open
+NV11["`*NV.11*<br/>**Navigation**<br/>Column alignment`"]:::done
+NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
 CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
 CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
@@ -448,7 +450,8 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-m2 --> NV1 & NV2 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV11
+NV1 --> NV12
+m2 --> NV1 & NV2 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV11 & NV12
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
