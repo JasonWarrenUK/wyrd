@@ -382,11 +382,7 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 		if _, isForm := m.rightPane.(formPane); isForm {
 			return m.updateFocusedPane(msg)
 		}
-		var selectedID string
-		if lp, ok := m.leftPane.(nodeListPane); ok {
-			selectedID = lp.SelectedNodeID()
-		}
-		m.captureBar.Focus(selectedID)
+		m.captureBar.Focus("")
 		m.statusBar.SetCaptureText(captureDisplayText(""))
 		return m, nil
 
