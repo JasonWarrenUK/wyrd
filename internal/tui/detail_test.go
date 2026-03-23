@@ -388,6 +388,44 @@ func TestRender_NoBudgetNodes_NoSection(t *testing.T) {
 	}
 }
 
+// --- NV.10: markdown rendering tests ---
+
+func TestRender_MarkdownHeading(t *testing.T) {
+	node := simpleNode("n-md1", "## Heading\n\nText paragraph here.", []string{"note"})
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if !strings.Contains(output, "Heading") {
+		t.Errorf("expected heading text in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Text paragraph here.") {
+		t.Errorf("expected body text in output, got:\n%s", output)
+	}
+}
+
+func TestRender_MarkdownCodeBlock(t *testing.T) {
+	node := simpleNode("n-md2", "Title\n\n```\nconst x = 42\n```", []string{"note"})
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if !strings.Contains(output, "x = 42") {
+		t.Errorf("expected code content in output, got:\n%s", output)
+	}
+}
+
+func TestRender_ArchivedNodePlainText(t *testing.T) {
+	node := simpleNode("n-md3", "## Heading\n\nSome text.", []string{"note"})
+	node.Properties = map[string]interface{}{"status": "archived"}
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	// Archived nodes bypass Glamour — the raw body (after title strip) is rendered
+	// in muted style. The heading markers may appear as-is or the text may appear.
+	if !strings.Contains(output, "Some text.") {
+		t.Errorf("expected body text in archived output, got:\n%s", output)
+	}
+}
+
 // --- Progress bar tests ---
 
 func TestBuildProgressBar_Empty(t *testing.T) {
