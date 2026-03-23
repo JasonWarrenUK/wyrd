@@ -276,7 +276,7 @@ func buildMetadataLines(node *types.Node, mutedStyle, primaryStyle lipgloss.Styl
 		if str == "" || str == "[]" || str == "map[]" {
 			continue
 		}
-		line := mutedStyle.Render(k+":") + " " + primaryStyle.Render(str)
+		line := mutedStyle.Render(k+": ") + primaryStyle.Render(str)
 		lines = append(lines, line)
 	}
 	return lines
