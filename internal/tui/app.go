@@ -401,7 +401,16 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	renderer := NewDetailRenderer()
 	renderer.Width = m.layout.totalWidth / 2
-	renderer.Colours.BgPrimary = string(m.theme.BgPrimary())
+	renderer.Colours.BgPrimary       = string(m.theme.BgPrimary())
+	renderer.Colours.FGPrimary       = string(m.theme.FgPrimary())
+	renderer.Colours.FGMuted         = string(m.theme.FgMuted())
+	renderer.Colours.AccentPrimary   = string(m.theme.AccentPrimary())
+	renderer.Colours.AccentSecondary = string(m.theme.AccentSecondary())
+	renderer.Colours.BudgetOK        = string(m.theme.BudgetOK())
+	renderer.Colours.BudgetCaution   = string(m.theme.BudgetCaution())
+	renderer.Colours.BudgetOver      = string(m.theme.BudgetOver())
+	renderer.Colours.OverflowWarn    = string(m.theme.OverflowWarn())
+	renderer.Colours.OverflowCrit    = string(m.theme.OverflowCritical())
 
 	now := time.Now()
 	if m.clock != nil {
@@ -418,7 +427,7 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	if vpWidth < 1 {
 		vpWidth = 1
 	}
-	return newViewportPane(vpWidth, vpHeight, content)
+	return newViewportPane(vpWidth, vpHeight, content, m.theme.BgPrimary())
 }
 
 // splitLines splits a string on newlines.

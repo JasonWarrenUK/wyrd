@@ -7,6 +7,7 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // KeyBinding describes a single keyboard shortcut and its action.
@@ -68,15 +69,18 @@ func NewEmptyPane(theme *ActiveTheme) PaneModel {
 // edge lists, and budget sections can be scrolled with j/k, arrow keys,
 // Page Up, and Page Down.
 type viewportPane struct {
-	vp viewport.Model
+	vp  viewport.Model
+	bg  lipgloss.Color
 }
 
 // newViewportPane creates a viewportPane sized to the given dimensions and
-// pre-loaded with the provided content string.
-func newViewportPane(width, height int, content string) viewportPane {
+// pre-loaded with the provided content string. bg is the theme background
+// colour applied to the viewport style so padding lines don't bleed through.
+func newViewportPane(width, height int, content string, bg lipgloss.Color) viewportPane {
 	vp := viewport.New(width, height)
+	vp.Style = lipgloss.NewStyle().Background(bg)
 	vp.SetContent(content)
-	return viewportPane{vp: vp}
+	return viewportPane{vp: vp, bg: bg}
 }
 
 // Update handles scroll key messages forwarded from the root model when the
@@ -94,6 +98,7 @@ func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		if d.vp.Height < 1 {
 			d.vp.Height = 1
 		}
+		d.vp.Style = lipgloss.NewStyle().Background(d.bg)
 	default:
 		d.vp, cmd = d.vp.Update(msg)
 	}
