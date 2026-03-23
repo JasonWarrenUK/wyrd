@@ -30,6 +30,7 @@ const (
 type Colours struct {
 	AccentPrimary   string
 	AccentSecondary string
+	BgPrimary       string
 	FGPrimary       string
 	FGMuted         string
 	BudgetOK        string
@@ -92,13 +93,18 @@ func (r *DetailRenderer) Render(
 		Foreground(lipgloss.Color(c.AccentPrimary)).
 		Bold(true)
 
+	var bg lipgloss.TerminalColor = lipgloss.NoColor{}
+	if c.BgPrimary != "" {
+		bg = lipgloss.Color(c.BgPrimary)
+	}
+
 	mutedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.FGMuted)).
-		Background(lipgloss.NoColor{})
+		Background(bg)
 
 	primaryStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.FGPrimary)).
-		Background(lipgloss.NoColor{})
+		Background(bg)
 
 	sectionHeaderStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.AccentSecondary)).

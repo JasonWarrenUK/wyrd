@@ -401,6 +401,7 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	renderer := NewDetailRenderer()
 	renderer.Width = m.layout.totalWidth / 2
+	renderer.Colours.BgPrimary = string(m.theme.BgPrimary())
 
 	now := time.Now()
 	if m.clock != nil {
