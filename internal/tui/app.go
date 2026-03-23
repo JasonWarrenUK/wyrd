@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -260,10 +261,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		action := m.keyMap.Dispatch(msg)
 		return m.handleAction(action, msg)
+
+	case tea.KeyReleaseMsg:
+		return m.updateFocusedPane(msg)
+
+	case spinner.TickMsg:
+		cmd := m.statusBar.Update(msg)
+		return m, cmd
 	}
 
-	// Forward unhandled messages to the focused pane.
-	return m.updateFocusedPane(msg)
+	// Broadcast non-key messages to both panes (e.g. tick, window resize already
+	// handled above, custom domain messages).
+	return m.updateBothPanes(msg)
 }
 
 // handleAction translates a resolved KeyAction into state changes.
@@ -274,12 +283,16 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 		return m, tea.Quit
 
 	case ActionSwitchPane:
+		// Notify the pane losing focus before toggling.
+		var lostCmd tea.Cmd
 		if m.focus == FocusLeft {
+			lostCmd = m.leftPane.HandleFocusLost()
 			m.focus = FocusRight
 		} else {
+			lostCmd = m.rightPane.HandleFocusLost()
 			m.focus = FocusLeft
 		}
-		return m, nil
+		return m, lostCmd
 
 	case ActionCommandPalette:
 		m.palette.Open(PaletteModeCLI)
@@ -315,6 +328,14 @@ func (m Model) updateFocusedPane(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane, cmd = m.rightPane.Update(msg)
 	}
 	return m, cmd
+}
+
+// updateBothPanes sends msg to both panes and batches their commands.
+func (m Model) updateBothPanes(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var leftCmd, rightCmd tea.Cmd
+	m.leftPane, leftCmd = m.leftPane.Update(msg)
+	m.rightPane, rightCmd = m.rightPane.Update(msg)
+	return m, tea.Batch(leftCmd, rightCmd)
 }
 
 // applyTheme swaps the active theme and propagates it to all sub-components.
@@ -401,6 +422,12 @@ func (m *Model) RegisterKeyBinding(binding KeyBinding, action KeyAction) {
 // derive their own Lipgloss styles from the theme colours.
 func (m *Model) Theme() *ActiveTheme {
 	return m.theme
+}
+
+// StatusBar returns a pointer to the status bar so callers can start/stop
+// the spinner or update its text content.
+func (m *Model) StatusBar() *StatusBar {
+	return &m.statusBar
 }
 
 // renderDetail fetches a node by ID and renders it into a detailPane.

@@ -183,6 +183,9 @@ func (p nodeListPane) KeyBindings() []KeyBinding {
 	}
 }
 
+// HandleFocusLost is a no-op for the node list pane.
+func (p nodeListPane) HandleFocusLost() tea.Cmd { return nil }
+
 // SelectedNodeID returns the UUID of the currently highlighted node, or an
 // empty string when the list is empty.
 func (p nodeListPane) SelectedNodeID() string {

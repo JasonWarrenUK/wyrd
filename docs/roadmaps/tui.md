@@ -7,12 +7,12 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.9, NV.11, NV.13 done | fuzzy filter (NV.6), broadcast msgs (NV.14), HandleFocusLost (NV.15) | NV.8, NV.10 (need NV.14) |
-| **CP**   | Capture bar built; not wired into app | Add huh dep (CP.1) | CP.0 (needs NV.15), CP.2+ (needs CP.0, CP.1) |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
+| **CP**   | Capture bar built; not wired into app | Add huh dep (CP.1), wire capture bar (CP.0) | CP.2+ (needs CP.0, CP.1) |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
-| **RT**   | Ritual runner built; not wired | — | RT.2 (needs NV.15); rest depend on RT.2 |
+| **RT**   | Ritual runner built; not wired | RT.2 now unblocked | RT.1 (needs CP.1); RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
 | **QE**   | Cypher subset implemented     | UNION support (QE.1)         | —                              |
 
@@ -79,13 +79,10 @@ _(none yet)_
 
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1, QE.1**
-- [ ] NV.14. Broadcast all messages to all panes unconditionally, not just the focused one — internal ticks (spinner, cursor blink, async callbacks) must reach every mounted pane regardless of focus state; key messages continue to be routed only to the focused pane — **no blockers**
-- [ ] NV.15. Add `HandleFocusLost() tea.Cmd` to the `PaneModel` interface — called by the root model whenever a pane loses focus; allows panes to stop blinking cursors, dismiss sub-overlays, or flush pending input on blur — **no blockers**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-- [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync) — **depends on NV.14**
-- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3 (done), NV.14**
+_(none)_
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -97,6 +94,10 @@ _(none yet)_
 - [x] NV.11. Align columns in the left-pane list using computed column widths; header and data rows pad cells to the same widths
 - [x] NV.13. Wire left pane selection to right pane; cursor movement emits `nodeSelectedMsg`; right pane renders node title, body, metadata, and edges
 - [x] NV.7. Implement `alt+shift+↑`/`alt+shift+↓` jump-to-top/bottom in left pane — **depends on NV.5**
+- [x] NV.8. Wire `bubbles/spinner` for async operations (store load, sync) — **depends on NV.14**
+- [x] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3, NV.14**
+- [x] NV.14. Broadcast all messages to all panes unconditionally, not just the focused one — key messages continue to be routed only to the focused pane — **no blockers**
+- [x] NV.15. Add `HandleFocusLost() tea.Cmd` to the `PaneModel` interface — called by the root model whenever a pane loses focus — **no blockers**
 
 ---
 
@@ -111,11 +112,10 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
+- [ ] CP.0. Wire capture bar — **no blockers**
 - [ ] CP.1. Add `github.com/charmbracelet/huh` dependency
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
-
-- [ ] CP.0. Wire capture bar — **depends on NV.15**
 - [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
 - [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; set `Title` on the node; replaces `$EDITOR` — **depends on CP.0, CP.1**
 - [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; set `Title` on the node — **depends on CP.0, CP.1**
@@ -202,12 +202,11 @@ _(none yet)_
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
-_(none — all tasks are blocked)_
+- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **no blockers**
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
 - [ ] RT.1. Ritual scheduler on startup — **depends on CP.1**
-- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **depends on NV.15**
 - [ ] RT.3. Query steps in ritual — **depends on RT.2**
 - [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1**
 - [ ] RT.5. Gate step — **depends on RT.2**
@@ -322,13 +321,13 @@ mqe["`**Query Engine**`"]:::mile
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
-NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::blocked
-NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
+NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::done
+NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::done
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
-NV14["`*NV.14*<br/>**Navigation**<br/>Broadcast msgs`"]:::open
-NV15["`*NV.15*<br/>**Navigation**<br/>HandleFocusLost`"]:::open
+NV14["`*NV.14*<br/>**Navigation**<br/>Broadcast msgs`"]:::done
+NV15["`*NV.15*<br/>**Navigation**<br/>HandleFocusLost`"]:::done
 
-CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::blocked
+CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
 CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
 CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::blocked
 CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::blocked
@@ -365,7 +364,7 @@ LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::blocked
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::blocked
 
 RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::blocked
-RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::blocked
+RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
 RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::blocked
 RT4["`*RT.4*<br/>**Rituals**<br/>Prompt via huh`"]:::blocked
 RT5["`*RT.5*<br/>**Rituals**<br/>Gate step`"]:::blocked

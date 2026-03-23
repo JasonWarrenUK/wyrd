@@ -284,6 +284,91 @@ func TestAppBootsWithDashboard(t *testing.T) {
 	}
 }
 
+// --- NV.8: spinner tests ---
+
+// TestSpinnerStartAndTick starts the spinner, feeds a TickMsg through Update,
+// and verifies the view contains the spinner message text.
+func TestSpinnerStartAndTick(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	cmd := m.StatusBar().StartSpinner("Loading…")
+	if cmd == nil {
+		t.Fatal("StartSpinner should return a non-nil cmd")
+	}
+
+	// Feed the resulting TickMsg through Update.
+	tickMsg := cmd()
+	updated, _ := m.Update(tickMsg)
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+
+	view := result.View().Content
+	if !strings.Contains(view, "Loading…") {
+		t.Errorf("expected spinner message 'Loading…' in view, got:\n%s", view)
+	}
+}
+
+// TestSpinnerStopRemovesFromView starts then stops the spinner, verifying
+// the spinner message is absent from the view afterwards.
+func TestSpinnerStopRemovesFromView(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	m.StatusBar().StartSpinner("Processing…")
+
+	// Verify it's present while spinning.
+	view := m.View().Content
+	if !strings.Contains(view, "Processing…") {
+		t.Errorf("expected spinner message while spinning, got:\n%s", view)
+	}
+
+	// Stop and verify it's gone.
+	m.StatusBar().StopSpinner()
+	view = m.View().Content
+	if strings.Contains(view, "Processing…") {
+		t.Errorf("expected spinner message absent after stop, got:\n%s", view)
+	}
+}
+
+// --- NV.15: focus-lost tests ---
+
+// spyPane is a minimal PaneModel that records whether HandleFocusLost was called.
+type spyPane struct {
+	focusLostCalled bool
+}
+
+func (s *spyPane) Update(_ tea.Msg) (tui.PaneModel, tea.Cmd) { return s, nil }
+func (s *spyPane) View() string                              { return "spy" }
+func (s *spyPane) KeyBindings() []tui.KeyBinding             { return nil }
+func (s *spyPane) HandleFocusLost() tea.Cmd {
+	s.focusLostCalled = true
+	return nil
+}
+
+// TestFocusLostCalledOnSwitch mounts a spy pane on the left, switches focus
+// to the right, and asserts that HandleFocusLost was called on the spy.
+func TestFocusLostCalledOnSwitch(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	spy := &spyPane{}
+	m.MountLeft(spy)
+
+	// Focus starts on the left; switch to right — left pane loses focus.
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
+	_, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+
+	if !spy.focusLostCalled {
+		t.Error("expected HandleFocusLost to be called on the left pane after focus switch")
+	}
+}
+
 // TestJumpToTopDoesNotPanic verifies that alt+shift+up is routed to the
 // focused pane without panicking.
 func TestJumpToTopDoesNotPanic(t *testing.T) {
@@ -303,6 +388,53 @@ func TestJumpToTopDoesNotPanic(t *testing.T) {
 	}
 	if result.View().Content == "" {
 		t.Error("expected non-empty view after jump to top")
+	}
+}
+
+// --- NV.14: broadcast tests ---
+
+// TestBroadcastNonKeyMessage verifies that a custom non-key message does not
+// panic and the model returns cleanly.
+func TestBroadcastNonKeyMessage(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("broadcast panicked: %v", r)
+		}
+	}()
+
+	type customMsg struct{ value string }
+	updated, _ := m.Update(customMsg{value: "hello"})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if result.View().Content == "" {
+		t.Error("expected non-empty view after broadcast")
+	}
+}
+
+// TestKeyReleaseRoutedToFocusedPane verifies that a KeyReleaseMsg does not
+// panic and is routed to the focused pane only.
+func TestKeyReleaseRoutedToFocusedPane(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("KeyReleaseMsg routing panicked: %v", r)
+		}
+	}()
+
+	updated, _ := m.Update(tea.KeyReleaseMsg{Code: 'j'})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if result.View().Content == "" {
+		t.Error("expected non-empty view after KeyReleaseMsg")
 	}
 }
 

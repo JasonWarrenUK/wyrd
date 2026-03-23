@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/glamour"
 	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -128,7 +129,7 @@ func (r *DetailRenderer) Render(
 		if isArchived {
 			sb.WriteString(mutedStyle.Render(body))
 		} else {
-			sb.WriteString(primaryStyle.Render(body))
+			sb.WriteString(r.renderMarkdown(body, primaryStyle))
 		}
 		sb.WriteString("\n\n")
 	}
@@ -185,6 +186,24 @@ func (r *DetailRenderer) bg() color.Color {
 		return r.Colours.BgPrimary
 	}
 	return lipgloss.NoColor{}
+}
+
+// renderMarkdown renders body text as markdown using Glamour. On error it falls
+// back to plainStyle.Render(body). Trailing newlines from Glamour output are
+// trimmed so the caller controls surrounding spacing.
+func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) string {
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(r.Width),
+	)
+	if err != nil {
+		return plainStyle.Render(body)
+	}
+	out, err := renderer.Render(body)
+	if err != nil {
+		return plainStyle.Render(body)
+	}
+	return strings.TrimRight(out, "\n")
 }
 
 // ---- Internal helpers ----
