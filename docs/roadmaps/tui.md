@@ -7,10 +7,10 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.11, NV.13 done | gg/G jump (NV.7), status bar (NV.9), fuzzy filter (NV.6) | NV.7 depends on NV.5 (done); NV.9 depends on NV.4 (done) |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.11, NV.13 done | gg/G jump (NV.7), status bar (NV.9), fuzzy filter (NV.6), Glamour (NV.10) | — |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
-| **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
+| **VS**   | Lipgloss used; no polish pass | Full styling audit; pane borders (VS.2 unblocked) | NV.9 (for VS.6); CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
@@ -118,8 +118,8 @@ _(none yet)_
 - [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
 - [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; set `Title` on the node; replaces `$EDITOR` — **depends on CP.0, CP.1**
 - [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; set `Title` on the node — **depends on CP.0, CP.1**
-- [ ] CP.5. Integrate `bubbles/textarea` for multiline markdown body input within forms — **depends on NV.1, CP.1**
-- [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2, NV.4**
+- [ ] CP.5. Integrate `bubbles/textarea` for multiline markdown body input within forms — **depends on NV.1 (done), CP.1**
+- [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2, NV.4 (done)**
 - [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.1**
 - [ ] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix — **depends on CP.0, CP.2, CP.3, CP.4**
 
@@ -141,21 +141,18 @@ _(none yet)_
 <a name="m4-todo"><h4>To Do (Milestone 4)</h4></a>
 
 - [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars
-- [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4**
+- [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4 (done)**
+- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection
+
+<a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
+
 - [ ] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1**
 - [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1**
 - [ ] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1**
 - [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9**
-- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection
 - [ ] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) — **depends on VS.1, CP.1**
 - [ ] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1**
 - [ ] VS.10. Test all four shipped themes (Cairn, Peat, Kiln, Fell) render correctly at each polish point — **depends on VS.1**
-
-<a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
-
-- [ ] VS.2. Active/inactive pane borders — **depends on NV.4**
-- [ ] VS.6. Status bar styling — **depends on NV.9**
-- [ ] VS.8. Huh form theming — **depends on VS.1, CP.1**
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
@@ -203,9 +200,9 @@ _(none yet)_
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
-- [ ] RT.1. Wire ritual scheduler into TUI startup: check for due rituals, prompt to run — **depends on NV.4, CP.1**
+- [ ] RT.1. Wire ritual scheduler into TUI startup: check for due rituals, prompt to run — **depends on NV.4 (done), CP.1**
 - [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily)
-- [ ] RT.3. Render `query_summary` and `query_list` steps using existing view renderers inside the ritual pane — **depends on RT.2, NV.13**
+- [ ] RT.3. Render `query_summary` and `query_list` steps using existing view renderers inside the ritual pane — **depends on RT.2, NV.13 (done)**
 - [ ] RT.4. Implement `prompt` step using `huh` input form — **depends on RT.2, CP.1**
 - [ ] RT.5. Implement `gate` step: block progression unless user confirms; render friction message — **depends on RT.2**
 - [ ] RT.6. Wire deferral sequence (`Esc Esc d`) to snooze ritual and record deferral timestamp — **depends on RT.5**
@@ -214,8 +211,8 @@ _(none yet)_
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
-- [ ] RT.1. Ritual scheduler on startup — **depends on NV.4, CP.1**
-- [ ] RT.3. Query steps in ritual — **depends on RT.2, NV.13**
+- [ ] RT.1. Ritual scheduler on startup — **depends on CP.1**
+- [ ] RT.3. Query steps in ritual — **depends on RT.2**
 - [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1**
 - [ ] RT.5. Gate step — **depends on RT.2**
 - [ ] RT.7. Action step — **depends on RT.2**
@@ -326,9 +323,6 @@ mcli["`**CLI Input**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
-NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::done
-NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::done
-NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::done
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::open
 NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
@@ -352,7 +346,7 @@ CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
 VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::open
-VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::blocked
+VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::open
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::blocked
 VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::blocked
@@ -389,9 +383,6 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-NV3 --> NV10 & LG7
-NV4 --> NV7 & VS2 & RT1
-NV5 --> NV7
 NV9 --> VS6
 NV8 --> DA7
 
@@ -399,7 +390,6 @@ CP0 --> CP2 & CP3 & CP4
 CP1 --> CP2 & CP3 & CP4 & CP5 & CP7
 CP2 --> CP6 & DA5
 CP0 & CP2 & CP3 & CP4 --> CP8
-NV4 --> CP6
 CP1 --> RT1 & RT4
 CP1 --> CL1 & CL2
 
@@ -411,7 +401,6 @@ VS10 --> DA1 & DA2
 
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
-NV3 --> LG7
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6 & DA6
@@ -420,7 +409,7 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-m2 --> NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV12
+m2 --> NV6 & NV7 & NV8 & NV9 & NV10 & NV12
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
