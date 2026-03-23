@@ -23,6 +23,31 @@ func newTestModel(t *testing.T) tui.Model {
 	return m
 }
 
+// newTestModelWithStore creates a Model wired to a real store so the
+// capture bar is active. Used for CP.0 / CP.8 tests.
+func newTestModelWithStore(t *testing.T) tui.Model {
+	t.Helper()
+	dir := t.TempDir()
+	clock := types.StubClock{Fixed: time.Date(2026, 3, 23, 9, 0, 0, 0, time.UTC)}
+	s, err := store.New(dir, clock)
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	engine := query.NewEngine(s.Index(), 10)
+	m, err := tui.New(tui.Config{
+		Store:       s,
+		StorePath:   dir,
+		Index:       s.Index(),
+		QueryRunner: engine,
+		Clock:       clock,
+	})
+	if err != nil {
+		t.Fatalf("tui.New: %v", err)
+	}
+	return m
+}
+
 // sendWindowSize delivers a WindowSizeMsg to a model and returns the
 // updated model.
 func sendWindowSize(t *testing.T, m tui.Model, w, h int) tui.Model {
@@ -457,5 +482,104 @@ func TestJumpToBottomDoesNotPanic(t *testing.T) {
 	}
 	if result.View().Content == "" {
 		t.Error("expected non-empty view after jump to bottom")
+	}
+}
+
+// --- CP.0 / CP.8: capture bar + form dispatch tests ---
+
+// pressKey is a helper that sends a single key press and returns the updated model.
+func pressKey(t *testing.T, m tui.Model, code rune, text string) tui.Model {
+	t.Helper()
+	updated, _ := m.Update(tea.KeyPressMsg{Code: code, Text: text})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("Update returned unexpected type %T", updated)
+	}
+	return result
+}
+
+// TestCaptureBarFocusesOnI verifies that pressing "i" updates the status bar
+// to show the cursor character (indicating capture mode is active).
+func TestCaptureBarFocusesOnI(t *testing.T) {
+	m := newTestModelWithStore(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	m = pressKey(t, m, 'i', "i")
+
+	v := m.View().Content
+	// The cursor character should appear in the status bar area.
+	if !strings.Contains(v, "▌") {
+		t.Error("expected cursor character '▌' in view after pressing i")
+	}
+}
+
+// TestCaptureBarTypingAccumulates verifies that typing after pressing "i"
+// accumulates in the status bar display.
+func TestCaptureBarTypingAccumulates(t *testing.T) {
+	m := newTestModelWithStore(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	m = pressKey(t, m, 'i', "i")
+	m = pressKey(t, m, 'h', "h")
+	// 'i' while capture bar focused is a rune input, not ActionCapture.
+	m = pressKey(t, m, 'i', "i")
+
+	v := m.View().Content
+	if !strings.Contains(v, "hi▌") {
+		t.Errorf("expected 'hi▌' in view, got content length %d", len(v))
+	}
+}
+
+// TestCaptureBarEscapeCancels verifies that Escape clears capture mode and
+// restores the placeholder text.
+func TestCaptureBarEscapeCancels(t *testing.T) {
+	m := newTestModelWithStore(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	m = pressKey(t, m, 'i', "i")            // focus capture bar
+	m = pressKey(t, m, tea.KeyEsc, "")      // cancel
+
+	v := m.View().Content
+	// Placeholder text should be restored and cursor should be gone.
+	if strings.Contains(v, "▌") {
+		t.Error("cursor '▌' should not appear in view after Escape")
+	}
+	if !strings.Contains(v, "Press i to capture") {
+		t.Error("expected placeholder text after Escape")
+	}
+}
+
+// TestCaptureBarEnterOpensTaskForm verifies that pressing Enter after typing
+// a "t:" prefix mounts a form with a Title field in the right pane.
+func TestCaptureBarEnterOpensTaskForm(t *testing.T) {
+	m := newTestModelWithStore(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	// Type "t: Buy milk" and press Enter.
+	m = pressKey(t, m, 'i', "i")
+	for _, r := range "t: Buy milk" {
+		m = pressKey(t, m, r, string(r))
+	}
+	m = pressKey(t, m, tea.KeyEnter, "")
+
+	// The view should now contain the huh form (title field label).
+	v := m.View().Content
+	if !strings.Contains(v, "Title") {
+		t.Errorf("expected form title field in view after capture Enter, got content length %d", len(v))
+	}
+}
+
+// TestCaptureBarEmptyEnterBlurs verifies that pressing Enter on an empty
+// capture bar simply blurs without opening a form.
+func TestCaptureBarEmptyEnterBlurs(t *testing.T) {
+	m := newTestModelWithStore(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	m = pressKey(t, m, 'i', "i")
+	m = pressKey(t, m, tea.KeyEnter, "")
+
+	v := m.View().Content
+	if strings.Contains(v, "▌") {
+		t.Error("cursor should not be present after empty Enter")
 	}
 }

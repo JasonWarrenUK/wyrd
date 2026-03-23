@@ -56,6 +56,12 @@ func (l *Layout) PaneHeight() int {
 	return h
 }
 
+// TotalWidth returns the full terminal width.
+func (l *Layout) TotalWidth() int { return l.totalWidth }
+
+// TotalHeight returns the full terminal height.
+func (l *Layout) TotalHeight() int { return l.totalHeight }
+
 // LeftWidth returns the width of the left pane (approximately 50%).
 func (l *Layout) LeftWidth() int {
 	w := l.totalWidth / 2

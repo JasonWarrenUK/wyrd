@@ -26,6 +26,7 @@ const (
 	ActionQuit           // q or Ctrl+C
 	ActionCommandPalette // :
 	ActionFuzzyPalette   // Ctrl+K
+	ActionCapture        // i
 )
 
 // keyRule maps a key sequence to a KeyAction.
@@ -49,6 +50,7 @@ var defaultKeyRules = []keyRule{
 	{"ctrl+c", ActionQuit},
 	{":", ActionCommandPalette},
 	{"ctrl+k", ActionFuzzyPalette},
+	{"i", ActionCapture},
 }
 
 // KeyMap holds the complete set of active key rules.
@@ -107,6 +109,7 @@ func (km *KeyMap) AllBindings() []KeyBinding {
 		ActionQuit:           "Quit",
 		ActionCommandPalette: "Open command palette",
 		ActionFuzzyPalette:   "Fuzzy command search",
+		ActionCapture:        "Capture node",
 	}
 
 	bindings := make([]KeyBinding, 0, len(km.rules))

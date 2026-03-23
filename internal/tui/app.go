@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
@@ -21,6 +22,17 @@ type switchThemeMsg struct {
 type jumpMsg struct {
 	top bool // true = jump to top, false = jump to bottom
 }
+
+// captureSubmitMsg is emitted after a successful node creation (from form or
+// capture bar) so the dashboard can refresh and the status bar can confirm.
+type captureSubmitMsg struct {
+	nodeID string
+	label  string
+}
+
+// captureConfirmClearMsg is emitted after a short delay to clear the
+// confirmation text from the status bar.
+type captureConfirmClearMsg struct{}
 
 // Model is the root Bubble Tea model for the Wyrd TUI. It owns all mutable
 // state; transitions happen in Update and rendering in View. No state is held
@@ -57,6 +69,15 @@ type Model struct {
 
 	// statusBar is the bottom status bar.
 	statusBar StatusBar
+
+	// store is retained for the capture bar and form panes to write nodes.
+	store types.StoreFS
+
+	// captureBar handles rapid node creation from the status bar area.
+	captureBar *CaptureBar
+
+	// queryRunner is stored so the dashboard can be refreshed after capture.
+	queryRunner types.QueryRunner
 
 	// index is the in-memory graph, used to fetch node detail on selection.
 	index types.GraphIndex
@@ -177,19 +198,28 @@ func New(cfg Config) (Model, error) {
 		// better than a crash on first launch.
 	}
 
+	// Create the capture bar when a store is available.
+	var captureBar *CaptureBar
+	if cfg.Store != nil {
+		captureBar = NewCaptureBar(cfg.Store, clock)
+	}
+
 	m := Model{
-		theme:     theme,
-		storePath: storePath,
-		layout:    layout,
-		leftPane:  leftPane,
-		rightPane: NewEmptyPane(theme),
-		focus:     FocusLeft,
-		keyMap:    keyMap,
-		palette:   palette,
-		statusBar: statusBar,
-		index:     cfg.Index,
-		clock:     clock,
-		ready:     false,
+		theme:       theme,
+		storePath:   storePath,
+		layout:      layout,
+		leftPane:    leftPane,
+		rightPane:   NewEmptyPane(theme),
+		focus:       FocusLeft,
+		keyMap:      keyMap,
+		palette:     palette,
+		statusBar:   statusBar,
+		store:       cfg.Store,
+		captureBar:  captureBar,
+		queryRunner: cfg.QueryRunner,
+		index:       cfg.Index,
+		clock:       clock,
+		ready:       false,
 	}
 
 	// Pre-populate the right pane with the first selected item so the detail
@@ -217,6 +247,23 @@ func (m Model) Init() tea.Cmd {
 
 // Update is the Elm-style update function. All state changes happen here.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// When the capture bar is focused, key input goes exclusively to it.
+	// Non-key messages (resize, spinner ticks, etc.) still fall through.
+	if m.captureBar != nil && m.captureBar.IsFocused() {
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+			return m.handleCaptureKey(keyMsg)
+		}
+	}
+
+	// Handle async capture messages regardless of capture bar focus state.
+	switch msg := msg.(type) {
+	case captureSubmitMsg:
+		return m.handleCaptureSubmit(msg)
+	case captureConfirmClearMsg:
+		m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+		return m, nil
+	}
+
 	// Let the palette handle input first when it is active.
 	if m.palette.IsActive() {
 		var cmd tea.Cmd
@@ -240,13 +287,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case nodeSelectedMsg:
-		m.rightPane = m.renderDetail(msg.nodeID)
+		// Don't overwrite the right pane with detail if a form is active.
+		if _, isForm := m.rightPane.(formPane); !isForm {
+			m.rightPane = m.renderDetail(msg.nodeID)
+		}
 		if m.index != nil {
 			if node, err := m.index.GetNode(msg.nodeID); err == nil {
 				edgeCount := len(m.index.EdgesFrom(msg.nodeID)) + len(m.index.EdgesTo(msg.nodeID))
 				m.statusBar.SetNodeInfo(node.ID, node.Types, edgeCount)
 			}
 		}
+		return m, nil
+
+	case formSubmitMsg:
+		m.rightPane = NewEmptyPane(m.theme)
+		m.focus = FocusLeft
+		return m.handleCaptureSubmit(captureSubmitMsg{nodeID: msg.nodeID, label: msg.label})
+
+	case formCancelMsg:
+		m.focus = FocusLeft
+		if lp, ok := m.leftPane.(nodeListPane); ok {
+			if id := lp.SelectedNodeID(); id != "" {
+				m.rightPane = m.renderDetail(id)
+				return m, nil
+			}
+		}
+		m.rightPane = NewEmptyPane(m.theme)
 		return m, nil
 
 	case switchThemeMsg:
@@ -308,6 +374,18 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 	case ActionJumpBottom:
 		return m.updateFocusedPane(jumpMsg{top: false})
 
+	case ActionCapture:
+		if m.captureBar == nil {
+			return m, nil
+		}
+		var selectedID string
+		if lp, ok := m.leftPane.(nodeListPane); ok {
+			selectedID = lp.SelectedNodeID()
+		}
+		m.captureBar.Focus(selectedID)
+		m.statusBar.SetCaptureText(captureDisplayText(""))
+		return m, nil
+
 	case ActionNone:
 		// Unrecognised key — forward to the focused pane.
 		return m.updateFocusedPane(msg)
@@ -317,6 +395,92 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 		// scroll its content.
 		return m.updateFocusedPane(msg)
 	}
+}
+
+// handleCaptureKey processes a key press while the capture bar is focused.
+// Escape cancels, Enter dispatches a form, all other keys accumulate input.
+func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.captureBar.Blur()
+		m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+		return m, nil
+
+	case "enter":
+		input := strings.TrimSpace(m.captureBar.Input())
+		m.captureBar.Blur()
+		if input == "" {
+			m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+			return m, nil
+		}
+		nodeType, body := parseCapturePrefixes(input)
+		m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+
+		var selectedID string
+		if lp, ok := m.leftPane.(nodeListPane); ok {
+			selectedID = lp.SelectedNodeID()
+		}
+
+		var fp formPane
+		switch nodeType {
+		case "journal":
+			fp = newJournalFormPane(m.theme, m.store, m.clock, selectedID, body)
+		case "note":
+			fp = newNoteFormPane(m.theme, m.store, m.clock, selectedID, body)
+		default:
+			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body)
+		}
+		m.rightPane = fp
+		m.focus = FocusRight
+		return m, fp.form.Init()
+
+	case "backspace":
+		m.captureBar.Backspace()
+		m.statusBar.SetCaptureText(captureDisplayText(m.captureBar.Input()))
+		return m, nil
+
+	default:
+		if msg.Text != "" {
+			for _, r := range msg.Text {
+				m.captureBar.AppendRune(r)
+			}
+			m.statusBar.SetCaptureText(captureDisplayText(m.captureBar.Input()))
+		}
+		return m, nil
+	}
+}
+
+// handleCaptureSubmit refreshes the dashboard after a node is created and
+// shows a brief confirmation in the status bar.
+func (m Model) handleCaptureSubmit(msg captureSubmitMsg) (tea.Model, tea.Cmd) {
+	m.statusBar.SetCaptureText("Created " + msg.label)
+
+	if m.queryRunner != nil {
+		dq := DefaultDashboardQuery()
+		if m.store != nil {
+			if view, err := m.store.ReadView("dashboard"); err == nil {
+				dq = DashboardQueryFromView(view)
+			}
+		}
+		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+			lp := newNodeListPane(result, m.theme)
+			sized, _ := lp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.leftPane = sized
+		}
+	}
+
+	return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return captureConfirmClearMsg{}
+	})
+}
+
+// captureDisplayText formats capture bar input for display in the status bar,
+// appending a lightweight cursor character.
+func captureDisplayText(input string) string {
+	return input + "▌"
 }
 
 // updateFocusedPane routes a message to whichever pane currently has focus.
