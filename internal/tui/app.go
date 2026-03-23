@@ -16,6 +16,11 @@ type switchThemeMsg struct {
 	name string
 }
 
+// jumpMsg is sent to the focused pane to jump to the top or bottom of its list.
+type jumpMsg struct {
+	top bool // true = jump to top, false = jump to bottom
+}
+
 // Model is the root Bubble Tea model for the Wyrd TUI. It owns all mutable
 // state; transitions happen in Update and rendering in View. No state is held
 // outside this struct.
@@ -283,6 +288,12 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 	case ActionFuzzyPalette:
 		m.palette.Open(PaletteModeFuzzy)
 		return m, nil
+
+	case ActionJumpTop:
+		return m.updateFocusedPane(jumpMsg{top: true})
+
+	case ActionJumpBottom:
+		return m.updateFocusedPane(jumpMsg{top: false})
 
 	case ActionNone:
 		// Unrecognised key — forward to the focused pane.

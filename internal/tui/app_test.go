@@ -283,3 +283,47 @@ func TestAppBootsWithDashboard(t *testing.T) {
 		t.Errorf("expected tea.Quit, got %v", msg)
 	}
 }
+
+// TestJumpToTopDoesNotPanic verifies that alt+shift+up is routed to the
+// focused pane without panicking.
+func TestJumpToTopDoesNotPanic(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("jump to top panicked: %v", r)
+		}
+	}()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModAlt | tea.ModShift})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if result.View().Content == "" {
+		t.Error("expected non-empty view after jump to top")
+	}
+}
+
+// TestJumpToBottomDoesNotPanic verifies that alt+shift+down is routed to the
+// focused pane without panicking.
+func TestJumpToBottomDoesNotPanic(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("jump to bottom panicked: %v", r)
+		}
+	}()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModAlt | tea.ModShift})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if result.View().Content == "" {
+		t.Error("expected non-empty view after jump to bottom")
+	}
+}

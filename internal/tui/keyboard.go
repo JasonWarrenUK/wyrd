@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -19,8 +17,8 @@ const (
 	ActionMoveDown
 	ActionMoveUp
 	ActionMoveRight
-	ActionJumpTop    // gg
-	ActionJumpBottom // G
+	ActionJumpTop    // shift+alt+up
+	ActionJumpBottom // shift+alt+down
 
 	// Application actions.
 	ActionSearch         // /
@@ -37,13 +35,14 @@ type keyRule struct {
 	action   KeyAction
 }
 
-// defaultKeyRules are the built-in vim-style bindings for the shell frame.
+// defaultKeyRules are the built-in bindings for the shell frame.
 var defaultKeyRules = []keyRule{
 	{"h", ActionMoveLeft},
 	{"j", ActionMoveDown},
 	{"k", ActionMoveUp},
 	{"l", ActionMoveRight},
-	{"G", ActionJumpBottom},
+	{"alt+shift+up", ActionJumpTop},
+	{"alt+shift+down", ActionJumpBottom},
 	{"/", ActionSearch},
 	{"ctrl+w", ActionSwitchPane},
 	{"q", ActionQuit},
@@ -52,18 +51,15 @@ var defaultKeyRules = []keyRule{
 	{"ctrl+k", ActionFuzzyPalette},
 }
 
-// KeyMap holds the complete set of active key rules and the partial sequence
-// buffer needed for multi-key sequences (e.g. "gg").
+// KeyMap holds the complete set of active key rules.
 type KeyMap struct {
-	rules  []keyRule
-	buffer string // pending prefix, e.g. "g" while waiting for "gg"
+	rules []keyRule
 }
 
 // NewKeyMap builds a KeyMap from the default rules.
 func NewKeyMap() *KeyMap {
 	rules := make([]keyRule, len(defaultKeyRules))
 	copy(rules, defaultKeyRules)
-	// "gg" must be resolved at dispatch time using the buffer.
 	return &KeyMap{rules: rules}
 }
 
@@ -86,49 +82,14 @@ func (km *KeyMap) RegisterCustom(binding KeyBinding, action KeyAction) {
 }
 
 // Dispatch processes a key message and returns the resolved KeyAction.
-// It manages the multi-key buffer for sequences such as "gg".
 func (km *KeyMap) Dispatch(msg tea.KeyPressMsg) KeyAction {
 	key := msg.String()
-
-	// Check for multi-key sequence completion first.
-	if km.buffer != "" {
-		candidate := km.buffer + key
-		for _, r := range km.rules {
-			if r.sequence == candidate {
-				km.buffer = ""
-				return r.action
-			}
-		}
-		// The sequence did not complete — flush the buffer and fall through.
-		km.buffer = ""
-	}
-
-	// Check whether this key starts a multi-key prefix.
-	if isPrefix(key, km.rules) {
-		km.buffer = key
-		return ActionNone
-	}
-
-	// Direct single-key lookup.
 	for _, r := range km.rules {
 		if r.sequence == key {
 			return r.action
 		}
 	}
-
 	return ActionNone
-}
-
-// isPrefix returns true when key is the start of any multi-character sequence
-// in rules but is not itself a complete rule.
-func isPrefix(key string, rules []keyRule) bool {
-	// "g" is a prefix for "gg" — detect this generically.
-	for _, r := range rules {
-		if strings.HasPrefix(r.sequence, key) && r.sequence != key && len(r.sequence) > 1 {
-			return true
-		}
-	}
-	return false
 }
 
 // AllBindings returns the full list of KeyBindings suitable for display
@@ -148,11 +109,7 @@ func (km *KeyMap) AllBindings() []KeyBinding {
 		ActionFuzzyPalette:   "Fuzzy command search",
 	}
 
-	// Add "gg" manually — it is resolved via the buffer mechanism.
-	bindings := []KeyBinding{
-		{Key: "gg", Description: "Jump to top"},
-	}
-
+	bindings := make([]KeyBinding, 0, len(km.rules))
 	for _, r := range km.rules {
 		desc, ok := descriptions[r.action]
 		if !ok {

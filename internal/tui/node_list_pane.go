@@ -128,6 +128,18 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
 		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths))
 		return p, nil
+
+	case jumpMsg:
+		if msg.top {
+			p.list.Select(0)
+		} else {
+			p.list.Select(len(p.list.Items()) - 1)
+		}
+		if id := p.SelectedNodeID(); id != "" {
+			cmd := func() tea.Msg { return nodeSelectedMsg{nodeID: id} }
+			return p, cmd
+		}
+		return p, nil
 	}
 
 	prevIndex := p.list.Index()
@@ -166,7 +178,8 @@ func (p nodeListPane) KeyBindings() []KeyBinding {
 	return []KeyBinding{
 		{Key: "j / ↓", Description: "Move down"},
 		{Key: "k / ↑", Description: "Move up"},
-		{Key: "g / G", Description: "Jump to top / bottom"},
+		{Key: "shift+alt+↑", Description: "Jump to top"},
+		{Key: "shift+alt+↓", Description: "Jump to bottom"},
 	}
 }
 
