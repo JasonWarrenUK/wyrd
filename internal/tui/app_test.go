@@ -284,6 +284,55 @@ func TestAppBootsWithDashboard(t *testing.T) {
 	}
 }
 
+// --- NV.8: spinner tests ---
+
+// TestSpinnerStartAndTick starts the spinner, feeds a TickMsg through Update,
+// and verifies the view contains the spinner message text.
+func TestSpinnerStartAndTick(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	cmd := m.StatusBar().StartSpinner("Loading…")
+	if cmd == nil {
+		t.Fatal("StartSpinner should return a non-nil cmd")
+	}
+
+	// Feed the resulting TickMsg through Update.
+	tickMsg := cmd()
+	updated, _ := m.Update(tickMsg)
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+
+	view := result.View().Content
+	if !strings.Contains(view, "Loading…") {
+		t.Errorf("expected spinner message 'Loading…' in view, got:\n%s", view)
+	}
+}
+
+// TestSpinnerStopRemovesFromView starts then stops the spinner, verifying
+// the spinner message is absent from the view afterwards.
+func TestSpinnerStopRemovesFromView(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	m.StatusBar().StartSpinner("Processing…")
+
+	// Verify it's present while spinning.
+	view := m.View().Content
+	if !strings.Contains(view, "Processing…") {
+		t.Errorf("expected spinner message while spinning, got:\n%s", view)
+	}
+
+	// Stop and verify it's gone.
+	m.StatusBar().StopSpinner()
+	view = m.View().Content
+	if strings.Contains(view, "Processing…") {
+		t.Errorf("expected spinner message absent after stop, got:\n%s", view)
+	}
+}
+
 // TestJumpToTopDoesNotPanic verifies that alt+shift+up is routed to the
 // focused pane without panicking.
 func TestJumpToTopDoesNotPanic(t *testing.T) {

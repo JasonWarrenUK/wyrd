@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -263,6 +264,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyReleaseMsg:
 		return m.updateFocusedPane(msg)
+
+	case spinner.TickMsg:
+		cmd := m.statusBar.Update(msg)
+		return m, cmd
 	}
 
 	// Broadcast non-key messages to both panes (e.g. tick, window resize already
@@ -413,6 +418,12 @@ func (m *Model) RegisterKeyBinding(binding KeyBinding, action KeyAction) {
 // derive their own Lipgloss styles from the theme colours.
 func (m *Model) Theme() *ActiveTheme {
 	return m.theme
+}
+
+// StatusBar returns a pointer to the status bar so callers can start/stop
+// the spinner or update its text content.
+func (m *Model) StatusBar() *StatusBar {
+	return &m.statusBar
 }
 
 // renderDetail fetches a node by ID and renders it into a detailPane.
