@@ -260,10 +260,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		action := m.keyMap.Dispatch(msg)
 		return m.handleAction(action, msg)
+
+	case tea.KeyReleaseMsg:
+		return m.updateFocusedPane(msg)
 	}
 
-	// Forward unhandled messages to the focused pane.
-	return m.updateFocusedPane(msg)
+	// Broadcast non-key messages to both panes (e.g. tick, window resize already
+	// handled above, custom domain messages).
+	return m.updateBothPanes(msg)
 }
 
 // handleAction translates a resolved KeyAction into state changes.
@@ -315,6 +319,14 @@ func (m Model) updateFocusedPane(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane, cmd = m.rightPane.Update(msg)
 	}
 	return m, cmd
+}
+
+// updateBothPanes sends msg to both panes and batches their commands.
+func (m Model) updateBothPanes(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var leftCmd, rightCmd tea.Cmd
+	m.leftPane, leftCmd = m.leftPane.Update(msg)
+	m.rightPane, rightCmd = m.rightPane.Update(msg)
+	return m, tea.Batch(leftCmd, rightCmd)
 }
 
 // applyTheme swaps the active theme and propagates it to all sub-components.

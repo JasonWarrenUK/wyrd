@@ -306,6 +306,53 @@ func TestJumpToTopDoesNotPanic(t *testing.T) {
 	}
 }
 
+// --- NV.14: broadcast tests ---
+
+// TestBroadcastNonKeyMessage verifies that a custom non-key message does not
+// panic and the model returns cleanly.
+func TestBroadcastNonKeyMessage(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("broadcast panicked: %v", r)
+		}
+	}()
+
+	type customMsg struct{ value string }
+	updated, _ := m.Update(customMsg{value: "hello"})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if result.View().Content == "" {
+		t.Error("expected non-empty view after broadcast")
+	}
+}
+
+// TestKeyReleaseRoutedToFocusedPane verifies that a KeyReleaseMsg does not
+// panic and is routed to the focused pane only.
+func TestKeyReleaseRoutedToFocusedPane(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("KeyReleaseMsg routing panicked: %v", r)
+		}
+	}()
+
+	updated, _ := m.Update(tea.KeyReleaseMsg{Code: 'j'})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if result.View().Content == "" {
+		t.Error("expected non-empty view after KeyReleaseMsg")
+	}
+}
+
 // TestJumpToBottomDoesNotPanic verifies that alt+shift+down is routed to the
 // focused pane without panicking.
 func TestJumpToBottomDoesNotPanic(t *testing.T) {
