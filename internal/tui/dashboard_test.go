@@ -115,8 +115,8 @@ func TestRunDashboard_MergesAndOrders(t *testing.T) {
 	}
 }
 
-// TestRunDashboard_Columns verifies that only the display columns are present
-// in the result (id is excluded from display rows).
+// TestRunDashboard_Columns verifies that only the display columns appear in
+// result.Columns, but that id is still present in each row for navigation.
 func TestRunDashboard_Columns(t *testing.T) {
 	cfg := DefaultDashboardQuery()
 	clock := types.StubClock{Fixed: date("2026-03-20")}
@@ -145,9 +145,9 @@ func TestRunDashboard_Columns(t *testing.T) {
 		}
 	}
 
-	// id must not appear in the projected row.
-	if _, ok := result.Rows[0]["id"]; ok {
-		t.Error("'id' should not appear in projected display rows")
+	// id must be present in the row for navigation, even though it is not a display column.
+	if _, ok := result.Rows[0]["id"]; !ok {
+		t.Error("'id' must be retained in projected rows for node navigation")
 	}
 }
 

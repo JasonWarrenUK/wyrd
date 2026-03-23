@@ -195,13 +195,18 @@ func parseDate(v interface{}) *time.Time {
 }
 
 // projectColumns returns a new slice of rows containing only the specified
-// columns, preserving order. Extra columns in the source rows are dropped.
+// columns, preserving order. Extra columns in the source rows are dropped,
+// except "id" which is always retained for navigation even when not displayed.
 func projectColumns(rows []map[string]interface{}, cols []string) []map[string]interface{} {
 	out := make([]map[string]interface{}, len(rows))
 	for i, row := range rows {
-		projected := make(map[string]interface{}, len(cols))
+		projected := make(map[string]interface{}, len(cols)+1)
 		for _, col := range cols {
 			projected[col] = row[col]
+		}
+		// Always carry the id so nodeListItem can populate its NodeID field.
+		if _, hasID := projected["id"]; !hasID {
+			projected["id"] = row["id"]
 		}
 		out[i] = projected
 	}
