@@ -93,10 +93,12 @@ func (r *DetailRenderer) Render(
 		Bold(true)
 
 	mutedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(c.FGMuted))
+		Foreground(lipgloss.Color(c.FGMuted)).
+		Background(lipgloss.NoColor{})
 
 	primaryStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(c.FGPrimary))
+		Foreground(lipgloss.Color(c.FGPrimary)).
+		Background(lipgloss.NoColor{})
 
 	sectionHeaderStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(c.AccentSecondary)).
@@ -121,13 +123,20 @@ func (r *DetailRenderer) Render(
 	sb.WriteString("\n\n")
 
 	// --- Body (full markdown content) ---
-	// When archived, render body in muted colour.
-	if isArchived {
-		sb.WriteString(mutedStyle.Render(node.Body))
-	} else {
-		sb.WriteString(primaryStyle.Render(node.Body))
+	// Strip the first line of body when it duplicates the title to avoid
+	// showing the same text twice. This happens when:
+	//   (a) node.Title is empty and the title was derived from firstLine(body), or
+	//   (b) node.Title is set and body opens with the same text (possibly as a
+	//       markdown heading, e.g. "# My Title").
+	body := bodyWithoutTitle(node)
+	if body != "" {
+		if isArchived {
+			sb.WriteString(mutedStyle.Render(body))
+		} else {
+			sb.WriteString(primaryStyle.Render(body))
+		}
+		sb.WriteString("\n\n")
 	}
-	sb.WriteString("\n\n")
 
 	// --- Metadata ---
 	if node.Properties != nil {
@@ -191,6 +200,39 @@ func nodeTitle(node *types.Node) string {
 		return node.Title
 	}
 	return firstLine(node.Body)
+}
+
+// bodyWithoutTitle returns node.Body with the first line stripped when it
+// would duplicate the rendered title. This covers two cases:
+//   - node.Title is empty: the title was derived from firstLine(body), so drop
+//     that line to avoid repeating it.
+//   - node.Title is set and the body's first non-empty line is the same text
+//     (possibly as a markdown heading, e.g. "# My Title"): drop that line too.
+func bodyWithoutTitle(node *types.Node) string {
+	body := strings.TrimRight(node.Body, "\n")
+	if body == "" {
+		return ""
+	}
+
+	lines := strings.SplitN(body, "\n", 2)
+	firstRaw := strings.TrimSpace(lines[0])
+	// Strip leading markdown heading markers for comparison.
+	firstPlain := strings.TrimLeft(firstRaw, "# ")
+
+	var titlePlain string
+	if node.Title != "" {
+		titlePlain = node.Title
+	} else {
+		titlePlain = firstPlain
+	}
+
+	if strings.EqualFold(firstPlain, titlePlain) {
+		if len(lines) < 2 {
+			return ""
+		}
+		return strings.TrimLeft(lines[1], "\n")
+	}
+	return body
 }
 
 // firstLine returns the first non-empty line of s.
