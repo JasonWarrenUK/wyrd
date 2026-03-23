@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
-| **CP**   | Capture bar built; not wired into app | Add huh dep (CP.1), wire capture bar (CP.0) | CP.2+ (needs CP.0, CP.1) |
+| **CP**   | CP.1 done (huh added) | Wire capture bar (CP.0) | CP.2+ (needs CP.0, CP.1) |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
@@ -113,7 +113,6 @@ _(none yet)_
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.0. Wire capture bar — **no blockers**
-- [ ] CP.1. Add `github.com/charmbracelet/huh` dependency
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 - [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
@@ -126,7 +125,7 @@ _(none yet)_
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
-_(none yet)_
+- [x] CP.1. Add `github.com/charmbracelet/huh` dependency
 
 ---
 
@@ -328,7 +327,7 @@ NV14["`*NV.14*<br/>**Navigation**<br/>Broadcast msgs`"]:::done
 NV15["`*NV.15*<br/>**Navigation**<br/>HandleFocusLost`"]:::done
 
 CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
-CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::open
+CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::done
 CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::blocked
 CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::blocked
 CP4["`*CP.4*<br/>**Capture**<br/>Note form`"]:::blocked
