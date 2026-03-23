@@ -23,9 +23,9 @@ Wyrd is a terminal-based personal productivity tool. Its architecture has five m
 | Concern | Choice | Notes |
 |---------|--------|-------|
 | Language | Go | Single binary, no runtime deps |
-| TUI framework | Bubble Tea | Elm architecture (Model-Update-View) |
-| TUI styling | Lipgloss | Colour tiers, box rendering |
-| TUI components | Bubbles | Inputs, lists, viewports, spinners |
+| TUI framework | Bubble Tea v2 (`charm.land/bubbletea/v2`) | Elm architecture (Model-Update-View) |
+| TUI styling | Lipgloss v2 (`charm.land/lipgloss/v2`) | Colour tiers, box rendering |
+| TUI components | Bubbles v2 (`charm.land/bubbles/v2`) | Inputs, lists, viewports, spinners |
 | Data format | JSONC | JSON with comments; one file per entity |
 | Schema validation | JSON Schema (via Go library) | Validate nodes against template defs |
 | Parser | participle (Go library) | For the Cypher subset grammar |
