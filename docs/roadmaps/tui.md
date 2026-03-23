@@ -7,10 +7,10 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.11, NV.13 done | gg/G jump (NV.7), status bar (NV.9), fuzzy filter (NV.6), Glamour (NV.10) | — |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.9, NV.11, NV.13 done | gg/G jump (NV.7), fuzzy filter (NV.6), Glamour (NV.10) | — |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
-| **VS**   | Lipgloss used; no polish pass | Full styling audit; pane borders (VS.2 unblocked) | NV.9 (for VS.6); CP.1 (for VS.8) |
+| **VS**   | Lipgloss used; no polish pass | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
@@ -80,13 +80,12 @@ _(none yet)_
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
 - [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
-- [ ] NV.9. Implement status bar showing: focused node ID, type badges, edge count — **depends on NV.4**
 - [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
 - [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-_(none — NV.7 depends on NV.5 which is done; NV.9 depends on NV.4 which is done)_
+_(none — NV.7 depends on NV.5 which is done)_
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -94,6 +93,7 @@ _(none — NV.7 depends on NV.5 which is done; NV.9 depends on NV.4 which is don
 - [x] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
 - [x] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired
 - [x] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update
+- [x] NV.9. Implement status bar showing: focused node ID, type badges, edge count
 - [x] NV.11. Align columns in the left-pane list using computed column widths; header and data rows pad cells to the same widths
 - [x] NV.13. Wire left pane selection to right pane; cursor movement emits `nodeSelectedMsg`; right pane renders node title, body, metadata, and edges
 
@@ -142,6 +142,7 @@ _(none yet)_
 
 - [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars
 - [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4 (done)**
+- [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9 (done)**
 - [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
@@ -149,7 +150,6 @@ _(none yet)_
 - [ ] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1**
 - [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1**
 - [ ] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1**
-- [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9**
 - [ ] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) — **depends on VS.1, CP.1**
 - [ ] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1**
 - [ ] VS.10. Test all four shipped themes (Cairn, Peat, Kiln, Fell) render correctly at each polish point — **depends on VS.1**
@@ -326,7 +326,7 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::open
 NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
-NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::open
+
 NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
@@ -350,7 +350,7 @@ VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::open
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::blocked
 VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::blocked
-VS6["`*VS.6*<br/>**Visual**<br/>Status bar`"]:::blocked
+VS6["`*VS.6*<br/>**Visual**<br/>Status bar`"]:::open
 VS7["`*VS.7*<br/>**Visual**<br/>Command palette`"]:::open
 VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
 VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::blocked
@@ -383,7 +383,6 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-NV9 --> VS6
 NV8 --> DA7
 
 CP0 --> CP2 & CP3 & CP4
@@ -409,7 +408,7 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-m2 --> NV6 & NV7 & NV8 & NV9 & NV10 & NV12
+m2 --> NV6 & NV7 & NV8 & NV10 & NV12
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
