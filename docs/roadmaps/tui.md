@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.9, NV.11, NV.13 done | gg/G jump (NV.7), fuzzy filter (NV.6), broadcast msgs (NV.14), HandleFocusLost (NV.15) | NV.8, NV.10 (need NV.14) |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.9, NV.11, NV.13 done | fuzzy filter (NV.6), broadcast msgs (NV.14), HandleFocusLost (NV.15) | NV.8, NV.10 (need NV.14) |
 | **CP**   | Capture bar built; not wired into app | Add huh dep (CP.1) | CP.0 (needs NV.15), CP.2+ (needs CP.0, CP.1) |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
@@ -78,7 +78,6 @@ _(none yet)_
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
-- [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
 - [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1, QE.1**
 - [ ] NV.14. Broadcast all messages to all panes unconditionally, not just the focused one — internal ticks (spinner, cursor blink, async callbacks) must reach every mounted pane regardless of focus state; key messages continue to be routed only to the focused pane — **no blockers**
 - [ ] NV.15. Add `HandleFocusLost() tea.Cmd` to the `PaneModel` interface — called by the root model whenever a pane loses focus; allows panes to stop blinking cursors, dismiss sub-overlays, or flush pending input on blur — **no blockers**
@@ -97,6 +96,7 @@ _(none yet)_
 - [x] NV.9. Implement status bar showing: focused node ID, type badges, edge count
 - [x] NV.11. Align columns in the left-pane list using computed column widths; header and data rows pad cells to the same widths
 - [x] NV.13. Wire left pane selection to right pane; cursor movement emits `nodeSelectedMsg`; right pane renders node title, body, metadata, and edges
+- [x] NV.7. Implement `alt+shift+↑`/`alt+shift+↓` jump-to-top/bottom in left pane — **depends on NV.5**
 
 ---
 
@@ -322,7 +322,6 @@ mqe["`**Query Engine**`"]:::mile
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
-NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::open
 NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::blocked
 NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
@@ -415,7 +414,7 @@ DA5 & DA6 & DA7 --> DA9
 
 NV12 -.->|needs| QE1
 
-m2 --> NV6 & NV7 & NV8 & NV10 & NV12 & NV14 & NV15
+m2 --> NV6 & NV8 & NV10 & NV12 & NV14 & NV15
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS0 & VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10 & VS11
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
