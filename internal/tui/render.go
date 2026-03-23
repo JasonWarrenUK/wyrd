@@ -1,9 +1,10 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Spacer returns n space characters rendered with bg as their background colour.
@@ -13,7 +14,7 @@ import (
 // visible bleed on coloured backgrounds.
 //
 // Pass lipgloss.NoColor{} for bg when no theme background is set.
-func Spacer(n int, bg lipgloss.TerminalColor) string {
+func Spacer(n int, bg color.Color) string {
 	if n <= 0 {
 		return ""
 	}
@@ -29,7 +30,7 @@ func Spacer(n int, bg lipgloss.TerminalColor) string {
 //
 // All PaneModel.View() implementations that own their background should pass
 // their output through PadLines before returning it.
-func PadLines(content string, width int, bg lipgloss.Color) string {
+func PadLines(content string, width int, bg color.Color) string {
 	if width <= 0 || content == "" {
 		return content
 	}

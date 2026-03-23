@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -214,87 +215,87 @@ func builtinTheme() *types.Theme {
 // Methods never return a colour derived from a hardcoded literal.
 
 // BgPrimary returns the primary background colour.
-func (a *ActiveTheme) BgPrimary() lipgloss.Color {
+func (a *ActiveTheme) BgPrimary() color.Color {
 	return lipgloss.Color(a.tier.BG.Primary)
 }
 
 // BgSecondary returns the secondary background colour.
-func (a *ActiveTheme) BgSecondary() lipgloss.Color {
+func (a *ActiveTheme) BgSecondary() color.Color {
 	return lipgloss.Color(a.tier.BG.Secondary)
 }
 
 // FgPrimary returns the primary foreground colour.
-func (a *ActiveTheme) FgPrimary() lipgloss.Color {
+func (a *ActiveTheme) FgPrimary() color.Color {
 	return lipgloss.Color(a.tier.FG.Primary)
 }
 
 // FgMuted returns the muted foreground colour used for hints and placeholders.
-func (a *ActiveTheme) FgMuted() lipgloss.Color {
+func (a *ActiveTheme) FgMuted() color.Color {
 	return lipgloss.Color(a.tier.FG.Muted)
 }
 
 // AccentPrimary returns the primary accent colour.
-func (a *ActiveTheme) AccentPrimary() lipgloss.Color {
+func (a *ActiveTheme) AccentPrimary() color.Color {
 	return lipgloss.Color(a.tier.Accent.Primary)
 }
 
 // AccentSecondary returns the secondary accent colour.
-func (a *ActiveTheme) AccentSecondary() lipgloss.Color {
+func (a *ActiveTheme) AccentSecondary() color.Color {
 	return lipgloss.Color(a.tier.Accent.Secondary)
 }
 
 // Border returns the border colour.
-func (a *ActiveTheme) Border() lipgloss.Color {
+func (a *ActiveTheme) Border() color.Color {
 	return lipgloss.Color(a.tier.Border)
 }
 
 // Selection returns the selection highlight colour.
-func (a *ActiveTheme) Selection() lipgloss.Color {
+func (a *ActiveTheme) Selection() color.Color {
 	return lipgloss.Color(a.tier.Selection)
 }
 
 // StatusBar returns the status bar background colour.
-func (a *ActiveTheme) StatusBar() lipgloss.Color {
+func (a *ActiveTheme) StatusBar() color.Color {
 	return lipgloss.Color(a.tier.StatusBar)
 }
 
 // EnergyDeep returns the deep-energy indicator colour.
-func (a *ActiveTheme) EnergyDeep() lipgloss.Color {
+func (a *ActiveTheme) EnergyDeep() color.Color {
 	return lipgloss.Color(a.tier.Energy.Deep)
 }
 
 // EnergyMedium returns the medium-energy indicator colour.
-func (a *ActiveTheme) EnergyMedium() lipgloss.Color {
+func (a *ActiveTheme) EnergyMedium() color.Color {
 	return lipgloss.Color(a.tier.Energy.Medium)
 }
 
 // EnergyLow returns the low-energy indicator colour.
-func (a *ActiveTheme) EnergyLow() lipgloss.Color {
+func (a *ActiveTheme) EnergyLow() color.Color {
 	return lipgloss.Color(a.tier.Energy.Low)
 }
 
 // OverflowWarn returns the schedule-overrun warning colour.
-func (a *ActiveTheme) OverflowWarn() lipgloss.Color {
+func (a *ActiveTheme) OverflowWarn() color.Color {
 	return lipgloss.Color(a.tier.Overflow.Warn)
 }
 
 // OverflowCritical returns the schedule-overrun critical colour.
-func (a *ActiveTheme) OverflowCritical() lipgloss.Color {
+func (a *ActiveTheme) OverflowCritical() color.Color {
 	return lipgloss.Color(a.tier.Overflow.Critical)
 }
 
 // BudgetOK returns the within-budget colour.
-func (a *ActiveTheme) BudgetOK() lipgloss.Color {
+func (a *ActiveTheme) BudgetOK() color.Color {
 	return lipgloss.Color(a.tier.Budget.OK)
 }
 
 // BudgetCaution returns the near-budget colour.
-func (a *ActiveTheme) BudgetCaution() lipgloss.Color {
+func (a *ActiveTheme) BudgetCaution() color.Color {
 	return lipgloss.Color(a.tier.Budget.Caution)
 }
 
 // BudgetOver returns the over-budget colour.
-func (a *ActiveTheme) BudgetOver() lipgloss.Color {
+func (a *ActiveTheme) BudgetOver() color.Color {
 	return lipgloss.Color(a.tier.Budget.Over)
 }
 

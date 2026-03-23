@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // KeyAction identifies what should happen in response to a key sequence.
@@ -87,7 +87,7 @@ func (km *KeyMap) RegisterCustom(binding KeyBinding, action KeyAction) {
 
 // Dispatch processes a key message and returns the resolved KeyAction.
 // It manages the multi-key buffer for sequences such as "gg".
-func (km *KeyMap) Dispatch(msg tea.KeyMsg) KeyAction {
+func (km *KeyMap) Dispatch(msg tea.KeyPressMsg) KeyAction {
 	key := msg.String()
 
 	// Check for multi-key sequence completion first.

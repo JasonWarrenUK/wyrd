@@ -2,13 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -148,8 +149,8 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 // The combined output is padded via PadLines so every line reaches the pane
 // edge with the correct background colour, preventing terminal bleed.
 func (p nodeListPane) View() string {
-	var bg lipgloss.Color
-	var fg lipgloss.Color
+	var bg color.Color
+	var fg color.Color
 	if p.theme != nil {
 		bg = p.theme.BgPrimary()
 		fg = p.theme.FgPrimary()
@@ -373,7 +374,7 @@ func buildDelegate(theme *ActiveTheme) list.DefaultDelegate {
 // fg and bg are applied to every cell so colours match the active theme.
 // Inter-column gaps use Spacer() so they carry the background colour — bare
 // string separators would bleed the terminal default at ANSI reset boundaries.
-func renderListHeader(cols []string, colWidths []int, fg, bg lipgloss.Color) string {
+func renderListHeader(cols []string, colWidths []int, fg, bg color.Color) string {
 	style := lipgloss.NewStyle().Bold(true).Foreground(fg).Background(bg).Padding(0, 0, 0, 1)
 
 	cells := make([]string, 0, len(cols))

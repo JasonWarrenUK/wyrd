@@ -5,9 +5,11 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"image/color"
+
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // KeyBinding describes a single keyboard shortcut and its action.
@@ -77,7 +79,7 @@ func NewEmptyPane(theme *ActiveTheme) PaneModel {
 // Page Up, and Page Down.
 type viewportPane struct {
 	vp         viewport.Model
-	bg         lipgloss.Color
+	bg         color.Color
 	rawContent string // unpadded source content; re-padded on resize
 }
 
@@ -86,8 +88,8 @@ type viewportPane struct {
 // colour. Content is padded via PadLines before being set so every line
 // reaches the viewport width; this prevents terminal-colour bleed at ANSI
 // reset boundaries regardless of what the container component does.
-func newViewportPane(width, height int, content string, bg lipgloss.Color) viewportPane {
-	vp := viewport.New(width, height)
+func newViewportPane(width, height int, content string, bg color.Color) viewportPane {
+	vp := viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
 	vp.Style = lipgloss.NewStyle().Background(bg)
 	vp.SetContent(PadLines(content, width, bg))
 	return viewportPane{vp: vp, bg: bg, rawContent: content}
@@ -100,17 +102,19 @@ func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// Borders consume 2 columns and 2 rows from the layout dimensions.
-		d.vp.Width = msg.Width/2 - 2
-		d.vp.Height = msg.Height - 3 // status bar (1) + top border (1) + bottom border (1)
-		if d.vp.Width < 1 {
-			d.vp.Width = 1
+		newWidth := msg.Width/2 - 2
+		newHeight := msg.Height - 3 // status bar (1) + top border (1) + bottom border (1)
+		if newWidth < 1 {
+			newWidth = 1
 		}
-		if d.vp.Height < 1 {
-			d.vp.Height = 1
+		if newHeight < 1 {
+			newHeight = 1
 		}
+		d.vp.SetWidth(newWidth)
+		d.vp.SetHeight(newHeight)
 		d.vp.Style = lipgloss.NewStyle().Background(d.bg)
 		// Re-pad to the new width so lines fill the resized viewport.
-		d.vp.SetContent(PadLines(d.rawContent, d.vp.Width, d.bg))
+		d.vp.SetContent(PadLines(d.rawContent, d.vp.Width(), d.bg))
 	default:
 		d.vp, cmd = d.vp.Update(msg)
 	}

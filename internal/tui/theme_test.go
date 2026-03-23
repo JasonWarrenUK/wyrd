@@ -2,12 +2,13 @@ package tui_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -104,8 +105,17 @@ func TestLoadThemeFallsBackToFirstAvailable(t *testing.T) {
 	}
 }
 
+// colourIsNonZero returns true when c is non-nil and its RGBA is not all zeros.
+func colourIsNonZero(c color.Color) bool {
+	if c == nil {
+		return false
+	}
+	r, g, b, a := c.RGBA()
+	return r != 0 || g != 0 || b != 0 || a != 0
+}
+
 // TestColourAccessorsReturnNonEmptyValues checks that the colour accessor
-// methods on ActiveTheme return non-empty lipgloss.Color values.
+// methods on ActiveTheme return non-nil, non-zero color.Color values.
 func TestColourAccessorsReturnNonEmptyValues(t *testing.T) {
 	dir := t.TempDir()
 	writeThemeFile(t, dir, "test-theme", sampleTheme("test-theme"))
@@ -117,7 +127,7 @@ func TestColourAccessorsReturnNonEmptyValues(t *testing.T) {
 
 	checks := []struct {
 		name  string
-		value lipgloss.Color
+		value color.Color
 	}{
 		{"BgPrimary", theme.BgPrimary()},
 		{"BgSecondary", theme.BgSecondary()},
@@ -139,8 +149,8 @@ func TestColourAccessorsReturnNonEmptyValues(t *testing.T) {
 	}
 
 	for _, c := range checks {
-		if string(c.value) == "" {
-			t.Errorf("%s returned an empty colour", c.name)
+		if !colourIsNonZero(c.value) {
+			t.Errorf("%s returned a nil or zero colour", c.name)
 		}
 	}
 }
@@ -168,7 +178,7 @@ func TestThemeSwitchChangesColours(t *testing.T) {
 		t.Fatalf("load theme-b: %v", err)
 	}
 
-	if a.BgPrimary() == b.BgPrimary() {
+	if fmt.Sprintf("%v", a.BgPrimary()) == fmt.Sprintf("%v", b.BgPrimary()) {
 		t.Error("expected different BgPrimary after theme switch")
 	}
 }
@@ -255,7 +265,7 @@ func TestRuntimeThemeSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadTheme theme-b: %v", err)
 	}
-	if originalBg == newTheme.BgPrimary() {
+	if fmt.Sprintf("%v", originalBg) == fmt.Sprintf("%v", newTheme.BgPrimary()) {
 		t.Error("expected different primary background after theme switch")
 	}
 }
