@@ -8,11 +8,11 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
-| **CP**   | CP.1 done (huh added) | Wire capture bar (CP.0) | CP.2+ (needs CP.0, CP.1) |
-| **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
+| **CP**   | CP.0, CP.1, CP.2, CP.3, CP.4, CP.8 done | CP.5 (textarea body), CP.6 (link-to-selected), CP.7 (spend form) | — |
+| **CL**   | `$EDITOR` used; titles missing on add | Native input (CL.1, CL.2); title prompts (CL.3); category listing (CL.4) | — |
 | **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
-| **RT**   | Ritual runner built; not wired | RT.2 now unblocked | RT.1 (needs CP.1); RT.3–RT.8 (need RT.2) |
+| **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
 | **QE**   | Cypher subset implemented     | UNION support (QE.1)         | —                              |
 
@@ -112,20 +112,22 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.0. Wire capture bar — **no blockers**
+- [ ] CP.5. Integrate `bubbles/textarea` for multiline markdown body input within forms — **depends on NV.1 (done), CP.1 (done)**
+- [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2 (done), NV.4 (done)**
+- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.1 (done)**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
-- [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
-- [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; set `Title` on the node; replaces `$EDITOR` — **depends on CP.0, CP.1**
-- [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; set `Title` on the node — **depends on CP.0, CP.1**
-- [ ] CP.5. Integrate `bubbles/textarea` for multiline markdown body input within forms — **depends on NV.1 (done), CP.1**
-- [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2, NV.4 (done)**
-- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.1**
-- [ ] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix — **depends on CP.0, CP.2, CP.3, CP.4**
+
+_(none)_
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
-- [x] CP.1. Add `github.com/charmbracelet/huh` dependency
+- [x] CP.0. Wire capture bar — `i` focuses capture bar; typing accumulates in status bar; Enter dispatches a form; Escape cancels
+- [x] CP.1. Add `charm.land/huh/v2` dependency (swapped from incompatible huh v1)
+- [x] CP.2. Build `huh`-based task creation form (title, body, status, energy) triggered by capture bar `t:` prefix
+- [x] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; sets `Date.About`
+- [x] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; title required
+- [x] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix; forms mount in right pane; submission refreshes dashboard
 
 ---
 
@@ -326,18 +328,18 @@ NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 NV14["`*NV.14*<br/>**Navigation**<br/>Broadcast msgs`"]:::done
 NV15["`*NV.15*<br/>**Navigation**<br/>HandleFocusLost`"]:::done
 
-CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
+CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::done
 CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::done
-CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::blocked
-CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::blocked
-CP4["`*CP.4*<br/>**Capture**<br/>Note form`"]:::blocked
-CP5["`*CP.5*<br/>**Capture**<br/>Textarea body`"]:::blocked
-CP6["`*CP.6*<br/>**Capture**<br/>Link-to-selected`"]:::blocked
-CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::blocked
-CP8["`*CP.8*<br/>**Capture**<br/>Form dispatch`"]:::blocked
+CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::done
+CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::done
+CP4["`*CP.4*<br/>**Capture**<br/>Note form`"]:::done
+CP5["`*CP.5*<br/>**Capture**<br/>Textarea body`"]:::open
+CP6["`*CP.6*<br/>**Capture**<br/>Link-to-selected`"]:::open
+CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
+CP8["`*CP.8*<br/>**Capture**<br/>Form dispatch`"]:::done
 
-CL1["`*CL.1*<br/>**CLI Input**<br/>Journal native input`"]:::blocked
-CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::blocked
+CL1["`*CL.1*<br/>**CLI Input**<br/>Journal native input`"]:::open
+CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::open
 CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
@@ -362,7 +364,7 @@ LG5["`*LG.5*<br/>**Logging**<br/>Sync logging`"]:::blocked
 LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::blocked
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::blocked
 
-RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::blocked
+RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::open
 RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
 RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::blocked
 RT4["`*RT.4*<br/>**Rituals**<br/>Prompt via huh`"]:::blocked
