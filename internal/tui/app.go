@@ -409,7 +409,16 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	}
 
 	content := renderer.Render(node, edges, nodesByID, nil, now)
-	return detailPane{content: content}
+
+	// Size the viewport to the right pane's inner dimensions.
+	// Borders consume 2 columns (left+right) and the layout accounts for
+	// the status bar; paneHeight gives usable inner rows.
+	vpWidth := m.layout.RightWidth() - 2
+	vpHeight := m.layout.PaneHeight()
+	if vpWidth < 1 {
+		vpWidth = 1
+	}
+	return newViewportPane(vpWidth, vpHeight, content)
 }
 
 // splitLines splits a string on newlines.

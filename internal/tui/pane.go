@@ -4,7 +4,10 @@
 // views by implementing the PaneModel interface.
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 // KeyBinding describes a single keyboard shortcut and its action.
 type KeyBinding struct {
@@ -60,12 +63,56 @@ func NewEmptyPane(theme *ActiveTheme) PaneModel {
 	return emptyPane{theme: theme}
 }
 
-// detailPane is a PaneModel that renders a pre-rendered detail string.
-// It is replaced wholesale whenever a new node is selected.
-type detailPane struct {
-	content string
+// viewportPane is a PaneModel that wraps bubbles/viewport for scrollable
+// detail content. It replaces the static detailPane so long node bodies,
+// edge lists, and budget sections can be scrolled with j/k, arrow keys,
+// Page Up, and Page Down.
+type viewportPane struct {
+	vp viewport.Model
 }
 
-func (d detailPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) { return d, nil }
-func (d detailPane) View() string                             { return d.content }
-func (d detailPane) KeyBindings() []KeyBinding                { return nil }
+// newViewportPane creates a viewportPane sized to the given dimensions and
+// pre-loaded with the provided content string.
+func newViewportPane(width, height int, content string) viewportPane {
+	vp := viewport.New(width, height)
+	vp.SetContent(content)
+	return viewportPane{vp: vp}
+}
+
+// Update handles scroll key messages forwarded from the root model when the
+// right pane has focus, and resizes the viewport on WindowSizeMsg.
+func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Borders consume 2 columns and 2 rows from the layout dimensions.
+		d.vp.Width = msg.Width/2 - 2
+		d.vp.Height = msg.Height - 3 // status bar (1) + top border (1) + bottom border (1)
+		if d.vp.Width < 1 {
+			d.vp.Width = 1
+		}
+		if d.vp.Height < 1 {
+			d.vp.Height = 1
+		}
+	default:
+		d.vp, cmd = d.vp.Update(msg)
+	}
+	return d, cmd
+}
+
+// View renders the viewport content.
+func (d viewportPane) View() string {
+	return d.vp.View()
+}
+
+// KeyBindings advertises scroll shortcuts shown in the command palette.
+func (d viewportPane) KeyBindings() []KeyBinding {
+	return []KeyBinding{
+		{Key: "j/↓", Description: "Scroll down"},
+		{Key: "k/↑", Description: "Scroll up"},
+		{Key: "ctrl+d", Description: "Page down"},
+		{Key: "ctrl+u", Description: "Page up"},
+		{Key: "g", Description: "Scroll to top"},
+		{Key: "G", Description: "Scroll to bottom"},
+	}
+}

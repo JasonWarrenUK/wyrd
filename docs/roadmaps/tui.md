@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.11, NV.13 done | Viewport (NV.3), focus indicator (NV.4), j/k sync (NV.5) | —                |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.11, NV.13 done | gg/G jump (NV.7), status bar (NV.9), fuzzy filter (NV.6) | NV.7 depends on NV.5 (done); NV.9 depends on NV.4 (done) |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
 | **VS**   | Lipgloss used; no polish pass | Full styling audit           | NV components in place         |
@@ -77,22 +77,23 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body — **depends on NV.13**
-- [ ] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired — **depends on NV.1**
-- [ ] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update — **depends on NV.13**
 - [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
+- [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
 - [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
+- [ ] NV.9. Implement status bar showing: focused node ID, type badges, edge count — **depends on NV.4**
+- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
 - [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-- [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
-- [ ] NV.9. Implement status bar showing: focused node ID, type badges, edge count — **depends on NV.4**
-- [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
+_(none — NV.7 depends on NV.5 which is done; NV.9 depends on NV.4 which is done)_
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
 - [x] NV.1. Wire `bubbles/list` component into the left pane for node listing
+- [x] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
+- [x] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired
+- [x] NV.5. Implement `j`/`k` scroll in focused left pane, synced to detail pane update
 - [x] NV.11. Align columns in the left-pane list using computed column widths; header and data rows pad cells to the same widths
 - [x] NV.13. Wire left pane selection to right pane; cursor movement emits `nodeSelectedMsg`; right pane renders node title, body, metadata, and edges
 
@@ -111,6 +112,9 @@ _(none yet)_
 
 - [ ] CP.0. Wire `CaptureBar` into `app.go`: mount on `Model`, bind `i` key in `KeyMap`, route character input and backspace to it when focused, show live input and full placeholder text in status bar — **no blockers**
 - [ ] CP.1. Add `github.com/charmbracelet/huh` dependency
+
+<a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
+
 - [ ] CP.2. Build `huh`-based task creation form (title, body, type, energy, status) triggered by capture bar `t:` prefix; ensure `Title` field is always set — **depends on CP.0, CP.1**
 - [ ] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; set `Title` on the node; replaces `$EDITOR` — **depends on CP.0, CP.1**
 - [ ] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; set `Title` on the node — **depends on CP.0, CP.1**
@@ -118,16 +122,6 @@ _(none yet)_
 - [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2, NV.4**
 - [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.1**
 - [ ] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix — **depends on CP.0, CP.2, CP.3, CP.4**
-
-<a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
-
-- [ ] CP.2. Task creation form — **depends on CP.0, CP.1**
-- [ ] CP.3. Journal form — **depends on CP.0, CP.1**
-- [ ] CP.4. Note creation form — **depends on CP.0, CP.1**
-- [ ] CP.5. Textarea for markdown body — **depends on NV.1, CP.1**
-- [ ] CP.6. Link-to-selected — **depends on CP.2, NV.4**
-- [ ] CP.7. Spend form — **depends on CP.1**
-- [ ] CP.8. Capture bar form dispatch — **depends on CP.0, CP.2, CP.3, CP.4**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -322,7 +316,6 @@ title: Wyrd TUI — Progress Map
 ---
 graph TD
 
-m1["`**Milestone 1**<br/>Wire & Launch`"]:::mile
 m2["`**Milestone 2**<br/>Navigation & Display`"]:::mile
 m3["`**Milestone 3**<br/>Capture & Forms`"]:::mile
 m4["`**Milestone 4**<br/>Visual Polish`"]:::mile
@@ -331,22 +324,16 @@ m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 mcli["`**CLI Input**`"]:::mile
 
-WL2["`*WL.2*<br/>**Wire & Launch**<br/>tui.New constructor`"]:::done
-WL4["`*WL.4*<br/>**Wire & Launch**<br/>Default left pane`"]:::done
-WL6["`*WL.6*<br/>**Wire & Launch**<br/>Smoke test`"]:::done
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
-NV1["`*NV.1*<br/>**Navigation**<br/>bubbles/list`"]:::done
-NV13["`*NV.13*<br/>**Navigation**<br/>Selection → detail`"]:::done
-NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::open
-NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::open
-NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::open
+NV3["`*NV.3*<br/>**Navigation**<br/>bubbles/viewport`"]:::done
+NV4["`*NV.4*<br/>**Navigation**<br/>Focus indicator`"]:::done
+NV5["`*NV.5*<br/>**Navigation**<br/>j/k scroll`"]:::done
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
-NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::blocked
+NV7["`*NV.7*<br/>**Navigation**<br/>gg/G jump`"]:::open
 NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::open
-NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::blocked
-NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::blocked
-NV11["`*NV.11*<br/>**Navigation**<br/>Column alignment`"]:::done
+NV9["`*NV.9*<br/>**Navigation**<br/>Status bar`"]:::open
+NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
 CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::open
@@ -402,57 +389,38 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-m1 --> WL2 & WL4 & WL6
-
-WL2 & WL4 --> WL6
-WL2 --> VS7 & RT2 & RT8
-NV1 --> NV4 & NV6 & NV11 & NV13 & VS1
-NV13 --> NV3 & NV5
 NV3 --> NV10 & LG7
 NV4 --> NV7 & VS2 & RT1
 NV5 --> NV7
 NV9 --> VS6
-NV13 --> RT3
 NV8 --> DA7
 
-CP0 --> CP2 & CP3 & CP4 & CP8
-CP1 --> CP2 & CP3 & CP4 & CP7
+CP0 --> CP2 & CP3 & CP4
+CP1 --> CP2 & CP3 & CP4 & CP5 & CP7
 CP2 --> CP6 & DA5
-CP3 & CP4 --> CP8
 CP0 & CP2 & CP3 & CP4 --> CP8
-NV1 --> CP5
 NV4 --> CP6
-NV4 --> RT1
 CP1 --> RT1 & RT4
 CP1 --> CL1 & CL2
 
 VS1 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
-NV4 --> VS2
-NV9 --> VS6
-VS1 --> VS8
 CP1 --> VS8
 VS3 --> DA3
 VS5 --> DA4
 VS10 --> DA1 & DA2
 
 LG1 --> LG2
-LG2 --> LG3 & LG4 & LG5 & LG6
+LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
 NV3 --> LG7
-LG2 --> LG7
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
-RT5 --> RT6
-RT2 --> RT3
-NV13 --> RT3
-RT5 --> DA6
-CP1 --> RT4
+RT5 --> RT6 & DA6
 
 DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-NV1 --> NV12
-m2 --> NV1 & NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV11 & NV12 & NV13
+m2 --> NV3 & NV4 & NV5 & NV6 & NV7 & NV8 & NV9 & NV10 & NV12
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
 m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
