@@ -10,11 +10,11 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.9, NV.11, NV.13 done | gg/G jump (NV.7), fuzzy filter (NV.6), Glamour (NV.10) | — |
 | **CP**   | Capture bar built; not wired into app | Wire bar (CP.0), then huh forms | —                         |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input; title prompts; spend category listing | CP.1 (for CL.1, CL.2) |
-| **VS**   | Lipgloss used; no polish pass | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
+| **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | Wire into TUI                | NV (needs pane infrastructure) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
-| **QE**   | Cypher subset implemented     | UNION support                | —                              |
+| **QE**   | Cypher subset implemented     | UNION support (QE.1)         | —                              |
 
 ---
 
@@ -81,7 +81,7 @@ _(none yet)_
 - [ ] NV.7. Implement `gg`/`G` jump-to-top/bottom in left pane — **depends on NV.5**
 - [ ] NV.8. Wire `bubbles/spinner` for async operations (store load, sync)
 - [ ] NV.10. Render node body markdown in right pane using Glamour — **depends on NV.3**
-- [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1**
+- [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1, QE.1**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
@@ -143,7 +143,8 @@ _(none yet)_
 - [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars
 - [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4 (done)**
 - [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9 (done)**
-- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection
+- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection — **depends on VS.0 (done)**
+- [ ] VS.11. Implement Layer/Canvas overlay compositing for command palette — replace line-replacement hack in `app.go` with lipgloss v2's compositor — **depends on VS.0 (done)**
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
 
@@ -156,7 +157,7 @@ _(none yet)_
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
-_(none yet)_
+- [x] VS.0. Upgrade Charm ecosystem to v2 (bubbletea `charm.land/bubbletea/v2`, lipgloss `charm.land/lipgloss/v2`, bubbles `charm.land/bubbles/v2`) — enables Layer/Canvas compositing for command palette
 
 ---
 
@@ -293,7 +294,7 @@ _(none yet)_
 
 <a name="qe-todo"><h4>To Do (Query Engine)</h4></a>
 
-- [ ] QE.1. Implement `UNION` / `UNION ALL` — combine results from multiple `MATCH` clauses into a single result set; required for dashboard queries that span multiple node types — **no blockers**
+- [ ] QE.1. Implement `UNION` / `UNION ALL` — combine results from multiple `MATCH` clauses into a single result set; required for dashboard queries that span multiple node types and for grouped sections (NV.12) — **no blockers**
 
 <a name="qe-blocked"><h4>Blocked (Query Engine)</h4></a>
 
@@ -320,6 +321,7 @@ m5["`**Milestone 5**<br/>Logging`"]:::mile
 m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 mcli["`**CLI Input**`"]:::mile
+mqe["`**Query Engine**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
@@ -345,6 +347,7 @@ CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::blocked
 CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
+VS0["`*VS.0*<br/>**Visual**<br/>Charm v2 upgrade`"]:::done
 VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::open
 VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::open
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
@@ -355,6 +358,7 @@ VS7["`*VS.7*<br/>**Visual**<br/>Command palette`"]:::open
 VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
 VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::blocked
 VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::blocked
+VS11["`*VS.11*<br/>**Visual**<br/>Overlay compositing`"]:::open
 
 LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::open
 LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::blocked
@@ -392,6 +396,7 @@ CP0 & CP2 & CP3 & CP4 --> CP8
 CP1 --> RT1 & RT4
 CP1 --> CL1 & CL2
 
+VS0 --> VS7 & VS11
 VS1 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
 CP1 --> VS8
 VS3 --> DA3
@@ -408,13 +413,16 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
+NV12 -.->|needs| QE1
+
 m2 --> NV6 & NV7 & NV8 & NV10 & NV12
 m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
-m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10
+m4 --> VS0 & VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10 & VS11
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mcli --> CL1 & CL2 & CL3 & CL4
+mqe --> QE1
 
 
 classDef default fill:#fff7fb,stroke:#ccc;
