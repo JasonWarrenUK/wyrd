@@ -43,6 +43,10 @@ type StatusBar struct {
 
 	// spinnerMsg is the message shown alongside the spinner.
 	spinnerMsg string
+
+	// keyHints are the keybindings shown in the status bar hint area.
+	// Updated by the root model when the focused pane changes.
+	keyHints []KeyBinding
 }
 
 // NewStatusBar creates a StatusBar with the given theme and a default width.
@@ -72,6 +76,12 @@ func (sb *StatusBar) SetTrackerText(s string) {
 // SetTheme swaps the theme after a runtime theme change.
 func (sb *StatusBar) SetTheme(t *ActiveTheme) {
 	sb.theme = t
+}
+
+// SetKeyHints updates the keybinding hints shown in the status bar.
+// Called by the root model whenever the focused pane changes.
+func (sb *StatusBar) SetKeyHints(hints []KeyBinding) {
+	sb.keyHints = hints
 }
 
 // SetNodeInfo updates the status bar with the focused node's details.
@@ -183,26 +193,49 @@ func (sb *StatusBar) View() string {
 		Background(bg)
 	rightContent := trackerStyle.Render(clockStr + "  " + sb.trackerText)
 
-	// Distribute space: left, centre (centred), right.
+	// Key hints: compact summary of bindings for the active pane.
+	var hintsContent string
+	if len(sb.keyHints) > 0 {
+		hintStyle := lipgloss.NewStyle().Foreground(sb.theme.FgMuted()).Background(bg)
+		parts := make([]string, 0, len(sb.keyHints))
+		for _, h := range sb.keyHints {
+			parts = append(parts, h.Key)
+		}
+		// Show at most 4 hints to avoid overflow.
+		if len(parts) > 4 {
+			parts = parts[:4]
+		}
+		hintsContent = hintStyle.Render(strings.Join(parts, " · "))
+	}
+
+	// Distribute space: left, hints (left-biased), centre, right.
 	// Spacers are rendered with the status bar background so they don't bleed.
-	spacerStyle := lipgloss.NewStyle().Background(bg)
 	leftWidth := lipgloss.Width(leftContent)
+	hintsWidth := lipgloss.Width(hintsContent)
 	centreWidth := lipgloss.Width(centreContent)
 	rightWidth := lipgloss.Width(rightContent)
 
-	remaining := sb.width - leftWidth - centreWidth - rightWidth
-	if remaining < 2 {
-		remaining = 2
+	remaining := sb.width - leftWidth - hintsWidth - centreWidth - rightWidth
+	if remaining < 3 {
+		remaining = 3
 	}
-	leftPad := remaining / 2
-	rightPad := remaining - leftPad
+	// Two gaps: one between left+hints and centre, one between centre and right.
+	leftGap := remaining / 2
+	rightGap := remaining - leftGap
 
 	bar := leftContent +
-		spacerStyle.Render(strings.Repeat(" ", leftPad)) +
+		Spacer(1, bg) +
+		hintsContent +
+		Spacer(leftGap, bg) +
 		centreContent +
-		spacerStyle.Render(strings.Repeat(" ", rightPad)) +
+		Spacer(rightGap, bg) +
 		rightContent
-	return baseStyle.Render(bar)
+
+	// Separator line above the bar: a full-width horizontal rule in the border colour.
+	sepStyle := lipgloss.NewStyle().Foreground(sb.theme.Border()).Background(bg)
+	separator := sepStyle.Render(strings.Repeat("─", sb.width))
+
+	return separator + "\n" + baseStyle.Render(bar)
 }
 
 // SectionHeader returns a formatted section header string using the

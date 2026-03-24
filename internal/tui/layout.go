@@ -29,7 +29,7 @@ func NewLayout(width, height int, theme *ActiveTheme) Layout {
 	return Layout{
 		totalWidth:      width,
 		totalHeight:     height,
-		statusBarHeight: 1,
+		statusBarHeight: 2, // 1 separator line + 1 bar line
 		theme:           theme,
 	}
 }
