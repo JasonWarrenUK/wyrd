@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -236,6 +237,9 @@ func New(cfg Config) (Model, error) {
 		}
 	}
 
+	// Populate initial keybind hints for the focused (left) pane.
+	m.syncKeyHints()
+
 	return m, nil
 }
 
@@ -302,10 +306,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case formSubmitMsg:
 		m.rightPane = NewEmptyPane(m.theme)
 		m.focus = FocusLeft
+		m.syncKeyHints()
 		return m.handleCaptureSubmit(captureSubmitMsg{nodeID: msg.nodeID, label: msg.label})
 
 	case formCancelMsg:
 		m.focus = FocusLeft
+		m.syncKeyHints()
 		if lp, ok := m.leftPane.(nodeListPane); ok {
 			if id := lp.SelectedNodeID(); id != "" {
 				m.rightPane = m.renderDetail(id)
@@ -358,6 +364,7 @@ func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, t
 			lostCmd = m.rightPane.HandleFocusLost()
 			m.focus = FocusLeft
 		}
+		m.syncKeyHints()
 		return m, lostCmd
 
 	case ActionCommandPalette:
@@ -432,6 +439,7 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.rightPane = fp
 		m.focus = FocusRight
+		m.syncKeyHints()
 		return m, fp.form.Init()
 
 	case "backspace":
@@ -532,23 +540,19 @@ func (m Model) View() tea.View {
 
 		frame = m.layout.Render(leftView, rightView, statusView, m.focus)
 
-		// If the palette is active, overlay it on top of the frame.
+		// If the palette is active, composite it on top of the frame using the
+		// lipgloss v2 Compositor so there is no brittle line-manipulation.
 		if m.palette.IsActive() {
 			overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
 			if overlay != "" {
-				// Simple approach: replace the middle of the frame with the palette.
-				// The overlay is centred horizontally; we place it at line 2 so
-				// the palette content starts below the pane top border row.
-				lines := splitLines(frame)
-				overlayLines := splitLines(overlay)
-				startLine := 2
-				for i, ol := range overlayLines {
-					idx := startLine + i
-					if idx < len(lines) {
-						lines[idx] = ol
-					}
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
 				}
-				frame = joinLines(lines)
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
 			}
 		}
 	}
@@ -562,12 +566,25 @@ func (m Model) View() tea.View {
 // mount their view implementations.
 func (m *Model) MountLeft(pane PaneModel) {
 	m.leftPane = pane
+	m.syncKeyHints()
 }
 
 // MountRight replaces the right pane content. Phase 4 agents call this to
 // mount their view implementations.
 func (m *Model) MountRight(pane PaneModel) {
 	m.rightPane = pane
+	if m.focus == FocusRight {
+		m.syncKeyHints()
+	}
+}
+
+// syncKeyHints pushes the focused pane's keybindings to the status bar.
+func (m *Model) syncKeyHints() {
+	if m.focus == FocusLeft {
+		m.statusBar.SetKeyHints(m.leftPane.KeyBindings())
+	} else {
+		m.statusBar.SetKeyHints(m.rightPane.KeyBindings())
+	}
 }
 
 // RegisterCommand adds a command to the palette. Phase 4 agents call this
@@ -646,33 +663,6 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	return newViewportPane(vpWidth, vpHeight, content, m.theme.BgPrimary())
 }
 
-// splitLines splits a string on newlines.
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	if start <= len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
-}
-
-// joinLines joins lines with newlines.
-func joinLines(lines []string) string {
-	if len(lines) == 0 {
-		return ""
-	}
-	result := lines[0]
-	for _, l := range lines[1:] {
-		result += "\n" + l
-	}
-	return result
-}
 
 // Ensure Model satisfies tea.Model at compile time.
 var _ tea.Model = Model{}
