@@ -1,6 +1,7 @@
 package tui_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -98,6 +99,87 @@ func TestNoteFormPaneViewRenders(t *testing.T) {
 	v := sized.View()
 	if v == "" {
 		t.Error("expected non-empty view from note formPane")
+	}
+}
+
+// TestTaskFormBodyPlaceholder verifies the task form body textarea shows its
+// placeholder text when the field is empty.
+func TestTaskFormBodyPlaceholder(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	// The cursor is injected between the first character and the rest of the
+	// placeholder, splitting "Describe" → "D" + ANSI + "escribe". Search for
+	// the unambiguous suffix that is always contiguous in the rendered output.
+	if !strings.Contains(v, "escribe the task") {
+		t.Errorf("expected task body placeholder in view; got:\n%s", v)
+	}
+}
+
+// TestJournalFormBodyPlaceholder verifies the journal form body textarea shows
+// its placeholder text when the field is empty.
+func TestJournalFormBodyPlaceholder(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	fp := tui.NewJournalFormPane(theme, store, clock, "", "")
+
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if !strings.Contains(v, "rite your entry") {
+		t.Errorf("expected journal body placeholder in view; got:\n%s", v)
+	}
+}
+
+// TestNoteFormBodyPlaceholder verifies the note form body textarea shows its
+// placeholder text when the field is empty.
+func TestNoteFormBodyPlaceholder(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note")
+
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if !strings.Contains(v, "rite your note") {
+		t.Errorf("expected note body placeholder in view; got:\n%s", v)
+	}
+}
+
+// TestFormKeyBindingsAccurate verifies that the keybinding help text reflects
+// how the huh Text field actually behaves.
+func TestFormKeyBindingsAccurate(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	bindings := fp.KeyBindings()
+
+	keySet := make(map[string]string)
+	for _, b := range bindings {
+		keySet[b.Key] = b.Description
+	}
+
+	required := []string{"alt+enter", "ctrl+e", "ctrl+c"}
+	for _, k := range required {
+		if _, ok := keySet[k]; !ok {
+			t.Errorf("expected keybinding %q to be present", k)
+		}
+	}
+
+	if _, ok := keySet["esc"]; ok {
+		t.Error("keybinding \"esc\" should not be present — huh uses ctrl+c to abort")
 	}
 }
 
