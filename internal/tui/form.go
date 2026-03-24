@@ -96,7 +96,9 @@ func newTaskFormPane(
 
 			huh.NewText().
 				Title("Body").
-				Value(&f.body),
+				Value(&f.body).
+				Lines(6).
+				Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
 
 			huh.NewSelect[string]().
 				Title("Status").
@@ -163,6 +165,8 @@ func newJournalFormPane(
 			huh.NewText().
 				Title("Body").
 				Value(&f.body).
+				Lines(12).
+				Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
 				Validate(notEmpty("body")),
 		),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
@@ -208,7 +212,9 @@ func newNoteFormPane(
 
 			huh.NewText().
 				Title("Body").
-				Value(&f.body),
+				Value(&f.body).
+				Lines(8).
+				Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
 		),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
@@ -284,8 +290,10 @@ func (f formPane) View() string {
 func (f formPane) KeyBindings() []KeyBinding {
 	return []KeyBinding{
 		{Key: "tab / shift+tab", Description: "Next / previous field"},
-		{Key: "enter", Description: "Submit form"},
-		{Key: "esc", Description: "Cancel form"},
+		{Key: "enter", Description: "Next field (submit on last)"},
+		{Key: "alt+enter", Description: "New line in text field"},
+		{Key: "ctrl+e", Description: "Open external editor"},
+		{Key: "ctrl+c", Description: "Cancel form"},
 	}
 }
 
