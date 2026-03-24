@@ -10,7 +10,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
 | **CP**   | CP.0, CP.1, CP.2, CP.3, CP.4, CP.5, CP.8 done | CP.6 (link-to-selected), CP.7 (spend form) | — |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input (CL.1, CL.2); title prompts (CL.3); category listing (CL.4) | — |
-| **VS**   | VS.0 done (Charm v2 upgraded) | Full styling audit; pane borders (VS.2); status bar polish (VS.6) | CP.1 (for VS.8) |
+| **VS**   | VS.0–VS.2, VS.6, VS.7, VS.11 done | VS.3–VS.5, VS.9 (unblocked by VS.1) | VS.8 (needs CP.1), VS.10 (needs VS.1 complete) |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
@@ -138,28 +138,28 @@ _(none)_
 
 <a name="m4-doing"><h4>In Progress (Milestone 4)</h4></a>
 
-_(none yet)_
+_(none)_
 
 <a name="m4-todo"><h4>To Do (Milestone 4)</h4></a>
 
-- [ ] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose, displacement) for raw ANSI / hardcoded colours — replace with theme palette vars
-- [ ] VS.2. Implement consistent border styles: active pane gets accent border, inactive gets muted — **depends on NV.4 (done)**
-- [ ] VS.6. Apply Lipgloss to status bar: left-aligned node info, right-aligned keybind hints, separator line — **depends on NV.9 (done)**
-- [ ] VS.7. Apply Lipgloss to command palette: border, background, highlighted selection — **depends on VS.0 (done)**
-- [ ] VS.11. Implement Layer/Canvas overlay compositing for command palette — replace line-replacement hack in `app.go` with lipgloss v2's compositor — **depends on VS.0 (done)**
+- [ ] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1 (done)**
+- [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1 (done)**
+- [ ] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1 (done)**
+- [ ] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1 (done)**
+- [ ] VS.10. Test all four shipped themes (Cairn, Peat, Kiln, Fell) render correctly at each polish point — **depends on VS.1 (done)**
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
 
-- [ ] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1**
-- [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1**
-- [ ] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1**
-- [ ] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) — **depends on VS.1, CP.1**
-- [ ] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1**
-- [ ] VS.10. Test all four shipped themes (Cairn, Peat, Kiln, Fell) render correctly at each polish point — **depends on VS.1**
+- [ ] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) — **depends on VS.1 (done), CP.1**
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
 - [x] VS.0. Upgrade Charm ecosystem to v2 (bubbletea `charm.land/bubbletea/v2`, lipgloss `charm.land/lipgloss/v2`, bubbles `charm.land/bubbles/v2`) — enables Layer/Canvas compositing for command palette
+- [x] VS.1. Audit all existing view renderers (list, timeline, schedule, budget, prose) for hardcoded hex colours — change palette field types to `color.Color`; `Default*Palette()` functions now return typed values
+- [x] VS.2. Consistent border styles: active pane gets `AccentPrimary()` border, inactive gets `Border()` (muted) — already implemented in `layout.go:paneStyle()` — **depends on NV.4 (done)**
+- [x] VS.6. Status bar polish: separator line above bar, keybind hints section, `Spacer()` used for all internal gaps — **depends on NV.9 (done)**
+- [x] VS.7. Command palette visual refinement: selected row now uses `Selection()` background for distinct highlight — **depends on VS.0 (done)**
+- [x] VS.11. Replace line-replacement hack in `app.go` with lipgloss v2 `Compositor` (`NewLayer`/`NewCompositor`) for palette overlay — **depends on VS.0 (done)**
 
 ---
 
@@ -180,11 +180,10 @@ _(none yet)_
 - [ ] LG.4. Thread logger through store operations: log node/edge writes at `debug` level — **depends on LG.2**
 - [ ] LG.5. Thread logger through sync: log each git command at `debug`, outcomes at `info`, errors at `error` — **depends on LG.2**
 - [ ] LG.6. Thread logger through query engine: log query text and row count at `debug` — **depends on LG.2**
-- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2, NV.3, NV.15**
 
 <a name="m5-blocked"><h4>Blocked (Milestone 5)</h4></a>
 
-- [ ] LG.7. TUI log overlay — **depends on LG.2, NV.3, NV.15**
+- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2**
 
 <a name="m5-done"><h4>Completed (Milestone 5)</h4></a>
 
@@ -203,13 +202,13 @@ _(none yet)_
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
+- [ ] RT.1. Ritual scheduler on startup — **depends on CP.1 (done)**
 - [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **no blockers**
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
-- [ ] RT.1. Ritual scheduler on startup — **depends on CP.1**
 - [ ] RT.3. Query steps in ritual — **depends on RT.2**
-- [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1**
+- [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1 (done)**
 - [ ] RT.5. Gate step — **depends on RT.2**
 - [ ] RT.6. Wire deferral sequence (`Esc Esc d`) to snooze ritual and record deferral timestamp — **depends on RT.5**
 - [ ] RT.7. Action step — **depends on RT.2**
@@ -267,15 +266,14 @@ _(none yet)_
 
 <a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
 
-- [ ] CL.1. Replace `$EDITOR` in `wyrd journal` with a wyrd-native multiline input (Bubble Tea program or `huh` form); set `Title` from the first non-blank line — **depends on CP.1**
-- [ ] CL.2. Replace `$EDITOR` in `wyrd note` with a wyrd-native multiline input; retain title prompt, set `Title` on the node — **depends on CP.1**
+- [ ] CL.1. Replace `$EDITOR` in `wyrd journal` with a wyrd-native multiline input (Bubble Tea program or `huh` form); set `Title` from the first non-blank line — **depends on CP.1 (done)**
+- [ ] CL.2. Replace `$EDITOR` in `wyrd note` with a wyrd-native multiline input; retain title prompt, set `Title` on the node — **depends on CP.1 (done)**
 - [ ] CL.3. Fix `wyrd add` to prompt for `Title` as a required field; currently creates tasks with no title — **no blockers**
 - [ ] CL.4. When `wyrd spend <category>` fails with "budget category not found", list all available budget categories from the store — **no blockers**
 
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
 
-- [ ] CL.1. Replace `$EDITOR` for journal — **depends on CP.1**
-- [ ] CL.2. Replace `$EDITOR` for note — **depends on CP.1**
+_(none)_
 
 <a name="cli-done"><h4>Completed (CLI Input)</h4></a>
 
@@ -322,39 +320,22 @@ mqe["`**Query Engine**`"]:::mile
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
-NV8["`*NV.8*<br/>**Navigation**<br/>bubbles/spinner`"]:::done
-NV10["`*NV.10*<br/>**Navigation**<br/>Glamour markdown`"]:::done
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
-NV14["`*NV.14*<br/>**Navigation**<br/>Broadcast msgs`"]:::done
-NV15["`*NV.15*<br/>**Navigation**<br/>HandleFocusLost`"]:::done
 
-CP0["`*CP.0*<br/>**Capture**<br/>Wire capture bar`"]:::done
-CP1["`*CP.1*<br/>**Capture**<br/>Add huh dep`"]:::done
-CP2["`*CP.2*<br/>**Capture**<br/>Task form`"]:::done
-CP3["`*CP.3*<br/>**Capture**<br/>Journal form`"]:::done
-CP4["`*CP.4*<br/>**Capture**<br/>Note form`"]:::done
-CP5["`*CP.5*<br/>**Capture**<br/>Textarea body`"]:::open
 CP6["`*CP.6*<br/>**Capture**<br/>Link-to-selected`"]:::open
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
-CP8["`*CP.8*<br/>**Capture**<br/>Form dispatch`"]:::done
 
 CL1["`*CL.1*<br/>**CLI Input**<br/>Journal native input`"]:::open
 CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::open
 CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
-VS0["`*VS.0*<br/>**Visual**<br/>Charm v2 upgrade`"]:::done
-VS1["`*VS.1*<br/>**Visual**<br/>Audit views`"]:::open
-VS2["`*VS.2*<br/>**Visual**<br/>Pane borders`"]:::open
-VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::blocked
-VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::blocked
-VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::blocked
-VS6["`*VS.6*<br/>**Visual**<br/>Status bar`"]:::open
-VS7["`*VS.7*<br/>**Visual**<br/>Command palette`"]:::open
+VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::open
+VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::open
+VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::open
 VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
-VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::blocked
-VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::blocked
-VS11["`*VS.11*<br/>**Visual**<br/>Overlay compositing`"]:::open
+VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::open
+VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::open
 
 LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::open
 LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::blocked
@@ -383,21 +364,8 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-NV14 --> NV8 & NV10
-NV15 --> CP0 & RT2 & LG7
+CP6 --> DA5
 
-NV8 --> DA7
-
-CP0 --> CP2 & CP3 & CP4
-CP1 --> CP2 & CP3 & CP4 & CP5 & CP7
-CP2 --> CP6 & DA5
-CP0 & CP2 & CP3 & CP4 --> CP8
-CP1 --> RT1 & RT4
-CP1 --> CL1 & CL2
-
-VS0 --> VS7 & VS11
-VS1 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
-CP1 --> VS8
 VS3 --> DA3
 VS5 --> DA4
 VS10 --> DA1 & DA2
@@ -414,9 +382,9 @@ DA5 & DA6 & DA7 --> DA9
 
 NV12 -.->|needs| QE1
 
-m2 --> NV6 & NV8 & NV10 & NV12 & NV14 & NV15
-m3 --> CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8
-m4 --> VS0 & VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10 & VS11
+m2 --> NV6 & NV12
+m3 --> CP6 & CP7
+m4 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
