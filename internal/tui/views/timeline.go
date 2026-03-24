@@ -1,6 +1,7 @@
 package views
 
 import (
+	"image/color"
 	"sort"
 	"strings"
 	"time"
@@ -19,22 +20,22 @@ const (
 // TimelinePalette holds the colours used by the timeline renderer.
 type TimelinePalette struct {
 	// DateHeader is the foreground colour for the date heading.
-	DateHeader string
+	DateHeader color.Color
 	// Separator is the colour of the horizontal rule between entries.
-	Separator string
+	Separator color.Color
 	// Body is the default body text colour.
-	Body string
+	Body color.Color
 	// Muted is used for empty-state messaging.
-	Muted string
+	Muted color.Color
 }
 
 // DefaultTimelinePalette returns the default Cairn-themed timeline colours.
 func DefaultTimelinePalette() TimelinePalette {
 	return TimelinePalette{
-		DateHeader: "#b98300",
-		Separator:  "#3a3a4a",
-		Body:       "#e0e0e0",
-		Muted:      "#8b8b8b",
+		DateHeader: lipgloss.Color("#b98300"),
+		Separator:  lipgloss.Color("#3a3a4a"),
+		Body:       lipgloss.Color("#e0e0e0"),
+		Muted:      lipgloss.Color("#8b8b8b"),
 	}
 }
 
@@ -70,7 +71,7 @@ type timelineEntry struct {
 func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 	if len(result.Rows) == 0 {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color(r.Palette.Muted)).
+			Foreground(r.Palette.Muted).
 			Render("No entries.")
 	}
 
@@ -91,15 +92,15 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 
 	separatorStr := strings.Repeat(timelineSeparator, width)
 	separatorStyled := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Separator)).
+		Foreground(r.Palette.Separator).
 		Render(separatorStr)
 
 	dateStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.DateHeader)).
+		Foreground(r.Palette.DateHeader).
 		Bold(true)
 
 	bodyStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Body))
+		Foreground(r.Palette.Body)
 
 	var sb strings.Builder
 	for i, entry := range entries {
