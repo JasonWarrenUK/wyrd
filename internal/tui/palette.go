@@ -310,13 +310,20 @@ func (ps *PaletteState) View(width, height int) string {
 			Foreground(ps.theme.FgMuted())
 
 		if i == ps.cursor {
+			selBg := ps.theme.Selection()
 			cursorText = "> "
-			nameStyle = nameStyle.Foreground(ps.theme.AccentPrimary()).Bold(true)
+			cursorStyle = cursorStyle.Background(selBg).Foreground(ps.theme.AccentPrimary())
+			nameStyle = nameStyle.Background(selBg).Foreground(ps.theme.AccentPrimary()).Bold(true)
+			hintStyle = hintStyle.Background(selBg).Foreground(ps.theme.FgPrimary())
 		}
 
 		line := cursorStyle.Render(cursorText) + nameStyle.Render(cmd.Name+" — "+cmd.Description)
 		if cmd.Hint != "" {
-			line += Spacer(1, bg) + hintStyle.Render("["+cmd.Hint+"]")
+			rowBg := bg
+			if i == ps.cursor {
+				rowBg = ps.theme.Selection()
+			}
+			line += Spacer(1, rowBg) + hintStyle.Render("["+cmd.Hint+"]")
 		}
 		sb.WriteString(line)
 		sb.WriteString("\n")
@@ -329,24 +336,10 @@ func (ps *PaletteState) View(width, height int) string {
 		Padding(1, 2).
 		Width(boxWidth)
 
-	rendered := boxStyle.Render(sb.String())
-
-	// Centre horizontally with a styled leading pad so the spaces to the left
-	// of the box carry no background (they should be transparent / terminal
-	// default, since they sit outside the box itself).
-	leftPad := (width - lipgloss.Width(rendered)) / 2
-	if leftPad < 0 {
-		leftPad = 0
-	}
-	if leftPad == 0 {
-		return rendered
-	}
-	pad := strings.Repeat(" ", leftPad)
-	lines := strings.Split(rendered, "\n")
-	for i, l := range lines {
-		lines[i] = pad + l
-	}
-	return strings.Join(lines, "\n")
+	// Return the rendered box without any horizontal padding. Centring is
+	// handled by the Compositor in app.go via Layer.X(), which positions the
+	// overlay relative to the full-width frame layer.
+	return boxStyle.Render(sb.String())
 }
 
 // max returns the larger of two ints.
