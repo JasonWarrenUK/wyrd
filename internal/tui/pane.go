@@ -100,6 +100,18 @@ func newViewportPane(width, height int, content string, bg color.Color) viewport
 	vp := viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
 	vp.Style = lipgloss.NewStyle().Background(bg)
 	vp.SetContent(PadLines(content, width, bg))
+
+	// Reconfigure key bindings: keep arrow/pgup/pgdn and ctrl+d/u, remove
+	// single-char vim keys (j/k/h/l/d/u/f/b/space).
+	vp.KeyMap.Down.SetKeys("down")
+	vp.KeyMap.Up.SetKeys("up")
+	vp.KeyMap.PageDown.SetKeys("pgdown")
+	vp.KeyMap.PageUp.SetKeys("pgup")
+	vp.KeyMap.HalfPageDown.SetKeys("ctrl+d")
+	vp.KeyMap.HalfPageUp.SetKeys("ctrl+u")
+	vp.KeyMap.Left.SetKeys("left")
+	vp.KeyMap.Right.SetKeys("right")
+
 	return viewportPane{vp: vp, bg: bg, rawContent: content}
 }
 
@@ -111,7 +123,7 @@ func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// Borders consume 2 columns and 2 rows from the layout dimensions.
 		newWidth := msg.Width/2 - 2
-		newHeight := msg.Height - 3 // status bar (1) + top border (1) + bottom border (1)
+		newHeight := msg.Height - 4 // status bar (2) + top border (1) + bottom border (1)
 		if newWidth < 1 {
 			newWidth = 1
 		}
@@ -137,12 +149,9 @@ func (d viewportPane) View() string {
 // KeyBindings advertises scroll shortcuts shown in the command palette.
 func (d viewportPane) KeyBindings() []KeyBinding {
 	return []KeyBinding{
-		{Key: "j/↓", Description: "Scroll down"},
-		{Key: "k/↑", Description: "Scroll up"},
-		{Key: "ctrl+d", Description: "Page down"},
-		{Key: "ctrl+u", Description: "Page up"},
-		{Key: "g", Description: "Scroll to top"},
-		{Key: "G", Description: "Scroll to bottom"},
+		{Key: "↓/↑", Description: "Scroll"},
+		{Key: "ctrl+d/u", Description: "Half page"},
+		{Key: "pgdn/pgup", Description: "Full page"},
 	}
 }
 

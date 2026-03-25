@@ -45,11 +45,11 @@ func (l *Layout) Resize(width, height int) {
 	l.totalHeight = height
 }
 
-// PaneHeight returns the height available for pane content (excluding the
-// status bar and the top/bottom pane borders).
+// PaneHeight returns the height for each pane box (excluding the status bar).
+// Height() in lipgloss v2 is an outer dimension — it includes the border lines —
+// so no separate border subtraction is needed here.
 func (l *Layout) PaneHeight() int {
-	const borderLines = 2 // rounded border: one top, one bottom
-	h := l.totalHeight - l.statusBarHeight - borderLines
+	h := l.totalHeight - l.statusBarHeight
 	if h < 1 {
 		return 1
 	}
@@ -91,8 +91,10 @@ func (l *Layout) paneStyle(width int, focused bool) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Height(l.PaneHeight()).
+		MaxHeight(l.PaneHeight()).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(borderColour).
+		BorderBackground(l.theme.BgPrimary()).
 		Background(l.theme.BgPrimary()).
 		Foreground(l.theme.FgPrimary())
 }

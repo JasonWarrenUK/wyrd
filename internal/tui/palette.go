@@ -72,7 +72,7 @@ func builtinCommands() []Command {
 		{
 			Name:        "quit",
 			Description: "Exit Wyrd",
-			Hint:        "q",
+			Hint:        "ctrl+c",
 			Execute: func(_ []string) tea.Cmd {
 				return tea.Quit
 			},
@@ -303,6 +303,7 @@ func (ps *PaletteState) View(width, height int) string {
 		cursorText := "  "
 		nameStyle := lipgloss.NewStyle().
 			Width(boxWidth - 10).
+			MaxWidth(boxWidth - 10).
 			Background(bg).
 			Foreground(ps.theme.FgPrimary())
 		hintStyle := lipgloss.NewStyle().
@@ -333,6 +334,7 @@ func (ps *PaletteState) View(width, height int) string {
 		Background(bg).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(ps.theme.AccentPrimary()).
+		BorderBackground(bg).
 		Padding(1, 2).
 		Width(boxWidth)
 

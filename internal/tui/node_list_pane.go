@@ -48,8 +48,8 @@ const (
 )
 
 // nodeListPane is a PaneModel that renders a QueryResult as a scrollable list
-// using the charmbracelet/bubbles list component. It provides built-in j/k
-// navigation, fuzzy filtering, and mouse support.
+// using the charmbracelet/bubbles list component. Navigation uses arrow keys,
+// pgup/pgdn, and home/end; vim-style single-char bindings are disabled.
 type nodeListPane struct {
 	list      list.Model
 	columns   []string
@@ -84,6 +84,25 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
 
+	// Reconfigure key bindings to match Wyrd's preferences. The canonical
+	// Bubble Tea pattern is to configure the child component's KeyMap rather
+	// than intercepting keys at the parent level.
+	//
+	// Keep arrow/pgup/pgdn/home/end; remove all single-char vim keys so they
+	// can never collide with terminal protocol response bytes.
+	l.KeyMap.CursorUp.SetKeys("up")
+	l.KeyMap.CursorDown.SetKeys("down")
+	l.KeyMap.PrevPage.SetKeys("left", "pgup")
+	l.KeyMap.NextPage.SetKeys("right", "pgdown")
+	l.KeyMap.GoToStart.SetKeys("home", "alt+shift+up")
+	l.KeyMap.GoToEnd.SetKeys("end", "alt+shift+down")
+	l.KeyMap.Filter.SetEnabled(false)
+	l.KeyMap.ClearFilter.SetEnabled(false)
+	l.KeyMap.ShowFullHelp.SetEnabled(false)
+	l.KeyMap.CloseFullHelp.SetEnabled(false)
+	l.KeyMap.Quit.SetEnabled(false)
+	l.KeyMap.ForceQuit.SetEnabled(false)
+
 	return nodeListPane{
 		list:      l,
 		columns:   cols,
@@ -96,11 +115,11 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 }
 
 // listHeight computes the number of rows available for the bubbles/list
-// component. It mirrors Layout.PaneHeight() and subtracts one additional line
-// for the column-header row rendered above the list.
+// component. The status bar is 2 lines (separator + bar); the pane border
+// adds 2 lines (top + bottom); one additional line is the column header.
 func listHeight(terminalHeight int) int {
 	const borderLines = 2 // rounded border top + bottom
-	const statusBar = 1
+	const statusBar = 2   // separator line + bar line
 	const headerLine = 1
 	h := terminalHeight - borderLines - statusBar - headerLine
 	if h < 1 {
@@ -129,17 +148,6 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths))
 		return p, nil
 
-	case jumpMsg:
-		if msg.top {
-			p.list.Select(0)
-		} else {
-			p.list.Select(len(p.list.Items()) - 1)
-		}
-		if id := p.SelectedNodeID(); id != "" {
-			cmd := func() tea.Msg { return nodeSelectedMsg{nodeID: id} }
-			return p, cmd
-		}
-		return p, nil
 	}
 
 	prevIndex := p.list.Index()
@@ -176,10 +184,10 @@ func (p nodeListPane) View() string {
 // KeyBindings advertises the navigation keys this pane handles.
 func (p nodeListPane) KeyBindings() []KeyBinding {
 	return []KeyBinding{
-		{Key: "j / ↓", Description: "Move down"},
-		{Key: "k / ↑", Description: "Move up"},
-		{Key: "shift+alt+↑", Description: "Jump to top"},
-		{Key: "shift+alt+↓", Description: "Jump to bottom"},
+		{Key: "↓/↑", Description: "Navigate"},
+		{Key: "←/→", Description: "Page"},
+		{Key: "home/end", Description: "Start/end"},
+		{Key: "alt+shift+↑/↓", Description: "Jump top/bottom"},
 	}
 }
 
