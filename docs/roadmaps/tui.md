@@ -9,7 +9,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
 | **CP**   | CP.0–CP.6, CP.8 done | CP.9 (unlinked creation), CP.7 (spend form), CP.10 (edit node), CP.11 (edge mgmt) | CP.7, CP.10 (need CP.9); CP.11 (needs CP.10) |
-| **CL**   | `$EDITOR` used; titles missing on add | Native input (CL.1, CL.2); title prompts (CL.3); category listing (CL.4) | — |
+| **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.2, VS.6–VS.8, VS.11 done | VS.3–VS.5, VS.9, VS.10 (all unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
@@ -269,9 +269,6 @@ _(none yet)_
 
 <a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
 
-- [ ] CL.1. Replace `$EDITOR` in `wyrd journal` with a wyrd-native multiline input (Bubble Tea program or `huh` form); set `Title` from the first non-blank line — **depends on CP.1 (done)**
-- [ ] CL.2. Replace `$EDITOR` in `wyrd note` with a wyrd-native multiline input; retain title prompt, set `Title` on the node — **depends on CP.1 (done)**
-- [ ] CL.3. Fix `wyrd add` to prompt for `Title` as a required field; currently creates tasks with no title — **no blockers**
 - [ ] CL.4. When `wyrd spend <category>` fails with "budget category not found", list all available budget categories from the store — **no blockers**
 
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
@@ -280,7 +277,9 @@ _(none)_
 
 <a name="cli-done"><h4>Completed (CLI Input)</h4></a>
 
-_(none yet)_
+- [x] CL.3. `wyrd add` prompts for `Title` via `--title` flag or interactive huh form; title field wired to node — **no blockers**
+- [x] CL.1. `wyrd journal` uses native huh form (title defaulting to today's date + multiline body); replaces `$EDITOR` — **depends on CP.1 (done)**
+- [x] CL.2. `wyrd note` uses native huh form for body input; title from positional arg; replaces `$EDITOR` — **depends on CP.1 (done)**
 
 ---
 
@@ -330,9 +329,6 @@ CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::blocked
 CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::blocked
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::blocked
 
-CL1["`*CL.1*<br/>**CLI Input**<br/>Journal native input`"]:::open
-CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::open
-CL3["`*CL.3*<br/>**CLI Input**<br/>wyrd add title`"]:::open
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::open
@@ -393,7 +389,7 @@ m4 --> VS3 & VS4 & VS5 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
-mcli --> CL1 & CL2 & CL3 & CL4
+mcli --> CL4
 mqe --> QE1
 
 
