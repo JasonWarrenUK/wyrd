@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -33,34 +34,34 @@ func DefaultProseGlyphs() ProseGlyphs {
 // ProsePalette holds the colours used by the prose renderer.
 type ProsePalette struct {
 	// Title is the colour for the node body heading.
-	Title string
+	Title color.Color
 	// Body is the default body text colour.
-	Body string
+	Body color.Color
 	// MetaKey is the colour for metadata field labels.
-	MetaKey string
+	MetaKey color.Color
 	// MetaValue is the colour for metadata field values.
-	MetaValue string
+	MetaValue color.Color
 	// EdgeType is the colour for the edge-type label.
-	EdgeType string
+	EdgeType color.Color
 	// EdgeGlyph is the colour for directional arrow glyphs.
-	EdgeGlyph string
+	EdgeGlyph color.Color
 	// Separator is the colour for horizontal rules.
-	Separator string
+	Separator color.Color
 	// Muted is used for empty-state messaging.
-	Muted string
+	Muted color.Color
 }
 
 // DefaultProsePalette returns the default Cairn-themed prose colours.
 func DefaultProsePalette() ProsePalette {
 	return ProsePalette{
-		Title:     "#e0e0e0",
-		Body:      "#c8c8c8",
-		MetaKey:   "#b98300",
-		MetaValue: "#e0e0e0",
-		EdgeType:  "#794aff",
-		EdgeGlyph: "#6f6f6f",
-		Separator: "#3a3a4a",
-		Muted:     "#8b8b8b",
+		Title:     lipgloss.Color("#e0e0e0"),
+		Body:      lipgloss.Color("#c8c8c8"),
+		MetaKey:   lipgloss.Color("#b98300"),
+		MetaValue: lipgloss.Color("#e0e0e0"),
+		EdgeType:  lipgloss.Color("#794aff"),
+		EdgeGlyph: lipgloss.Color("#6f6f6f"),
+		Separator: lipgloss.Color("#3a3a4a"),
+		Muted:     lipgloss.Color("#8b8b8b"),
 	}
 }
 
@@ -87,19 +88,19 @@ func NewProseRenderer() *ProseRenderer {
 func (r *ProseRenderer) Render(node *types.Node, edges []*types.Edge, width int) string {
 	if node == nil {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color(r.Palette.Muted)).
+			Foreground(r.Palette.Muted).
 			Render("No node selected.")
 	}
 
 	sep := strings.Repeat("─", width)
 	separatorStyled := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Separator)).
+		Foreground(r.Palette.Separator).
 		Render(sep)
 
 	var sb strings.Builder
 
 	// Body section.
-	bodyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.Body))
+	bodyStyle := lipgloss.NewStyle().Foreground(r.Palette.Body)
 	sb.WriteString(bodyStyle.Render(node.Body))
 
 	// Metadata section.
@@ -131,8 +132,8 @@ func (r *ProseRenderer) Render(node *types.Node, edges []*types.Edge, width int)
 
 // buildMetaLines produces the styled metadata key-value lines for a node.
 func (r *ProseRenderer) buildMetaLines(node *types.Node) []string {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.MetaKey))
-	valStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.MetaValue))
+	keyStyle := lipgloss.NewStyle().Foreground(r.Palette.MetaKey)
+	valStyle := lipgloss.NewStyle().Foreground(r.Palette.MetaValue)
 
 	var lines []string
 
@@ -173,8 +174,8 @@ func (r *ProseRenderer) buildEdgeLines(node *types.Node, edges []*types.Edge) []
 		return nil
 	}
 
-	glyphStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.EdgeGlyph))
-	typeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.EdgeType))
+	glyphStyle := lipgloss.NewStyle().Foreground(r.Palette.EdgeGlyph)
+	typeStyle := lipgloss.NewStyle().Foreground(r.Palette.EdgeType)
 
 	var lines []string
 	for _, edge := range edges {

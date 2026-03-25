@@ -3,6 +3,7 @@ package views
 import (
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -52,28 +53,28 @@ func DefaultBudgetGlyphs() BudgetGlyphs {
 // BudgetPalette holds the colours used by the budget renderer.
 type BudgetPalette struct {
 	// OK is the colour for envelopes with safe spend levels.
-	OK string
+	OK color.Color
 	// Caution is the colour for envelopes approaching their limit.
-	Caution string
+	Caution color.Color
 	// Over is the colour for exhausted envelopes.
-	Over string
+	Over color.Color
 	// Label is the colour for the envelope name.
-	Label string
+	Label color.Color
 	// Amount is the colour for the spend/allocated text.
-	Amount string
+	Amount color.Color
 	// Muted is used for empty-state messaging.
-	Muted string
+	Muted color.Color
 }
 
 // DefaultBudgetPalette returns the default Cairn-themed budget colours.
 func DefaultBudgetPalette() BudgetPalette {
 	return BudgetPalette{
-		OK:      "#3ddc84",
-		Caution: "#b98300",
-		Over:    "#d57300",
-		Label:   "#e0e0e0",
-		Amount:  "#8b8b8b",
-		Muted:   "#8b8b8b",
+		OK:      lipgloss.Color("#3ddc84"),
+		Caution: lipgloss.Color("#b98300"),
+		Over:    lipgloss.Color("#d57300"),
+		Label:   lipgloss.Color("#e0e0e0"),
+		Amount:  lipgloss.Color("#8b8b8b"),
+		Muted:   lipgloss.Color("#8b8b8b"),
 	}
 }
 
@@ -109,7 +110,7 @@ type budgetEnvelope struct {
 func (r *BudgetRenderer) Render(budgetNodes []*types.Node, width int) string {
 	if len(budgetNodes) == 0 {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color(r.Palette.Muted)).
+			Foreground(r.Palette.Muted).
 			Render("No budget envelopes.")
 	}
 
@@ -190,7 +191,7 @@ func (r *BudgetRenderer) renderEnvelope(env budgetEnvelope, maxNameWidth int) st
 	statusColour, glyph := r.statusStyle(env.status)
 
 	glyphStr := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(statusColour)).
+		Foreground(statusColour).
 		Render(glyph)
 
 	// Pad the name to maxNameWidth for alignment.
@@ -200,7 +201,7 @@ func (r *BudgetRenderer) renderEnvelope(env budgetEnvelope, maxNameWidth int) st
 		namePadded = env.name + strings.Repeat(" ", maxNameWidth-len(nameRunes))
 	}
 	labelStr := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Label)).
+		Foreground(r.Palette.Label).
 		Render(namePadded)
 
 	// Build progress bar.
@@ -214,14 +215,14 @@ func (r *BudgetRenderer) renderEnvelope(env budgetEnvelope, maxNameWidth int) st
 		amountStr = fmt.Sprintf("£%.2f", env.spend)
 	}
 	amountStyled := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Amount)).
+		Foreground(r.Palette.Amount).
 		Render(amountStr)
 
 	return fmt.Sprintf("%s  %s  %s  %s", glyphStr, labelStr, bar, amountStyled)
 }
 
 // buildBar constructs the filled/empty progress bar string.
-func (r *BudgetRenderer) buildBar(spend, allocated float64, colour string) string {
+func (r *BudgetRenderer) buildBar(spend, allocated float64, colour color.Color) string {
 	filledSegments := 0
 	if allocated > 0 {
 		ratio := spend / allocated
@@ -233,18 +234,18 @@ func (r *BudgetRenderer) buildBar(spend, allocated float64, colour string) strin
 	emptySegments := budgetBarWidth - filledSegments
 
 	filled := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(colour)).
+		Foreground(colour).
 		Render(strings.Repeat(budgetFilled, filledSegments))
 
 	empty := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Amount)).
+		Foreground(r.Palette.Amount).
 		Render(strings.Repeat(budgetEmpty, emptySegments))
 
 	return filled + empty
 }
 
-// statusStyle returns the hex colour and glyph character for a budget status.
-func (r *BudgetRenderer) statusStyle(status BudgetStatus) (colour, glyph string) {
+// statusStyle returns the colour and glyph character for a budget status.
+func (r *BudgetRenderer) statusStyle(status BudgetStatus) (colour color.Color, glyph string) {
 	switch status {
 	case BudgetCaution:
 		return r.Palette.Caution, r.Glyphs.Caution

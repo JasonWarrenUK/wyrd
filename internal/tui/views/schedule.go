@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 
@@ -35,21 +36,21 @@ func DefaultGlyphs() Glyphs {
 
 // Palette holds the Lipgloss colours used by the schedule renderer.
 type Palette struct {
-	EnergyDeep   string
-	EnergyMedium string
-	EnergyLow    string
-	Muted        string
-	Overflow     string
+	EnergyDeep   color.Color
+	EnergyMedium color.Color
+	EnergyLow    color.Color
+	Muted        color.Color
+	Overflow     color.Color
 }
 
 // DefaultPalette returns the Cairn theme colours as the default palette.
 func DefaultPalette() Palette {
 	return Palette{
-		EnergyDeep:   "#794aff",
-		EnergyMedium: "#b98300",
-		EnergyLow:    "#6f6f6f",
-		Muted:        "#8b8b8b",
-		Overflow:     "#d57300",
+		EnergyDeep:   lipgloss.Color("#794aff"),
+		EnergyMedium: lipgloss.Color("#b98300"),
+		EnergyLow:    lipgloss.Color("#6f6f6f"),
+		Muted:        lipgloss.Color("#8b8b8b"),
+		Overflow:     lipgloss.Color("#d57300"),
 	}
 }
 
@@ -75,7 +76,7 @@ func NewScheduleRenderer() *ScheduleRenderer {
 func (r *ScheduleRenderer) Render(result DisplacementResult) string {
 	if len(result.Entries) == 0 {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color(r.Palette.Muted)).
+			Foreground(r.Palette.Muted).
 			Render("No tasks scheduled for today.")
 	}
 
@@ -90,7 +91,7 @@ func (r *ScheduleRenderer) Render(result DisplacementResult) string {
 		sb.WriteRune('\n')
 		sb.WriteString(
 			lipgloss.NewStyle().
-				Foreground(lipgloss.Color(r.Palette.Overflow)).
+				Foreground(r.Palette.Overflow).
 				Render(summary),
 		)
 	}
@@ -126,7 +127,7 @@ func (r *ScheduleRenderer) renderTask(timeLabel string, e ScheduleEntry, duratio
 
 	bar := strings.Repeat(fillChar, barLen)
 	styledBar := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(colour)).
+		Foreground(colour).
 		Render(bar)
 
 	return fmt.Sprintf("%s %s %s", timeLabel, styledBar, e.Title)
@@ -136,7 +137,7 @@ func (r *ScheduleRenderer) renderTask(timeLabel string, e ScheduleEntry, duratio
 func (r *ScheduleRenderer) renderCalendarEvent(timeLabel, title string) string {
 	dashes := strings.Repeat(r.Glyphs.CalendarDash, fillBarWidth)
 	styledDashes := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Muted)).
+		Foreground(r.Palette.Muted).
 		Render(dashes)
 	return fmt.Sprintf("%s %s %s", timeLabel, styledDashes, title)
 }
@@ -144,15 +145,15 @@ func (r *ScheduleRenderer) renderCalendarEvent(timeLabel, title string) string {
 // renderDisplaced renders a task that has been pushed out of the day.
 func (r *ScheduleRenderer) renderDisplaced(timeLabel, title string) string {
 	overflow := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Overflow)).
+		Foreground(r.Palette.Overflow).
 		Render(r.Glyphs.Overflow)
 	muted := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(r.Palette.Muted))
+		Foreground(r.Palette.Muted)
 	return fmt.Sprintf("%s %s %s", muted.Render(timeLabel), overflow, muted.Render(title))
 }
 
-// energyStyle returns the fill character and hex colour for an energy level.
-func (r *ScheduleRenderer) energyStyle(energy EnergyLevel) (fillChar, colour string) {
+// energyStyle returns the fill character and colour for an energy level.
+func (r *ScheduleRenderer) energyStyle(energy EnergyLevel) (fillChar string, colour color.Color) {
 	switch energy {
 	case EnergyDeep:
 		return r.Glyphs.EnergyDeep, r.Palette.EnergyDeep

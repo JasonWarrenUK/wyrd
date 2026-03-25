@@ -49,6 +49,13 @@ type DetailRenderer struct {
 
 	// Colours holds the colour palette. Set via NewDetailRenderer or mutated after construction.
 	Colours Colours
+
+	// glamRenderer caches the Glamour terminal renderer so it is only created
+	// once (or recreated when Width changes). glamour.NewTermRenderer() is
+	// expensive — it probes terminal capabilities and builds a full goldmark
+	// pipeline — so we must avoid calling it on every node selection.
+	glamRenderer *glamour.TermRenderer
+	glamWidth    int
 }
 
 // NewDetailRenderer creates a DetailRenderer with default colours and a sensible width.
@@ -188,18 +195,24 @@ func (r *DetailRenderer) bg() color.Color {
 	return lipgloss.NoColor{}
 }
 
-// renderMarkdown renders body text as markdown using Glamour. On error it falls
-// back to plainStyle.Render(body). Trailing newlines from Glamour output are
-// trimmed so the caller controls surrounding spacing.
+// renderMarkdown renders body text as markdown using Glamour. The Glamour
+// renderer is created once and reused for subsequent calls (recreated only
+// when Width changes). On error it falls back to plainStyle.Render(body).
+// Trailing newlines from Glamour output are trimmed so the caller controls
+// surrounding spacing.
 func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) string {
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(r.Width),
-	)
-	if err != nil {
-		return plainStyle.Render(body)
+	if r.glamRenderer == nil || r.glamWidth != r.Width {
+		renderer, err := glamour.NewTermRenderer(
+			glamour.WithAutoStyle(),
+			glamour.WithWordWrap(r.Width),
+		)
+		if err != nil {
+			return plainStyle.Render(body)
+		}
+		r.glamRenderer = renderer
+		r.glamWidth = r.Width
 	}
-	out, err := renderer.Render(body)
+	out, err := r.glamRenderer.Render(body)
 	if err != nil {
 		return plainStyle.Render(body)
 	}

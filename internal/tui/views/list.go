@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"unicode/utf8"
 
@@ -21,22 +22,22 @@ const (
 // ListPalette holds the colours used by the list renderer.
 type ListPalette struct {
 	// Header is the foreground colour for column header text.
-	Header string
+	Header color.Color
 	// Selection is the background colour applied to the selected row.
-	Selection string
+	Selection color.Color
 	// Foreground is the default text colour for data rows.
-	Foreground string
+	Foreground color.Color
 	// Muted is used for empty-state messaging.
-	Muted string
+	Muted color.Color
 }
 
 // DefaultListPalette returns the default Cairn-themed list colours.
 func DefaultListPalette() ListPalette {
 	return ListPalette{
-		Header:     "#b98300",
-		Selection:  "#2a2a3d",
-		Foreground: "#e0e0e0",
-		Muted:      "#8b8b8b",
+		Header:     lipgloss.Color("#b98300"),
+		Selection:  lipgloss.Color("#2a2a3d"),
+		Foreground: lipgloss.Color("#e0e0e0"),
+		Muted:      lipgloss.Color("#8b8b8b"),
 	}
 }
 
@@ -67,7 +68,7 @@ func (r *ListRenderer) Render(result types.QueryResult, selectedIdx int, width i
 
 	if len(result.Rows) == 0 {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color(r.Palette.Muted)).
+			Foreground(r.Palette.Muted).
 			Render("No results.")
 	}
 
@@ -84,7 +85,7 @@ func (r *ListRenderer) Render(result types.QueryResult, selectedIdx int, width i
 		line := r.renderDataRow(row, cols, colWidths)
 		if i == selectedIdx {
 			line = lipgloss.NewStyle().
-				Background(lipgloss.Color(r.Palette.Selection)).
+				Background(r.Palette.Selection).
 				Render(line)
 		}
 		sb.WriteString(line)
@@ -165,7 +166,7 @@ func (r *ListRenderer) calculateColumnWidths(result types.QueryResult, cols []st
 
 // renderHeaderRow produces the styled column-header line.
 func (r *ListRenderer) renderHeaderRow(cols []string, widths []int) string {
-	style := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.Header)).Bold(true)
+	style := lipgloss.NewStyle().Foreground(r.Palette.Header).Bold(true)
 	cells := make([]string, len(cols))
 	for i, col := range cols {
 		cells[i] = style.Render(padOrTruncate(col, widths[i]))
@@ -175,7 +176,7 @@ func (r *ListRenderer) renderHeaderRow(cols []string, widths []int) string {
 
 // renderDataRow produces a single un-highlighted data row string.
 func (r *ListRenderer) renderDataRow(row map[string]interface{}, cols []string, widths []int) string {
-	style := lipgloss.NewStyle().Foreground(lipgloss.Color(r.Palette.Foreground))
+	style := lipgloss.NewStyle().Foreground(r.Palette.Foreground)
 	cells := make([]string, len(cols))
 	for i, col := range cols {
 		val := formatCellValue(row[col])

@@ -11,7 +11,7 @@ import (
 
 // DefaultCaptureKey is the keystroke that focuses the capture bar from
 // anywhere in the TUI.
-const DefaultCaptureKey = "i"
+const DefaultCaptureKey = "ctrl+n"
 
 // CaptureResult holds the node (and optional edge) produced by a capture
 // submission so the caller can persist them.
@@ -188,7 +188,7 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 // CaptureBarPlaceholder returns the placeholder text shown when the capture
 // bar is not focused and empty.
 func CaptureBarPlaceholder() string {
-	return "Press i to capture — j: journal · n: note · t: task (default)"
+	return "ctrl+n to capture — j: journal · n: note · t: task (default)"
 }
 
 // unusedTime is a compile-time assertion that time is imported.

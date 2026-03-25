@@ -116,14 +116,14 @@ func TestTerminalResize(t *testing.T) {
 	}
 }
 
-// TestQuitAction verifies that pressing "q" issues a quit command.
+// TestQuitAction verifies that pressing ctrl+c issues a quit command.
 func TestQuitAction(t *testing.T) {
 	m := newTestModel(t)
 	m = sendWindowSize(t, m, 80, 24)
 
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {
-		t.Fatal("expected a non-nil command after 'q'")
+		t.Fatal("expected a non-nil command after ctrl+c")
 	}
 	// Execute the command and verify it is a quit message.
 	msg := cmd()
@@ -163,12 +163,12 @@ func TestSwitchPaneFocus(t *testing.T) {
 	}
 }
 
-// TestCommandPaletteOpensOnColon checks that pressing ":" opens the palette.
-func TestCommandPaletteOpensOnColon(t *testing.T) {
+// TestCommandPaletteOpensOnCtrlP checks that pressing ctrl+p opens the palette.
+func TestCommandPaletteOpensOnCtrlP(t *testing.T) {
 	m := newTestModel(t)
 	m = sendWindowSize(t, m, 80, 24)
 
-	updated, _ := m.Update(tea.KeyPressMsg{Code: ':', Text: ":"})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl})
 	m2, ok := updated.(tui.Model)
 	if !ok {
 		t.Fatalf("unexpected type %T", updated)
@@ -186,7 +186,7 @@ func TestPaletteClosesOnEscape(t *testing.T) {
 	m = sendWindowSize(t, m, 80, 24)
 
 	// Open palette.
-	updated, _ := m.Update(tea.KeyPressMsg{Code: ':', Text: ":"})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl})
 	m2 := updated.(tui.Model)
 
 	// Close with Escape.
@@ -300,9 +300,9 @@ func TestAppBootsWithDashboard(t *testing.T) {
 	}
 
 	// Verify clean quit.
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {
-		t.Fatal("expected quit command after 'q'")
+		t.Fatal("expected quit command after ctrl+c")
 	}
 	if msg := cmd(); msg != tea.Quit() {
 		t.Errorf("expected tea.Quit, got %v", msg)
@@ -498,28 +498,40 @@ func pressKey(t *testing.T, m tui.Model, code rune, text string) tui.Model {
 	return result
 }
 
-// TestCaptureBarFocusesOnI verifies that pressing "i" updates the status bar
-// to show the cursor character (indicating capture mode is active).
-func TestCaptureBarFocusesOnI(t *testing.T) {
+// pressModKey is a helper that sends a modifier key press (e.g. ctrl+n) and
+// returns the updated model.
+func pressModKey(t *testing.T, m tui.Model, code rune, mod tea.KeyMod) tui.Model {
+	t.Helper()
+	updated, _ := m.Update(tea.KeyPressMsg{Code: code, Mod: mod})
+	result, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("Update returned unexpected type %T", updated)
+	}
+	return result
+}
+
+// TestCaptureBarFocusesOnCtrlN verifies that pressing ctrl+n updates the
+// status bar to show the cursor character (indicating capture mode is active).
+func TestCaptureBarFocusesOnCtrlN(t *testing.T) {
 	m := newTestModelWithStore(t)
 	m = sendWindowSize(t, m, 120, 40)
 
-	m = pressKey(t, m, 'i', "i")
+	m = pressModKey(t, m, 'n', tea.ModCtrl)
 
 	v := m.View().Content
 	// The cursor character should appear in the status bar area.
 	if !strings.Contains(v, "▌") {
-		t.Error("expected cursor character '▌' in view after pressing i")
+		t.Error("expected cursor character '▌' in view after pressing ctrl+n")
 	}
 }
 
-// TestCaptureBarTypingAccumulates verifies that typing after pressing "i"
+// TestCaptureBarTypingAccumulates verifies that typing after pressing ctrl+n
 // accumulates in the status bar display.
 func TestCaptureBarTypingAccumulates(t *testing.T) {
 	m := newTestModelWithStore(t)
 	m = sendWindowSize(t, m, 120, 40)
 
-	m = pressKey(t, m, 'i', "i")
+	m = pressModKey(t, m, 'n', tea.ModCtrl)
 	m = pressKey(t, m, 'h', "h")
 	// 'i' while capture bar focused is a rune input, not ActionCapture.
 	m = pressKey(t, m, 'i', "i")
@@ -536,7 +548,7 @@ func TestCaptureBarEscapeCancels(t *testing.T) {
 	m := newTestModelWithStore(t)
 	m = sendWindowSize(t, m, 120, 40)
 
-	m = pressKey(t, m, 'i', "i")            // focus capture bar
+	m = pressModKey(t, m, 'n', tea.ModCtrl) // focus capture bar
 	m = pressKey(t, m, tea.KeyEsc, "")      // cancel
 
 	v := m.View().Content
@@ -544,7 +556,7 @@ func TestCaptureBarEscapeCancels(t *testing.T) {
 	if strings.Contains(v, "▌") {
 		t.Error("cursor '▌' should not appear in view after Escape")
 	}
-	if !strings.Contains(v, "Press i to capture") {
+	if !strings.Contains(v, "ctrl+n to capture") {
 		t.Error("expected placeholder text after Escape")
 	}
 }
@@ -556,7 +568,7 @@ func TestCaptureBarEnterOpensTaskForm(t *testing.T) {
 	m = sendWindowSize(t, m, 120, 40)
 
 	// Type "t: Buy milk" and press Enter.
-	m = pressKey(t, m, 'i', "i")
+	m = pressModKey(t, m, 'n', tea.ModCtrl)
 	for _, r := range "t: Buy milk" {
 		m = pressKey(t, m, r, string(r))
 	}
@@ -575,11 +587,67 @@ func TestCaptureBarEmptyEnterBlurs(t *testing.T) {
 	m := newTestModelWithStore(t)
 	m = sendWindowSize(t, m, 120, 40)
 
-	m = pressKey(t, m, 'i', "i")
+	m = pressModKey(t, m, 'n', tea.ModCtrl)
 	m = pressKey(t, m, tea.KeyEnter, "")
 
 	v := m.View().Content
 	if strings.Contains(v, "▌") {
 		t.Error("cursor should not be present after empty Enter")
 	}
+}
+
+// --- Readiness and spurious input tests ---
+
+// TestSpuriousBytesDoNotTriggerActions verifies that bytes commonly found in
+// OSC 11 terminal responses (e.g. iTerm2 background colour notifications) do
+// not trigger application-level actions. Previously ':' from 'rgb:000/000/000'
+// would open the command palette.
+func TestSpuriousBytesDoNotTriggerActions(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	// Simulate the body bytes of an OSC 11 response fragmented into keypresses.
+	for _, ch := range []rune{':', ']', '[', ';', 'r', 'g', 'b'} {
+		updated, cmd := m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = updated.(tui.Model)
+		if cmd != nil {
+			if msg := cmd(); msg == tea.Quit() {
+				t.Fatalf("spurious byte %q triggered quit", ch)
+			}
+		}
+	}
+	// None of these should have opened the palette.
+	v := m.View().Content
+	if strings.Contains(v, "COMMAND PALETTE") || strings.Contains(v, "SEARCH COMMANDS") {
+		t.Error("spurious bytes opened the command palette")
+	}
+}
+
+// TestCtrlCWorksBeforeReady verifies that ctrl+c (which has a modifier) is
+// not blocked by the readiness gate and produces a quit command immediately.
+func TestCtrlCWorksBeforeReady(t *testing.T) {
+	m := newTestModel(t)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("expected quit command from ctrl+c before ready")
+	}
+	if msg := cmd(); msg != tea.Quit() {
+		t.Errorf("expected tea.Quit, got %v", msg)
+	}
+}
+
+// TestArrowKeysWorkBeforeReady verifies that arrow keys (which have Code >
+// unicode.MaxRune) are not blocked by the readiness gate.
+func TestArrowKeysWorkBeforeReady(t *testing.T) {
+	m := newTestModel(t)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("arrow key before ready panicked: %v", r)
+		}
+	}()
+
+	// Down arrow should be forwarded to the pane without panicking.
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 }

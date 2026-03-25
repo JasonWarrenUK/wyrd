@@ -5,8 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -16,11 +18,6 @@ var _ PaneModel = nodeListPane{}
 // switchThemeMsg is an internal message that triggers a runtime theme switch.
 type switchThemeMsg struct {
 	name string
-}
-
-// jumpMsg is sent to the focused pane to jump to the top or bottom of its list.
-type jumpMsg struct {
-	top bool // true = jump to top, false = jump to bottom
 }
 
 // captureSubmitMsg is emitted after a successful node creation (from form or
@@ -61,8 +58,8 @@ type Model struct {
 	// focus indicates which pane has keyboard focus.
 	focus FocusedPane
 
-	// keyMap handles vim-style key dispatch.
-	keyMap *KeyMap
+	// keyMap holds the application-level key bindings.
+	keyMap AppKeyMap
 
 	// palette is the command palette overlay state.
 	palette PaletteState
@@ -85,11 +82,21 @@ type Model struct {
 	// clock is used for age calculations in the detail renderer.
 	clock types.Clock
 
+	// detailRenderer is reused across node selections so the expensive
+	// glamour.NewTermRenderer() call only happens once (or on resize).
+	detailRenderer *DetailRenderer
+
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
 
 	// quitting is set when the user has requested an exit.
 	quitting bool
+}
+
+// detailReadyMsg carries the result of an async detail render.
+type detailReadyMsg struct {
+	nodeID string
+	pane   PaneModel
 }
 
 // Config carries the options for constructing a new App Model.
@@ -140,7 +147,7 @@ func New(cfg Config) (Model, error) {
 		theme, _ = LoadTheme(".", "")
 	}
 
-	keyMap := NewKeyMap()
+	keyMap := DefaultAppKeyMap()
 	palette := NewPaletteState(theme)
 
 	// Wire up the built-in "theme" command now that we have a storePath.
@@ -205,21 +212,22 @@ func New(cfg Config) (Model, error) {
 	}
 
 	m := Model{
-		theme:       theme,
-		storePath:   storePath,
-		layout:      layout,
-		leftPane:    leftPane,
-		rightPane:   NewEmptyPane(theme),
-		focus:       FocusLeft,
-		keyMap:      keyMap,
-		palette:     palette,
-		statusBar:   statusBar,
-		store:       cfg.Store,
-		captureBar:  captureBar,
-		queryRunner: cfg.QueryRunner,
-		index:       cfg.Index,
-		clock:       clock,
-		ready:       false,
+		theme:          theme,
+		storePath:      storePath,
+		layout:         layout,
+		leftPane:       leftPane,
+		rightPane:      NewEmptyPane(theme),
+		focus:          FocusLeft,
+		keyMap:         keyMap,
+		palette:        palette,
+		statusBar:      statusBar,
+		store:          cfg.Store,
+		captureBar:     captureBar,
+		queryRunner:    cfg.QueryRunner,
+		index:          cfg.Index,
+		clock:          clock,
+		detailRenderer: NewDetailRenderer(),
+		ready:          false,
 	}
 
 	// Pre-populate the right pane with the first selected item so the detail
@@ -235,6 +243,9 @@ func New(cfg Config) (Model, error) {
 			}
 		}
 	}
+
+	// Populate initial keybind hints for the focused (left) pane.
+	m.syncKeyHints()
 
 	return m, nil
 }
@@ -289,7 +300,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case nodeSelectedMsg:
 		// Don't overwrite the right pane with detail if a form is active.
 		if _, isForm := m.rightPane.(formPane); !isForm {
-			m.rightPane = m.renderDetail(msg.nodeID)
+			// Render detail asynchronously so Glamour initialisation doesn't
+			// block the event loop. The right pane shows a placeholder until
+			// the detailReadyMsg arrives.
+			m.rightPane = NewEmptyPane(m.theme)
+			cmd := m.renderDetailAsync(msg.nodeID)
+			if m.index != nil {
+				if node, err := m.index.GetNode(msg.nodeID); err == nil {
+					edgeCount := len(m.index.EdgesFrom(msg.nodeID)) + len(m.index.EdgesTo(msg.nodeID))
+					m.statusBar.SetNodeInfo(node.ID, node.Types, edgeCount)
+				}
+			}
+			return m, cmd
 		}
 		if m.index != nil {
 			if node, err := m.index.GetNode(msg.nodeID); err == nil {
@@ -299,13 +321,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case detailReadyMsg:
+		// Result of async detail rendering. Mount the pane unless a form
+		// has taken over the right pane in the meantime.
+		if _, isForm := m.rightPane.(formPane); !isForm {
+			m.rightPane = msg.pane
+		}
+		return m, nil
+
 	case formSubmitMsg:
 		m.rightPane = NewEmptyPane(m.theme)
 		m.focus = FocusLeft
+		m.syncKeyHints()
 		return m.handleCaptureSubmit(captureSubmitMsg{nodeID: msg.nodeID, label: msg.label})
 
 	case formCancelMsg:
 		m.focus = FocusLeft
+		m.syncKeyHints()
 		if lp, ok := m.leftPane.(nodeListPane); ok {
 			if id := lp.SelectedNodeID(); id != "" {
 				m.rightPane = m.renderDetail(id)
@@ -325,8 +357,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		action := m.keyMap.Dispatch(msg)
-		return m.handleAction(action, msg)
+		switch {
+		case key.Matches(msg, m.keyMap.Quit):
+			m.quitting = true
+			return m, tea.Quit
+		case key.Matches(msg, m.keyMap.SwitchPane):
+			return m.handleSwitchPane()
+		case key.Matches(msg, m.keyMap.CommandPalette):
+			m.palette.Open(PaletteModeCLI)
+			return m, nil
+		case key.Matches(msg, m.keyMap.FuzzyPalette):
+			m.palette.Open(PaletteModeFuzzy)
+			return m, nil
+		case key.Matches(msg, m.keyMap.Capture):
+			return m.handleCapture(msg)
+		default:
+			return m.updateFocusedPane(msg)
+		}
 
 	case tea.KeyReleaseMsg:
 		return m.updateFocusedPane(msg)
@@ -341,60 +388,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.updateBothPanes(msg)
 }
 
-// handleAction translates a resolved KeyAction into state changes.
-func (m Model) handleAction(action KeyAction, msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch action {
-	case ActionQuit:
-		m.quitting = true
-		return m, tea.Quit
+// handleSwitchPane toggles focus between the left and right panes, notifying
+// the losing pane via HandleFocusLost before toggling.
+func (m Model) handleSwitchPane() (tea.Model, tea.Cmd) {
+	var lostCmd tea.Cmd
+	if m.focus == FocusLeft {
+		lostCmd = m.leftPane.HandleFocusLost()
+		m.focus = FocusRight
+	} else {
+		lostCmd = m.rightPane.HandleFocusLost()
+		m.focus = FocusLeft
+	}
+	m.syncKeyHints()
+	return m, lostCmd
+}
 
-	case ActionSwitchPane:
-		// Notify the pane losing focus before toggling.
-		var lostCmd tea.Cmd
-		if m.focus == FocusLeft {
-			lostCmd = m.leftPane.HandleFocusLost()
-			m.focus = FocusRight
-		} else {
-			lostCmd = m.rightPane.HandleFocusLost()
-			m.focus = FocusLeft
-		}
-		return m, lostCmd
-
-	case ActionCommandPalette:
-		m.palette.Open(PaletteModeCLI)
+// handleCapture focuses the capture bar unless a form is active in the right
+// pane, in which case the key is forwarded to the focused pane instead.
+func (m Model) handleCapture(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.captureBar == nil {
 		return m, nil
-
-	case ActionFuzzyPalette:
-		m.palette.Open(PaletteModeFuzzy)
-		return m, nil
-
-	case ActionJumpTop:
-		return m.updateFocusedPane(jumpMsg{top: true})
-
-	case ActionJumpBottom:
-		return m.updateFocusedPane(jumpMsg{top: false})
-
-	case ActionCapture:
-		if m.captureBar == nil {
-			return m, nil
-		}
-		// Don't steal focus if a form is active in the right pane.
-		if _, isForm := m.rightPane.(formPane); isForm {
-			return m.updateFocusedPane(msg)
-		}
-		m.captureBar.Focus("")
-		m.statusBar.SetCaptureText(captureDisplayText(""))
-		return m, nil
-
-	case ActionNone:
-		// Unrecognised key — forward to the focused pane.
-		return m.updateFocusedPane(msg)
-
-	default:
-		// Navigation actions are forwarded to the focused pane so it can
-		// scroll its content.
+	}
+	// Don't steal focus if a form is active in the right pane.
+	if _, isForm := m.rightPane.(formPane); isForm {
 		return m.updateFocusedPane(msg)
 	}
+	m.captureBar.Focus("")
+	m.statusBar.SetCaptureText(captureDisplayText(""))
+	return m, nil
 }
 
 // handleCaptureKey processes a key press while the capture bar is focused.
@@ -432,6 +453,7 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.rightPane = fp
 		m.focus = FocusRight
+		m.syncKeyHints()
 		return m, fp.form.Init()
 
 	case "backspace":
@@ -532,23 +554,19 @@ func (m Model) View() tea.View {
 
 		frame = m.layout.Render(leftView, rightView, statusView, m.focus)
 
-		// If the palette is active, overlay it on top of the frame.
+		// If the palette is active, composite it on top of the frame using the
+		// lipgloss v2 Compositor so there is no brittle line-manipulation.
 		if m.palette.IsActive() {
 			overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
 			if overlay != "" {
-				// Simple approach: replace the middle of the frame with the palette.
-				// The overlay is centred horizontally; we place it at line 2 so
-				// the palette content starts below the pane top border row.
-				lines := splitLines(frame)
-				overlayLines := splitLines(overlay)
-				startLine := 2
-				for i, ol := range overlayLines {
-					idx := startLine + i
-					if idx < len(lines) {
-						lines[idx] = ol
-					}
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
 				}
-				frame = joinLines(lines)
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
 			}
 		}
 	}
@@ -562,24 +580,31 @@ func (m Model) View() tea.View {
 // mount their view implementations.
 func (m *Model) MountLeft(pane PaneModel) {
 	m.leftPane = pane
+	m.syncKeyHints()
 }
 
 // MountRight replaces the right pane content. Phase 4 agents call this to
 // mount their view implementations.
 func (m *Model) MountRight(pane PaneModel) {
 	m.rightPane = pane
+	if m.focus == FocusRight {
+		m.syncKeyHints()
+	}
+}
+
+// syncKeyHints pushes the focused pane's keybindings to the status bar.
+func (m *Model) syncKeyHints() {
+	if m.focus == FocusLeft {
+		m.statusBar.SetKeyHints(m.leftPane.KeyBindings())
+	} else {
+		m.statusBar.SetKeyHints(m.rightPane.KeyBindings())
+	}
 }
 
 // RegisterCommand adds a command to the palette. Phase 4 agents call this
 // during initialisation to expose their commands.
 func (m *Model) RegisterCommand(cmd Command) {
 	m.palette.Register(cmd)
-}
-
-// RegisterKeyBinding adds a keybinding to the global key map.
-// Phase 4 agents call this during initialisation to extend navigation.
-func (m *Model) RegisterKeyBinding(binding KeyBinding, action KeyAction) {
-	m.keyMap.RegisterCustom(binding, action)
 }
 
 // Theme returns the currently active theme. Phase 4 agents use this to
@@ -592,6 +617,16 @@ func (m *Model) Theme() *ActiveTheme {
 // the spinner or update its text content.
 func (m *Model) StatusBar() *StatusBar {
 	return &m.statusBar
+}
+
+// renderDetailAsync returns a tea.Cmd that renders the detail pane in a
+// goroutine, sending a detailReadyMsg when complete. This keeps the event
+// loop responsive while Glamour processes markdown.
+func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
+	return func() tea.Msg {
+		pane := m.renderDetail(nodeID)
+		return detailReadyMsg{nodeID: nodeID, pane: pane}
+	}
 }
 
 // renderDetail fetches a node by ID and renders it into a detailPane.
@@ -615,7 +650,7 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 		nodesByID[n.ID] = n
 	}
 
-	renderer := NewDetailRenderer()
+	renderer := m.detailRenderer
 	renderer.Width = m.layout.totalWidth / 2
 	renderer.Colours.BgPrimary       = m.theme.BgPrimary()
 	renderer.Colours.FGPrimary       = m.theme.FgPrimary()
@@ -646,33 +681,6 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	return newViewportPane(vpWidth, vpHeight, content, m.theme.BgPrimary())
 }
 
-// splitLines splits a string on newlines.
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	if start <= len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
-}
-
-// joinLines joins lines with newlines.
-func joinLines(lines []string) string {
-	if len(lines) == 0 {
-		return ""
-	}
-	result := lines[0]
-	for _, l := range lines[1:] {
-		result += "\n" + l
-	}
-	return result
-}
 
 // Ensure Model satisfies tea.Model at compile time.
 var _ tea.Model = Model{}
@@ -683,7 +691,14 @@ func Run(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("initialise TUI: %w", err)
 	}
-	p := tea.NewProgram(m)
+	// Drop unsolicited cursor-position reports — we never request them and
+	// they arrive as noise after some terminal interactions.
+	p := tea.NewProgram(m, tea.WithFilter(func(_ tea.Model, msg tea.Msg) tea.Msg {
+		if _, ok := msg.(tea.CursorPositionMsg); ok {
+			return nil
+		}
+		return msg
+	}))
 	_, err = p.Run()
 	return err
 }
