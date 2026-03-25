@@ -8,9 +8,9 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
-| **CP**   | CP.0, CP.1, CP.2, CP.3, CP.4, CP.5, CP.8 done | CP.6 (link-to-selected), CP.7 (spend form) | — |
+| **CP**   | CP.0–CP.6, CP.8 done | CP.9 (unlinked creation), CP.7 (spend form), CP.10 (edit node), CP.11 (edge mgmt) | CP.7, CP.10 (need CP.9); CP.11 (needs CP.10) |
 | **CL**   | `$EDITOR` used; titles missing on add | Native input (CL.1, CL.2); title prompts (CL.3); category listing (CL.4) | — |
-| **VS**   | VS.0–VS.2, VS.6, VS.7, VS.11 done | VS.3–VS.5, VS.9 (unblocked by VS.1) | VS.8 (needs CP.1), VS.10 (needs VS.1 complete) |
+| **VS**   | VS.0–VS.2, VS.6–VS.8, VS.11 done | VS.3–VS.5, VS.9, VS.10 (all unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
@@ -112,12 +112,13 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2 (done), NV.4 (done)**
-- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.1 (done)**
+- [ ] CP.9. Allow node creation without linking: currently the capture bar requires a focused node in the left pane, and CP.6 unconditionally creates a "related" edge on submit — there is no way to create an unlinked node. Either make linking opt-in (e.g. toggle/checkbox on the form) or allow the capture bar to open when no node is selected. — **no blockers**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-_(none)_
+- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.9**
+- [ ] CP.10. Edit existing node — **depends on CP.9**
+- [ ] CP.11. Edge management in edit form — **depends on CP.10**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -127,6 +128,7 @@ _(none)_
 - [x] CP.3. Build `huh`-based journal entry form (title + multiline body) triggered by `j:` prefix; sets `Date.About`
 - [x] CP.4. Build `huh`-based note creation form triggered by `n:` prefix; title required
 - [x] CP.5. Configure `huh.NewText()` body textarea in all three forms: explicit `.Lines()` heights (task: 6, note: 8, journal: 12), `.Placeholder()` text with keybinding hints, accurate `KeyBindings()` help text (alt+enter for newline, ctrl+e for editor, ctrl+c to cancel) — **depends on NV.1 (done), CP.1 (done)**
+- [x] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2 (done), NV.4 (done)**
 - [x] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix; forms mount in right pane; submission refreshes dashboard
 
 ---
@@ -150,7 +152,7 @@ _(none)_
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
 
-- [ ] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) — **depends on VS.1 (done), CP.1**
+_(none)_
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
@@ -159,6 +161,7 @@ _(none)_
 - [x] VS.2. Consistent border styles: active pane gets `AccentPrimary()` border, inactive gets `Border()` (muted) — already implemented in `layout.go:paneStyle()` — **depends on NV.4 (done)**
 - [x] VS.6. Status bar polish: separator line above bar, keybind hints section, `Spacer()` used for all internal gaps — **depends on NV.9 (done)**
 - [x] VS.7. Command palette visual refinement: selected row now uses `Selection()` background for distinct highlight — **depends on VS.0 (done)**
+- [x] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) via `wyrdHuhTheme()` — **depends on VS.1 (done), CP.1 (done)**
 - [x] VS.11. Replace line-replacement hack in `app.go` with lipgloss v2 `Compositor` (`NewLayer`/`NewCompositor`) for palette overlay — **depends on VS.0 (done)**
 
 ---
@@ -322,8 +325,10 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
-CP6["`*CP.6*<br/>**Capture**<br/>Link-to-selected`"]:::open
-CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
+CP9["`*CP.9*<br/>**Capture**<br/>Unlinked node creation`"]:::open
+CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::blocked
+CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::blocked
+CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::blocked
 
 CL1["`*CL.1*<br/>**CLI Input**<br/>Journal native input`"]:::open
 CL2["`*CL.2*<br/>**CLI Input**<br/>Note native input`"]:::open
@@ -333,7 +338,6 @@ CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::open
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::open
 VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::open
-VS8["`*VS.8*<br/>**Visual**<br/>Huh form theme`"]:::blocked
 VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::open
 VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::open
 
@@ -364,8 +368,6 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-CP6 --> DA5
-
 VS3 --> DA3
 VS5 --> DA4
 VS10 --> DA1 & DA2
@@ -380,11 +382,14 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
+CP9 --> CP7 & CP10
+CP10 --> CP11
+
 NV12 -.->|needs| QE1
 
 m2 --> NV6 & NV12
-m3 --> CP6 & CP7
-m4 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
+m3 --> CP9
+m4 --> VS3 & VS4 & VS5 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
