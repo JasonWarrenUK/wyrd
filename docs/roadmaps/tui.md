@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
-| **CP**   | CP.0–CP.9 done | CP.7 (spend form), CP.10 (edit node), CP.11 (edge mgmt) | CP.11 (needs CP.10) |
+| **CP**   | CP.0–CP.9 done | CP.7 (spend form), CP.10 (edit node) | CP.11 (needs CP.10) |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.2, VS.6–VS.8, VS.11 done | VS.3–VS.5, VS.9, VS.10 (all unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
@@ -112,10 +112,11 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-<a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
-
 - [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **no blockers**
 - [ ] CP.10. Edit existing node — **no blockers**
+
+<a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
+
 - [ ] CP.11. Edge management in edit form — **depends on CP.10**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
@@ -233,27 +234,19 @@ _(none yet)_
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
-- [ ] DA.1. Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites — **depends on VS.10**
-- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10**
-- [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on VS.3**
-- [ ] DA.4. Capture freeze screenshot of schedule view — **depends on VS.5**
-- [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2, DA.1**
-- [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5, DA.1**
-- [ ] DA.7. Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) — **depends on NV.8, DA.1**
-- [ ] DA.8. Integrate screenshots and gifs into README.md under a "Screenshots" section — **depends on DA.2, DA.3, DA.4**
-- [ ] DA.9. Store VHS tapes in `docs/vhs/` directory; add make target `make demo` to regenerate all gifs — **depends on DA.5, DA.6, DA.7**
+_(none — all tasks blocked by VS/RT dependencies)_
 
 <a name="m7-blocked"><h4>Blocked (Milestone 7)</h4></a>
 
-- [ ] DA.1. Install freeze/vhs — **depends on VS.10**
-- [ ] DA.2. Main view screenshot — **depends on VS.10**
-- [ ] DA.3. Budget screenshot — **depends on VS.3**
-- [ ] DA.4. Schedule screenshot — **depends on VS.5**
-- [ ] DA.5. Task creation tape — **depends on CP.2, DA.1**
-- [ ] DA.6. Ritual tape — **depends on RT.5, DA.1**
-- [ ] DA.7. Sync tape — **depends on NV.8, DA.1**
-- [ ] DA.8. README integration — **depends on DA.2, DA.3, DA.4**
-- [ ] DA.9. VHS make target — **depends on DA.5, DA.6, DA.7**
+- [ ] DA.1. Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites — **depends on VS.10**
+- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10, DA.1**
+- [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on VS.3, DA.1**
+- [ ] DA.4. Capture freeze screenshot of schedule view — **depends on VS.5, DA.1**
+- [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1**
+- [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5, DA.1**
+- [ ] DA.7. Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) — **depends on NV.8 (done), DA.1**
+- [ ] DA.8. Integrate screenshots and gifs into README.md under a "Screenshots" section — **depends on DA.2, DA.3, DA.4**
+- [ ] DA.9. Store VHS tapes in `docs/vhs/` directory; add make target `make demo` to regenerate all gifs — **depends on DA.5, DA.6, DA.7**
 
 <a name="m7-done"><h4>Completed (Milestone 7)</h4></a>
 
@@ -323,7 +316,6 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
-CP9["`*CP.9*<br/>**Capture**<br/>Unlinked node creation`"]:::done
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
 CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::open
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::blocked
@@ -377,13 +369,12 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-CP9 --> CP7 & CP10
 CP10 --> CP11
 
 NV12 -.->|needs| QE1
 
 m2 --> NV6 & NV12
-m3 --> CP9
+m3 --> CP7 & CP10 & CP11
 m4 --> VS3 & VS4 & VS5 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8

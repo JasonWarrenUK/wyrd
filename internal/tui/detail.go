@@ -9,6 +9,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/glamour"
+	glamourStyles "github.com/charmbracelet/glamour/styles"
 	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -202,8 +203,19 @@ func (r *DetailRenderer) bg() color.Color {
 // surrounding spacing.
 func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) string {
 	if r.glamRenderer == nil || r.glamWidth != r.Width {
+		// Build a dark style with no background colours and no document margin.
+		// Glamour's default dark style sets Document.Margin = 2 and H1.BackgroundColor,
+		// which bleed through the pane background. Clearing them keeps the terminal
+		// background intact and avoids the highlight/dim artefact on body text.
+		style := glamourStyles.DarkStyleConfig
+		var zero uint = 0
+		style.Document.Margin = &zero
+		style.Document.BackgroundColor = nil
+		style.H1.BackgroundColor = nil
+		style.CodeBlock.BackgroundColor = nil
+
 		renderer, err := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
+			glamour.WithStyles(style),
 			glamour.WithWordWrap(r.Width),
 		)
 		if err != nil {
