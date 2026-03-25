@@ -1,124 +1,65 @@
 package tui
 
-import (
-	tea "charm.land/bubbletea/v2"
-)
+import "charm.land/bubbles/v2/key"
 
-// KeyAction identifies what should happen in response to a key sequence.
-type KeyAction int
-
-const (
-	// ActionNone means the key was not recognised and should be forwarded
-	// to the focused pane.
-	ActionNone KeyAction = iota
-
-	// Navigation actions.
-	ActionMoveLeft
-	ActionMoveDown
-	ActionMoveUp
-	ActionMoveRight
-	ActionJumpTop    // shift+alt+up
-	ActionJumpBottom // shift+alt+down
-
-	// Application actions.
-	ActionSearch         // /
-	ActionSwitchPane     // Ctrl+W
-	ActionQuit           // q or Ctrl+C
-	ActionCommandPalette // :
-	ActionFuzzyPalette   // Ctrl+K
-	ActionCapture        // i
-)
-
-// keyRule maps a key sequence to a KeyAction.
-type keyRule struct {
-	// sequence is the key string as returned by tea.KeyMsg.String().
-	sequence string
-	action   KeyAction
+// AppKeyMap holds the application-level key bindings for the TUI shell.
+// Navigation (up/down/page/jump) is intentionally absent — those are handled
+// by the child components (bubbles/list, bubbles/viewport) via their own
+// KeyMap configuration. Only truly app-level concerns live here.
+//
+// All bindings use modifier keys so that unmodified printable characters
+// (which terminals may emit as fragments of protocol responses) never trigger
+// application actions.
+type AppKeyMap struct {
+	SwitchPane     key.Binding
+	Quit           key.Binding
+	CommandPalette key.Binding
+	FuzzyPalette   key.Binding
+	Capture        key.Binding
 }
 
-// defaultKeyRules are the built-in bindings for the shell frame.
-var defaultKeyRules = []keyRule{
-	{"h", ActionMoveLeft},
-	{"j", ActionMoveDown},
-	{"k", ActionMoveUp},
-	{"l", ActionMoveRight},
-	{"alt+shift+up", ActionJumpTop},
-	{"alt+shift+down", ActionJumpBottom},
-	{"/", ActionSearch},
-	{"ctrl+w", ActionSwitchPane},
-	{"q", ActionQuit},
-	{"ctrl+c", ActionQuit},
-	{":", ActionCommandPalette},
-	{"ctrl+k", ActionFuzzyPalette},
-	{"i", ActionCapture},
+// DefaultAppKeyMap returns the built-in key bindings.
+func DefaultAppKeyMap() AppKeyMap {
+	return AppKeyMap{
+		SwitchPane: key.NewBinding(
+			key.WithKeys("ctrl+w"),
+			key.WithHelp("ctrl+w", "switch pane"),
+		),
+		Quit: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "quit"),
+		),
+		CommandPalette: key.NewBinding(
+			key.WithKeys("ctrl+p"),
+			key.WithHelp("ctrl+p", "command palette"),
+		),
+		FuzzyPalette: key.NewBinding(
+			key.WithKeys("ctrl+k"),
+			key.WithHelp("ctrl+k", "fuzzy search"),
+		),
+		Capture: key.NewBinding(
+			key.WithKeys("ctrl+n"),
+			key.WithHelp("ctrl+n", "capture node"),
+		),
+	}
 }
 
-// KeyMap holds the complete set of active key rules.
-type KeyMap struct {
-	rules []keyRule
-}
-
-// NewKeyMap builds a KeyMap from the default rules.
-func NewKeyMap() *KeyMap {
-	rules := make([]keyRule, len(defaultKeyRules))
-	copy(rules, defaultKeyRules)
-	return &KeyMap{rules: rules}
-}
-
-// Register adds a custom keybinding. Phase 4 agents call this to extend
-// the global key map. If the sequence already exists the new rule replaces it.
-func (km *KeyMap) Register(sequence string, action KeyAction) {
-	for i, r := range km.rules {
-		if r.sequence == sequence {
-			km.rules[i].action = action
-			return
+// AllBindings returns the key bindings as a slice of KeyBinding for display
+// in the command palette and help views.
+func (km AppKeyMap) AllBindings() []KeyBinding {
+	bindings := []key.Binding{
+		km.SwitchPane,
+		km.Quit,
+		km.CommandPalette,
+		km.FuzzyPalette,
+		km.Capture,
+	}
+	result := make([]KeyBinding, 0, len(bindings))
+	for _, b := range bindings {
+		if b.Enabled() {
+			h := b.Help()
+			result = append(result, KeyBinding{Key: h.Key, Description: h.Desc})
 		}
 	}
-	km.rules = append(km.rules, keyRule{sequence: sequence, action: action})
-}
-
-// RegisterCustom is the same as Register but accepts an arbitrary KeyAction
-// value defined by the caller. Callers must use values >= ActionCustomBase.
-func (km *KeyMap) RegisterCustom(binding KeyBinding, action KeyAction) {
-	km.Register(binding.Key, action)
-}
-
-// Dispatch processes a key message and returns the resolved KeyAction.
-func (km *KeyMap) Dispatch(msg tea.KeyPressMsg) KeyAction {
-	key := msg.String()
-	for _, r := range km.rules {
-		if r.sequence == key {
-			return r.action
-		}
-	}
-	return ActionNone
-}
-
-// AllBindings returns the full list of KeyBindings suitable for display
-// in the command palette.
-func (km *KeyMap) AllBindings() []KeyBinding {
-	descriptions := map[KeyAction]string{
-		ActionMoveLeft:       "Move focus left",
-		ActionMoveDown:       "Move focus down",
-		ActionMoveUp:         "Move focus up",
-		ActionMoveRight:      "Move focus right",
-		ActionJumpTop:        "Jump to top",
-		ActionJumpBottom:     "Jump to bottom",
-		ActionSearch:         "Search",
-		ActionSwitchPane:     "Switch pane",
-		ActionQuit:           "Quit",
-		ActionCommandPalette: "Open command palette",
-		ActionFuzzyPalette:   "Fuzzy command search",
-		ActionCapture:        "Capture node",
-	}
-
-	bindings := make([]KeyBinding, 0, len(km.rules))
-	for _, r := range km.rules {
-		desc, ok := descriptions[r.action]
-		if !ok {
-			desc = r.sequence
-		}
-		bindings = append(bindings, KeyBinding{Key: r.sequence, Description: desc})
-	}
-	return bindings
+	return result
 }
