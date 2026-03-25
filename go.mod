@@ -5,6 +5,7 @@ go 1.25.8
 require (
 	charm.land/bubbles/v2 v2.0.0
 	charm.land/bubbletea/v2 v2.0.2
+	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/x/term v0.2.2
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	charm.land/huh/v2 v2.0.3 // indirect
 	github.com/alecthomas/chroma/v2 v2.20.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
