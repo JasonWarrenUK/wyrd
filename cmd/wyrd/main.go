@@ -2,11 +2,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
+	huh "charm.land/huh/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
@@ -105,6 +108,7 @@ run git init, and write .gitattributes for the merge driver.`,
 func addCmd(storePath *string) *cobra.Command {
 	var nodeType string
 	var linkID string
+	var title string
 
 	cmd := &cobra.Command{
 		Use:   "add <body>",
@@ -113,12 +117,27 @@ func addCmd(storePath *string) *cobra.Command {
 Defaults to type 'task' with status 'inbox'.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if title == "" {
+				form := huh.NewForm(
+					huh.NewGroup(
+						huh.NewInput().
+							Title("Title").
+							Value(&title).
+							Placeholder("Short title for the node (optional — press enter to skip)"),
+					),
+				).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
+				if err := form.Run(); err != nil && !errors.Is(err, huh.ErrUserAborted) {
+					return err
+				}
+			}
+
 			s, err := openStore(*storePath)
 			if err != nil {
 				return err
 			}
 			id, err := cli.Add(s, cli.AddOptions{
 				Body:     args[0],
+				Title:    title,
 				NodeType: nodeType,
 				LinkID:   linkID,
 			})
@@ -132,6 +151,7 @@ Defaults to type 'task' with status 'inbox'.`,
 
 	cmd.Flags().StringVar(&nodeType, "type", "", "node type (default: task)")
 	cmd.Flags().StringVar(&linkID, "link", "", "create a 'related' edge to this node ID")
+	cmd.Flags().StringVar(&title, "title", "", "short title for the node")
 	return cmd
 }
 
@@ -141,13 +161,47 @@ func journalCmd(storePath *string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "journal",
-		Short: "Open $EDITOR and create a journal node",
+		Short: "Create a journal node",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			title := time.Now().Format("2006-01-02")
+			var body string
+
+			form := huh.NewForm(
+				huh.NewGroup(
+					huh.NewInput().
+						Title("Title").
+						Value(&title),
+					huh.NewText().
+						Title("Body").
+						Value(&body).
+						Lines(12).
+						Placeholder("Write your journal entry...").
+						Validate(func(s string) error {
+							if s == "" {
+								return errors.New("body is required")
+							}
+							return nil
+						}),
+				),
+			).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
+
+			if err := form.Run(); err != nil {
+				if errors.Is(err, huh.ErrUserAborted) {
+					fmt.Fprintln(os.Stdout, "Cancelled.")
+					return nil
+				}
+				return err
+			}
+
 			s, err := openStore(*storePath)
 			if err != nil {
 				return err
 			}
-			id, err := cli.Journal(s, cli.JournalOptions{LinkID: linkID})
+			id, err := cli.Journal(s, cli.JournalOptions{
+				Title:  title,
+				Body:   body,
+				LinkID: linkID,
+			})
 			if err != nil {
 				return err
 			}
@@ -166,15 +220,43 @@ func noteCmd(storePath *string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "note <title>",
-		Short: "Open $EDITOR and create a note node",
+		Short: "Create a note node",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			title := args[0]
+			var body string
+
+			form := huh.NewForm(
+				huh.NewGroup(
+					huh.NewText().
+						Title("Body").
+						Value(&body).
+						Lines(8).
+						Placeholder("Write your note...").
+						Validate(func(s string) error {
+							if s == "" {
+								return errors.New("body is required")
+							}
+							return nil
+						}),
+				),
+			).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
+
+			if err := form.Run(); err != nil {
+				if errors.Is(err, huh.ErrUserAborted) {
+					fmt.Fprintln(os.Stdout, "Cancelled.")
+					return nil
+				}
+				return err
+			}
+
 			s, err := openStore(*storePath)
 			if err != nil {
 				return err
 			}
 			id, err := cli.Note(s, cli.NoteOptions{
-				Title:  args[0],
+				Title:  title,
+				Body:   body,
 				LinkID: linkID,
 			})
 			if err != nil {
