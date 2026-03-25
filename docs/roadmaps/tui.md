@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
-| **CP**   | CP.0–CP.6, CP.8 done | CP.9 (unlinked creation), CP.7 (spend form), CP.10 (edit node), CP.11 (edge mgmt) | CP.7, CP.10 (need CP.9); CP.11 (needs CP.10) |
+| **CP**   | CP.0–CP.9 done | CP.7 (spend form), CP.10 (edit node), CP.11 (edge mgmt) | CP.11 (needs CP.10) |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.2, VS.6–VS.8, VS.11 done | VS.3–VS.5, VS.9, VS.10 (all unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
@@ -112,12 +112,10 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.9. Allow node creation without linking: currently the capture bar requires a focused node in the left pane, and CP.6 unconditionally creates a "related" edge on submit — there is no way to create an unlinked node. Either make linking opt-in (e.g. toggle/checkbox on the form) or allow the capture bar to open when no node is selected. — **no blockers**
-
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **depends on CP.9**
-- [ ] CP.10. Edit existing node — **depends on CP.9**
+- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **no blockers**
+- [ ] CP.10. Edit existing node — **no blockers**
 - [ ] CP.11. Edge management in edit form — **depends on CP.10**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
@@ -130,6 +128,7 @@ _(none yet)_
 - [x] CP.5. Configure `huh.NewText()` body textarea in all three forms: explicit `.Lines()` heights (task: 6, note: 8, journal: 12), `.Placeholder()` text with keybinding hints, accurate `KeyBindings()` help text (alt+enter for newline, ctrl+e for editor, ctrl+c to cancel) — **depends on NV.1 (done), CP.1 (done)**
 - [x] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2 (done), NV.4 (done)**
 - [x] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix; forms mount in right pane; submission refreshes dashboard
+- [x] CP.9. Allow node creation without linking: when a node is selected, a "Link to selected node?" confirm field (default Yes) appears on all three forms; unchecking it skips edge creation — **no blockers**
 
 ---
 
@@ -324,9 +323,9 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
-CP9["`*CP.9*<br/>**Capture**<br/>Unlinked node creation`"]:::open
-CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::blocked
-CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::blocked
+CP9["`*CP.9*<br/>**Capture**<br/>Unlinked node creation`"]:::done
+CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
+CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::open
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::blocked
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open

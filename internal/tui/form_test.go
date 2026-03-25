@@ -183,6 +183,40 @@ func TestFormKeyBindingsAccurate(t *testing.T) {
 	}
 }
 
+// TestFormConfirmFieldPresentWhenLinked verifies that when a selectedNodeID is
+// provided, the form includes the "Link to selected node?" confirm field.
+func TestFormConfirmFieldPresentWhenLinked(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	fp := tui.NewTaskFormPane(theme, store, clock, "abc-123", "Buy milk")
+
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if !strings.Contains(v, "Link to selected node") {
+		t.Errorf("expected confirm field in view when selectedNodeID is set; got:\n%s", v)
+	}
+}
+
+// TestFormNoConfirmFieldWhenUnlinked verifies that when no selectedNodeID is
+// provided, the form does not include the confirm field.
+func TestFormNoConfirmFieldWhenUnlinked(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk")
+
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if strings.Contains(v, "Link to selected node") {
+		t.Errorf("did not expect confirm field in view when selectedNodeID is empty; got:\n%s", v)
+	}
+}
+
 // TestFormPaneHandleFocusLostIsNoop verifies the interface contract.
 func TestFormPaneHandleFocusLostIsNoop(t *testing.T) {
 	theme := loadTestTheme(t)

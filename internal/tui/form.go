@@ -38,6 +38,7 @@ type formPane struct {
 	clock          types.Clock
 	theme          *ActiveTheme
 	selectedNodeID string // used to create a "related" edge on submit
+	linkToSelected bool   // set by huh.Confirm; only meaningful when selectedNodeID != ""
 
 	// Field values — written by huh via pointer accessors.
 	title  string
@@ -85,39 +86,50 @@ func newTaskFormPane(
 		title:          prefillTitle,
 		status:         "inbox",
 		energy:         "medium",
+		linkToSelected: true,
+	}
+
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Value(&f.title).
+			Validate(notEmpty("title")),
+
+		huh.NewText().
+			Title("Body").
+			Value(&f.body).
+			Lines(6).
+			Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
+
+		huh.NewSelect[string]().
+			Title("Status").
+			Options(
+				huh.NewOption("Inbox", "inbox"),
+				huh.NewOption("Active", "active"),
+				huh.NewOption("Waiting", "waiting"),
+			).
+			Value(&f.status),
+
+		huh.NewSelect[string]().
+			Title("Energy").
+			Options(
+				huh.NewOption("Deep", "deep"),
+				huh.NewOption("Medium", "medium"),
+				huh.NewOption("Low", "low"),
+			).
+			Value(&f.energy),
+	}
+	if selectedNodeID != "" {
+		fields = append(fields, huh.NewConfirm().
+			Title("Link to selected node?").
+			Value(&f.linkToSelected).
+			Affirmative("Yes").
+			Negative("No"),
+		)
 	}
 
 	f.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Value(&f.title).
-				Validate(notEmpty("title")),
-
-			huh.NewText().
-				Title("Body").
-				Value(&f.body).
-				Lines(6).
-				Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
-
-			huh.NewSelect[string]().
-				Title("Status").
-				Options(
-					huh.NewOption("Inbox", "inbox"),
-					huh.NewOption("Active", "active"),
-					huh.NewOption("Waiting", "waiting"),
-				).
-				Value(&f.status),
-
-			huh.NewSelect[string]().
-				Title("Energy").
-				Options(
-					huh.NewOption("Deep", "deep"),
-					huh.NewOption("Medium", "medium"),
-					huh.NewOption("Low", "low"),
-				).
-				Value(&f.energy),
-		),
+		huh.NewGroup(fields...),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f
@@ -149,6 +161,7 @@ func newJournalFormPane(
 		clock:          clock,
 		theme:          theme,
 		selectedNodeID: selectedNodeID,
+		linkToSelected: true,
 	}
 	if prefillTitle != "" {
 		f.title = prefillTitle
@@ -156,19 +169,29 @@ func newJournalFormPane(
 		f.title = clock.Now().Format("2006-01-02")
 	}
 
-	f.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Value(&f.title),
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Value(&f.title),
 
-			huh.NewText().
-				Title("Body").
-				Value(&f.body).
-				Lines(12).
-				Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
-				Validate(notEmpty("body")),
-		),
+		huh.NewText().
+			Title("Body").
+			Value(&f.body).
+			Lines(12).
+			Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
+			Validate(notEmpty("body")),
+	}
+	if selectedNodeID != "" {
+		fields = append(fields, huh.NewConfirm().
+			Title("Link to selected node?").
+			Value(&f.linkToSelected).
+			Affirmative("Yes").
+			Negative("No"),
+		)
+	}
+
+	f.form = huh.NewForm(
+		huh.NewGroup(fields...),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f
@@ -201,21 +224,32 @@ func newNoteFormPane(
 		theme:          theme,
 		selectedNodeID: selectedNodeID,
 		title:          prefillTitle,
+		linkToSelected: true,
+	}
+
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Value(&f.title).
+			Validate(notEmpty("title")),
+
+		huh.NewText().
+			Title("Body").
+			Value(&f.body).
+			Lines(8).
+			Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
+	}
+	if selectedNodeID != "" {
+		fields = append(fields, huh.NewConfirm().
+			Title("Link to selected node?").
+			Value(&f.linkToSelected).
+			Affirmative("Yes").
+			Negative("No"),
+		)
 	}
 
 	f.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Value(&f.title).
-				Validate(notEmpty("title")),
-
-			huh.NewText().
-				Title("Body").
-				Value(&f.body).
-				Lines(8).
-				Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
-		),
+		huh.NewGroup(fields...),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f
@@ -246,7 +280,7 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			// Non-fatal — emit cancel so the pane is restored.
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
-		if f.selectedNodeID != "" {
+		if f.selectedNodeID != "" && f.linkToSelected {
 			now := f.clock.Now()
 			edge := &types.Edge{
 				ID:      uuid.New().String(),
