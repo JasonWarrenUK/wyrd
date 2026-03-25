@@ -1,1070 +1,1053 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wyrd TUI Roadmap</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wyrd TUI — Roadmap</title>
+<link rel="stylesheet" href="https://unpkg.com/reasonable-colors@0.4.0/reasonable-colors.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ REASONABLE COLORS SEMANTIC ALIASES ============ */
+  :root {
+    --color-milestone:      var(--color-sky-4);
+    --color-milestone-bg:   var(--color-sky-1);
+    --color-milestone-text: var(--color-sky-6);
+    --color-primary:        var(--color-pink-4);
+    --color-primary-bg:     var(--color-pink-1);
+    --color-primary-text:   var(--color-pink-6);
+    --color-done:           var(--color-teal-4);
+    --color-done-bg:        var(--color-teal-1);
+    --color-in-progress:    var(--color-sky-4);
+    --color-in-progress-bg: var(--color-sky-1);
+    --color-todo:           var(--color-gray-4);
+    --color-todo-bg:        var(--color-gray-1);
+    --color-blocked:        var(--color-pink-4);
+    --color-blocked-bg:     var(--color-pink-1);
+  }
 
-  <!-- Reasonable Colors -->
-  <link rel="stylesheet" href="https://unpkg.com/reasonable-colors@0.4.0/reasonable-colors.css">
-
-  <!-- IBM Plex Sans + Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <!-- Mermaid -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-
-  <style>
-    /* ─── Semantic palette ─────────────────────────────────────────────── */
+  @media (prefers-color-scheme: dark) {
     :root {
-      --color-milestone:        var(--color-sky-4);
-      --color-milestone-bg:     var(--color-sky-1);
-      --color-milestone-text:   var(--color-sky-6);
-
-      --color-primary:          var(--color-pink-4);
-      --color-primary-bg:       var(--color-pink-1);
-      --color-primary-text:     var(--color-pink-6);
-
-      --color-done:             var(--color-teal-4);
-      --color-done-bg:          var(--color-teal-1);
-
-      --color-in-progress:      var(--color-sky-4);
-      --color-in-progress-bg:   var(--color-sky-1);
-
-      --color-todo:             var(--color-gray-4);
-      --color-todo-bg:          var(--color-gray-1);
-
-      --color-blocked:          var(--color-pink-4);
-      --color-blocked-bg:       var(--color-pink-1);
-
-      --color-surface:          #ffffff;
-      --color-surface-2:        var(--color-gray-1);
-      --color-border:           #e0e0e0;
-      --color-text:             #1a1a1a;
-      --color-text-muted:       var(--color-gray-5);
-
-      --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
-      --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
-
-      --radius: 6px;
-      --radius-lg: 10px;
+      --color-milestone:      var(--color-sky-2);
+      --color-milestone-bg:   var(--color-sky-6);
+      --color-milestone-text: var(--color-sky-1);
+      --color-primary:        var(--color-pink-2);
+      --color-primary-bg:     var(--color-pink-6);
+      --color-primary-text:   var(--color-pink-1);
+      --color-done:           var(--color-teal-2);
+      --color-done-bg:        var(--color-teal-6);
+      --color-in-progress:    var(--color-sky-2);
+      --color-in-progress-bg: var(--color-sky-6);
+      --color-todo:           var(--color-gray-3);
+      --color-todo-bg:        var(--color-gray-6);
+      --color-blocked:        var(--color-pink-3);
+      --color-blocked-bg:     var(--color-pink-5);
     }
+  }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --color-milestone:        var(--color-sky-2);
-        --color-milestone-bg:     var(--color-sky-6);
-        --color-milestone-text:   var(--color-sky-1);
+  /* ============ PAGE THEME ============ */
+  :root {
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
 
-        --color-primary:          var(--color-pink-2);
-        --color-primary-bg:       var(--color-pink-6);
-        --color-primary-text:     var(--color-pink-1);
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --surface-elevated: #ffffff;
+    --border: rgba(0, 0, 0, 0.07);
+    --border-bright: rgba(0, 0, 0, 0.13);
+    --text: #1a1a1f;
+    --text-dim: #6b7280;
+    --accent: #007590;
+    --accent-dim: rgba(0, 117, 144, 0.08);
+  }
 
-        --color-done:             var(--color-teal-2);
-        --color-done-bg:          var(--color-teal-6);
-
-        --color-in-progress:      var(--color-sky-2);
-        --color-in-progress-bg:   var(--color-sky-6);
-
-        --color-todo:             var(--color-gray-3);
-        --color-todo-bg:          var(--color-gray-6);
-
-        --color-blocked:          var(--color-pink-3);
-        --color-blocked-bg:       var(--color-pink-5);
-
-        --color-surface:          #131318;
-        --color-surface-2:        #1e1e26;
-        --color-border:           #2e2e3a;
-        --color-text:             #e8e8f0;
-        --color-text-muted:       var(--color-gray-3);
-      }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1117;
+      --surface: #161b24;
+      --surface-elevated: #1c2333;
+      --border: rgba(255, 255, 255, 0.07);
+      --border-bright: rgba(255, 255, 255, 0.13);
+      --text: #e4eaf4;
+      --text-dim: #8b99b0;
+      --accent: #aee9ff;
+      --accent-dim: rgba(174, 233, 255, 0.1);
     }
+  }
 
-    /* ─── Reset & base ─────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* ============ RESET ============ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html { scroll-behavior: smooth; }
+  body {
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+  }
 
-    body {
-      font-family: var(--font-sans);
-      font-size: 15px;
-      line-height: 1.6;
-      background: var(--color-surface);
-      color: var(--color-text);
-      min-height: 100vh;
+  /* ============ SIDEBAR NAV ============ */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 32px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar__title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    padding: 0 8px;
+  }
+
+  .sidebar a {
+    display: block;
+    padding: 7px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    text-decoration: none;
+    color: var(--text-dim);
+    transition: background 0.12s, color 0.12s;
+    line-height: 1.3;
+  }
+
+  .sidebar a:hover {
+    background: var(--accent-dim);
+    color: var(--text);
+  }
+
+  .sidebar a.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .sidebar__divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+  }
+
+  /* ============ MAIN CONTENT ============ */
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 48px 56px;
+    max-width: 1100px;
+  }
+
+  .page-header {
+    margin-bottom: 48px;
+  }
+
+  .page-header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+
+  .page-header__meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ============ SECTION HEADINGS ============ */
+  .section {
+    margin-bottom: 64px;
+    scroll-margin-top: 32px;
+  }
+
+  .section__heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section__heading h2 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }
+
+  .section__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* ============ CARDS ============ */
+  .ve-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    position: relative;
+  }
+
+  .ve-card--hero {
+    background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+    border-color: color-mix(in srgb, var(--border) 50%, var(--accent) 50%);
+    padding: 32px 36px;
+  }
+
+  /* ============ KPI ============ */
+  .kpi-hero {
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .kpi-hero__number {
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    color: var(--accent);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kpi-hero__label {
+    font-size: 15px;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  .kpi-hero__sub {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ============ MILESTONE MINI-CARDS ============ */
+  .milestone-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .m-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    min-width: 0;
+  }
+
+  .m-card__name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+    overflow-wrap: break-word;
+  }
+
+  .m-card__count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .progress-fill--done     { background: var(--color-done); }
+  .progress-fill--progress { background: var(--color-in-progress); }
+  .progress-fill--todo     { background: var(--color-todo); }
+  .progress-fill--blocked  { background: var(--color-blocked); }
+
+  /* ============ MILESTONE DETAIL ============ */
+  .milestone-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .milestone-card summary {
+    list-style: none;
+    padding: 16px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    user-select: none;
+  }
+
+  .milestone-card summary::-webkit-details-marker { display: none; }
+
+  .milestone-card summary::before {
+    content: '\25B6';
+    font-size: 10px;
+    color: var(--text-dim);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .milestone-card[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  .milestone-card summary:hover {
+    background: var(--accent-dim);
+  }
+
+  .milestone-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--color-milestone-bg);
+    color: var(--color-milestone);
+    flex-shrink: 0;
+  }
+
+  .milestone-title {
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  .milestone-stats {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .milestone-body {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ============ TASK GROUPS ============ */
+  .task-group {
+    margin-top: 16px;
+  }
+
+  .task-group__header {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .task-group__header--done     { color: var(--color-done); }
+  .task-group__header--progress { color: var(--color-in-progress); }
+  .task-group__header--todo     { color: var(--color-todo); }
+  .task-group__header--blocked  { color: var(--color-blocked); }
+
+  .task-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .task-item {
+    position: relative;
+    padding-left: 28px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+    min-width: 0;
+  }
+
+  .task-item::before {
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 20px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .task-item--done::before     { content: '\2713'; color: var(--color-done); }
+  .task-item--progress::before { content: '\25CF'; color: var(--color-in-progress); }
+  .task-item--todo::before     { content: '\25CB'; color: var(--color-todo); }
+  .task-item--blocked::before  { content: '\2717'; color: var(--color-blocked); }
+
+  .task-item.done-item { color: var(--text-dim); }
+
+  .task-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-right: 4px;
+    vertical-align: middle;
+    display: inline-block;
+  }
+
+  .task-id--done     { background: var(--color-done-bg);         color: var(--color-done); }
+  .task-id--progress { background: var(--color-in-progress-bg);  color: var(--color-in-progress); }
+  .task-id--todo     { background: var(--color-todo-bg);         color: var(--color-todo); }
+  .task-id--blocked  { background: var(--color-blocked-bg);      color: var(--color-blocked); }
+
+  .task-dep {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  /* ============ MERMAID SHELL ============ */
+  .diagram-shell { position: relative; }
+
+  .diagram-shell__hint {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    opacity: 0.7;
+  }
+
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    min-height: 400px;
+    cursor: grab;
+  }
+
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+
+  .zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 2px;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+  }
+
+  .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+
+  .zoom-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 0 6px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .mermaid-viewport {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+  }
+
+  .mermaid-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  /* CRITICAL: no page-level .node class. Mermaid owns .node */
+  .mermaid .nodeLabel { color: var(--text) !important; font-family: var(--font-body) !important; font-size: 13px !important; }
+  .mermaid .edgeLabel { color: var(--text-dim) !important; background-color: var(--bg) !important; font-family: var(--font-mono) !important; font-size: 11px !important; }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+  .mermaid .node rect, .mermaid .node circle, .mermaid .node polygon { stroke-width: 1.5px !important; }
+  .mermaid .edge-pattern-solid { stroke-width: 1.5px !important; }
+
+  /* ============ NEXT UP ============ */
+  .next-up-group { margin-bottom: 24px; }
+
+  .next-up-group__title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-milestone);
+    background: var(--color-milestone-bg);
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+
+  .next-up-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .next-up-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 13px;
+    min-width: 0;
+  }
+
+  .next-up-item .task-id { flex-shrink: 0; }
+
+  .next-up-item__desc {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  /* ============ ANIMATIONS ============ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate {
+    animation: fadeUp 0.4s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.05s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
     }
+  }
 
-    /* Blueprint grid background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(to right, var(--color-border) 1px, transparent 1px),
-        linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
-      background-size: 40px 40px;
-      opacity: 0.3;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ─── Layout ───────────────────────────────────────────────────────── */
-    .page-wrap {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      grid-template-rows: auto 1fr;
-      grid-template-areas:
-        "header header"
-        "nav    main";
-      min-height: 100vh;
-    }
-
-    @media (max-width: 768px) {
-      .page-wrap {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "header"
-          "nav"
-          "main";
-      }
-    }
-
-    /* ─── Header ───────────────────────────────────────────────────────── */
-    .page-header {
-      grid-area: header;
-      background: var(--color-surface);
-      border-bottom: 1px solid var(--color-border);
-      padding: 20px 32px;
-      display: flex;
-      align-items: baseline;
-      gap: 16px;
-    }
-
-    .page-header h1 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      color: var(--color-milestone-text, var(--color-text));
-    }
-
-    .page-header .subtitle {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-    }
-
-    /* ─── Sidebar nav ──────────────────────────────────────────────────── */
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    body { flex-direction: column; }
     .sidebar {
-      grid-area: nav;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-      padding: 24px 0;
-      background: var(--color-surface-2);
-      border-right: 1px solid var(--color-border);
-    }
-
-    .sidebar-label {
-      font-family: var(--font-mono);
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--color-text-muted);
-      padding: 6px 20px 2px;
-    }
-
-    .sidebar a {
-      display: block;
-      padding: 5px 20px;
-      font-size: 0.82rem;
-      color: var(--color-text);
-      text-decoration: none;
-      border-left: 2px solid transparent;
-      transition: border-color 0.15s, background 0.15s;
-    }
-
-    .sidebar a:hover {
-      background: var(--color-milestone-bg);
-      border-left-color: var(--color-milestone);
-      color: var(--color-milestone-text);
-    }
-
-    @media (max-width: 768px) {
-      .sidebar {
-        position: relative;
-        height: auto;
-        display: flex;
-        overflow-x: auto;
-        padding: 8px 12px;
-        border-right: none;
-        border-bottom: 1px solid var(--color-border);
-      }
-      .sidebar-label { display: none; }
-      .sidebar a {
-        white-space: nowrap;
-        padding: 6px 12px;
-        border-left: none;
-        border-bottom: 2px solid transparent;
-      }
-      .sidebar a:hover {
-        border-bottom-color: var(--color-milestone);
-        border-left-color: transparent;
-      }
-    }
-
-    /* ─── Main content ─────────────────────────────────────────────────── */
-    main {
-      grid-area: main;
-      padding: 40px 48px;
-      min-width: 0;
-    }
-
-    @media (max-width: 768px) {
-      main { padding: 24px 16px; }
-    }
-
-    section {
-      margin-bottom: 64px;
-      scroll-margin-top: 20px;
-    }
-
-    .section-heading {
-      font-size: 1rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--color-milestone);
-      margin-bottom: 24px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--color-border);
-      font-family: var(--font-mono);
-    }
-
-    /* ─── Hero KPI card ────────────────────────────────────────────────── */
-    .card--hero {
-      background: var(--color-primary-bg);
-      border: 1px solid var(--color-primary);
-      border-radius: var(--radius-lg);
-      text-align: center;
-      padding: 32px;
-      margin-bottom: 32px;
-    }
-
-    .hero-count {
-      font-size: 2.8rem;
-      font-weight: 600;
-      font-family: var(--font-mono);
-      color: var(--color-primary-text, var(--color-primary));
-      letter-spacing: -0.03em;
-      line-height: 1;
-    }
-
-    .hero-label {
-      font-size: 0.9rem;
-      color: var(--color-text-muted);
-      margin-top: 6px;
-    }
-
-    /* ─── Milestone mini-cards grid ────────────────────────────────────── */
-    .milestone-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-    }
-
-    .milestone-grid > * { min-width: 0; }
-
-    .ms-card {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: 16px;
-      min-width: 0;
-    }
-
-    .ms-card-name {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--color-milestone-text, var(--color-milestone));
-      font-family: var(--font-mono);
-      margin-bottom: 4px;
-      overflow-wrap: break-word;
-    }
-
-    .ms-card-count {
-      font-size: 1.4rem;
-      font-weight: 600;
-      font-family: var(--font-mono);
-      color: var(--color-text);
-      line-height: 1.2;
-    }
-
-    .ms-card-total {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      margin-bottom: 10px;
-    }
-
-    .progress-bar {
-      height: 6px;
-      background: var(--color-border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      border-radius: 3px;
-    }
-
-    .progress-fill--done     { background: var(--color-done); }
-    .progress-fill--progress { background: var(--color-in-progress); }
-    .progress-fill--blocked  { background: var(--color-blocked); }
-    .progress-fill--todo     { background: var(--color-todo); }
-
-    /* ─── Milestone detail cards ────────────────────────────────────────── */
-    .milestone-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    details.ms-detail {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    details.ms-detail[open] {
-      border-color: var(--color-milestone);
-    }
-
-    details.ms-detail > summary {
-      padding: 16px 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      list-style: none;
-      user-select: none;
-    }
-
-    details.ms-detail > summary::-webkit-details-marker { display: none; }
-
-    .ms-chevron {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      color: var(--color-text-muted);
-      transition: transform 0.2s;
-      flex-shrink: 0;
-    }
-
-    details[open] .ms-chevron { transform: rotate(90deg); }
-
-    .ms-summary-label {
-      font-weight: 600;
-      font-size: 0.92rem;
-      flex: 1;
-      min-width: 0;
-      overflow-wrap: break-word;
-    }
-
-    .ms-summary-pct {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-      flex-shrink: 0;
-    }
-
-    .ms-mini-bar {
-      width: 80px;
-      height: 4px;
-      background: var(--color-border);
-      border-radius: 2px;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    .ms-mini-fill {
-      height: 100%;
-      border-radius: 2px;
-    }
-
-    .ms-detail-body {
-      padding: 0 20px 20px;
-    }
-
-    /* ─── Task groups ───────────────────────────────────────────────────── */
-    .task-group {
-      margin-bottom: 16px;
-    }
-
-    .task-group-label {
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .dot {
-      display: inline-block;
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .dot--done     { background: var(--color-done); }
-    .dot--progress { background: var(--color-in-progress); }
-    .dot--todo     { background: var(--color-todo); }
-    .dot--blocked  { background: var(--color-blocked); }
-
-    .task-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
+      position: static;
+      width: 100%;
+      height: auto;
+      flex-direction: row;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      overflow-x: auto;
+      overflow-y: hidden;
       gap: 4px;
     }
-
-    .task-item {
-      position: relative;
-      padding-left: 56px;
-      padding-top: 4px;
-      padding-bottom: 4px;
-      min-width: 0;
-    }
-
-    .task-id {
-      position: absolute;
-      left: 0;
-      top: 4px;
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      font-weight: 500;
-      padding: 1px 5px;
-      border-radius: 3px;
-      white-space: nowrap;
-    }
-
-    .task-id--done     { background: var(--color-done-bg);         color: var(--color-done); }
-    .task-id--progress { background: var(--color-in-progress-bg);  color: var(--color-in-progress); }
-    .task-id--todo     { background: var(--color-todo-bg);          color: var(--color-todo); }
-    .task-id--blocked  { background: var(--color-blocked-bg);       color: var(--color-blocked); }
-
-    .task-desc {
-      display: block;
-      font-size: 0.83rem;
-      line-height: 1.5;
-      overflow-wrap: break-word;
-      color: var(--color-text);
-    }
-
-    .task-dep {
-      display: block;
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      color: var(--color-text-muted);
-      margin-top: 1px;
-    }
-
-    code {
-      font-family: var(--font-mono);
-      font-size: 0.85em;
-      background: var(--color-surface-2);
-      padding: 1px 4px;
-      border-radius: 3px;
-      border: 1px solid var(--color-border);
-    }
-
-    /* ─── Diagram shell ─────────────────────────────────────────────────── */
-    .diagram-shell {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .diagram-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 14px;
-      background: var(--color-surface-2);
-      border-bottom: 1px solid var(--color-border);
-    }
-
-    .diagram-toolbar button {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      padding: 3px 9px;
-      border: 1px solid var(--color-border);
-      border-radius: 4px;
-      background: var(--color-surface);
-      color: var(--color-text);
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-
-    .diagram-toolbar button:hover {
-      background: var(--color-milestone-bg);
-      border-color: var(--color-milestone);
-      color: var(--color-milestone-text);
-    }
-
-    .diagram-toolbar .hint {
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      color: var(--color-text-muted);
-      margin-left: auto;
-    }
-
-    .mermaid-wrap {
-      overflow: hidden;
-      cursor: grab;
-      position: relative;
-      min-height: 300px;
-      max-height: 600px;
-    }
-
-    .mermaid-wrap:active { cursor: grabbing; }
-    .mermaid-wrap.expanded { max-height: none; height: 90vh; }
-
-    .mermaid-inner {
-      transform-origin: 0 0;
-      will-change: transform;
-      padding: 24px;
-    }
-
-    .mermaid-inner svg {
-      display: block;
-      max-width: none !important;
-    }
-
-    /* ─── Next Up ───────────────────────────────────────────────────────── */
-    .next-up-group {
-      margin-bottom: 24px;
-    }
-
-    .next-up-group-label {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--color-milestone);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 8px;
-    }
-
-    .next-up-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .next-up-item {
-      position: relative;
-      padding-left: 60px;
-      padding-top: 3px;
-      padding-bottom: 3px;
-      min-width: 0;
-    }
-
-    .ms-pill {
-      display: inline-block;
-      font-family: var(--font-mono);
-      font-size: 0.65rem;
-      padding: 1px 6px;
-      border-radius: 10px;
-      background: var(--color-milestone-bg);
-      color: var(--color-milestone-text, var(--color-milestone));
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-
-    .intro-note {
-      font-size: 0.83rem;
-      color: var(--color-text-muted);
-      margin-bottom: 24px;
-    }
-  </style>
+    .sidebar__title, .sidebar__divider { display: none; }
+    .sidebar a { white-space: nowrap; }
+    .main { padding: 24px 20px; }
+    .kpi-hero__number { font-size: 36px; }
+    .milestone-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
 </head>
 <body>
 
-<div class="page-wrap">
+<nav class="sidebar">
+  <div class="sidebar__title">Roadmap</div>
+  <a href="#overview">Overview</a>
+  <div class="sidebar__divider"></div>
+  <a href="#milestones">Milestones</a>
+  <a href="#m1" style="padding-left:16px; font-size:12px">M1 Wire &amp; Launch</a>
+  <a href="#m2" style="padding-left:16px; font-size:12px">M2 Navigation</a>
+  <a href="#m3" style="padding-left:16px; font-size:12px">M3 Capture</a>
+  <a href="#m4" style="padding-left:16px; font-size:12px">M4 Visual Polish</a>
+  <a href="#m5" style="padding-left:16px; font-size:12px">M5 Logging</a>
+  <a href="#m6" style="padding-left:16px; font-size:12px">M6 Rituals</a>
+  <a href="#m7" style="padding-left:16px; font-size:12px">M7 Docs</a>
+  <a href="#cli" style="padding-left:16px; font-size:12px">CLI Input</a>
+  <a href="#qe" style="padding-left:16px; font-size:12px">Query Engine</a>
+  <div class="sidebar__divider"></div>
+  <a href="#dependency-graph">Dependency Graph</a>
+  <a href="#next-up">Next Up</a>
+</nav>
 
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
-  <header class="page-header">
-    <h1>Wyrd &mdash; TUI Roadmap</h1>
-    <span class="subtitle">2026-03-24</span>
+<main class="main">
+
+  <header class="page-header animate" style="--i:0">
+    <h1>Wyrd TUI Roadmap</h1>
+    <div class="page-header__meta">9 milestones &middot; 75 tasks &middot; 2026-03-25</div>
   </header>
 
-  <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
-  <nav class="sidebar" aria-label="Page sections">
-    <div class="sidebar-label">Sections</div>
-    <a href="#s-overview">Overview</a>
-    <a href="#s-milestones">Milestones</a>
-    <a href="#s-graph">Dependency Graph</a>
-    <a href="#s-next">Next Up</a>
-  </nav>
+  <!-- 01: OVERVIEW -->
+  <section id="overview" class="section animate" style="--i:1">
+    <div class="section__heading">
+      <span class="section__label">01</span>
+      <h2>Overview</h2>
+    </div>
 
-  <!-- ── Main ───────────────────────────────────────────────────────────── -->
-  <main>
+    <div class="ve-card ve-card--hero kpi-hero">
+      <div class="kpi-hero__number">35 / 75</div>
+      <div class="kpi-hero__label">tasks complete</div>
+      <div class="kpi-hero__sub">47% overall progress</div>
+    </div>
 
-    <!-- 1. Overview ─────────────────────────────────────────────────────── -->
-    <section id="s-overview">
-      <h2 class="section-heading">Overview</h2>
-
-      <div class="card--hero">
-        <div class="hero-count">29 / 73</div>
-        <div class="hero-label">tasks complete &mdash; 40% overall</div>
+    <div class="milestone-grid">
+      <div class="m-card">
+        <div class="m-card__name">M1 Wire &amp; Launch</div>
+        <div class="m-card__count">9 / 9 &mdash; 100%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--done" style="width:100%"></div></div>
       </div>
+      <div class="m-card">
+        <div class="m-card__name">M2 Navigation &amp; Display</div>
+        <div class="m-card__count">11 / 13 &mdash; 85%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--done" style="width:85%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">M3 Capture &amp; Forms</div>
+        <div class="m-card__count">8 / 12 &mdash; 67%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--done" style="width:67%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">M4 Visual Polish</div>
+        <div class="m-card__count">7 / 12 &mdash; 58%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--done" style="width:58%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">M5 Logging</div>
+        <div class="m-card__count">0 / 7 &mdash; 0%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:100%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">M6 Rituals</div>
+        <div class="m-card__count">0 / 8 &mdash; 0%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--blocked" style="width:75%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">M7 Docs Assets</div>
+        <div class="m-card__count">0 / 9 &mdash; 0%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--blocked" style="width:100%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">CLI Input</div>
+        <div class="m-card__count">0 / 4 &mdash; 0%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:100%"></div></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card__name">Query Engine</div>
+        <div class="m-card__count">0 / 1 &mdash; 0%</div>
+        <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:100%"></div></div>
+      </div>
+    </div>
+  </section>
 
-      <div class="milestone-grid">
-        <div class="ms-card">
-          <div class="ms-card-name">M1 &middot; Wire &amp; Launch</div>
-          <div class="ms-card-count">9</div>
-          <div class="ms-card-total">of 9 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--done" style="width:100%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">M2 &middot; Navigation</div>
-          <div class="ms-card-count">12</div>
-          <div class="ms-card-total">of 14 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:86%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">M3 &middot; Capture &amp; Forms</div>
-          <div class="ms-card-count">7</div>
-          <div class="ms-card-total">of 9 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:78%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">M4 &middot; Visual Polish</div>
-          <div class="ms-card-count">1</div>
-          <div class="ms-card-total">of 12 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--blocked" style="width:8%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">M5 &middot; Logging</div>
-          <div class="ms-card-count">0</div>
-          <div class="ms-card-total">of 7 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:1%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">M6 &middot; Rituals</div>
-          <div class="ms-card-count">0</div>
-          <div class="ms-card-total">of 8 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--blocked" style="width:1%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">M7 &middot; Docs Assets</div>
-          <div class="ms-card-count">0</div>
-          <div class="ms-card-total">of 9 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--blocked" style="width:1%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">CLI Input</div>
-          <div class="ms-card-count">0</div>
-          <div class="ms-card-total">of 4 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:1%"></div></div>
-        </div>
-        <div class="ms-card">
-          <div class="ms-card-name">Query Engine</div>
-          <div class="ms-card-count">0</div>
-          <div class="ms-card-total">of 1 done</div>
-          <div class="progress-bar"><div class="progress-fill progress-fill--todo" style="width:1%"></div></div>
+  <!-- 02: MILESTONES -->
+  <section id="milestones" class="section animate" style="--i:2">
+    <div class="section__heading">
+      <span class="section__label">02</span>
+      <h2>Milestones</h2>
+    </div>
+
+    <!-- M1 -->
+    <details id="m1" class="milestone-card">
+      <summary>
+        <span class="milestone-badge">M1</span>
+        <span class="milestone-title">Wire &amp; Launch</span>
+        <span class="milestone-stats">9 / 9 &mdash; 100%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--done">Completed (9)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.1</span> Replace "TUI coming soon" stub with <code>tui.Run()</code></li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.2</span> Wire index and queryRunner into <code>tui.Config</code></li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.3</span> Verify store opens before TUI launch; errors propagate to Cobra</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.4</span> Mount default dashboard left pane on startup</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.5</span> Ensure q / Ctrl+C exits cleanly and restores terminal state</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.6</span> Smoke test: launch TUI in headless Bubble Tea mode</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.7</span> Dashboard query user-configurable via saved <code>dashboard</code> view</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.8</span> Structured <code>date {}</code> object on nodes with created, modified, due, etc.</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">WL.9</span> First-class <code>title</code> field on Node</li>
+          </ul>
         </div>
       </div>
-    </section>
+    </details>
 
-    <!-- 2. Milestones ───────────────────────────────────────────────────── -->
-    <section id="s-milestones">
-      <h2 class="section-heading">Milestones</h2>
-      <div class="milestone-list">
-
-        <!-- M1 — complete, collapsed -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M1 &mdash; Wire &amp; Launch</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--done" style="width:100%"></div></div>
-            <span class="ms-summary-pct">9/9 &mdash; 100%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--done"></span> Done</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--done">WL.1</span><span class="task-desc">Replace "TUI coming soon" stub with <code>tui.Run()</code></span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.2</span><span class="task-desc">Wire <code>index</code> and <code>queryRunner</code> into TUI config</span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.3</span><span class="task-desc">Verify store opens; propagate errors to Cobra exit</span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.4</span><span class="task-desc">Mount default dashboard on startup</span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.5</span><span class="task-desc">Clean exit via <code>q</code> / <code>Ctrl+C</code></span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.6</span><span class="task-desc">Smoke test: headless TUI initialisation</span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.7</span><span class="task-desc">User-configurable dashboard via <code>views/dashboard.jsonc</code></span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.8</span><span class="task-desc">Structured <code>date {}</code> object on nodes</span></li>
-                <li class="task-item"><span class="task-id task-id--done">WL.9</span><span class="task-desc">First-class <code>title</code> field on nodes</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- M2 -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M2 &mdash; Core Navigation &amp; Display</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--todo" style="width:86%"></div></div>
-            <span class="ms-summary-pct">12/14 &mdash; 86%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">NV.6</span>
-                  <span class="task-desc"><code>/</code> fuzzy filter on node list</span>
-                  <span class="task-dep">depends on NV.1 (done)</span>
-                </li>
-                <li class="task-item"><span class="task-id task-id--todo">NV.12</span>
-                  <span class="task-desc">Grouped sections in left pane with visually distinct subheadings</span>
-                  <span class="task-dep">depends on NV.1 (done), QE.1</span>
-                </li>
-              </ul>
-            </div>
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--done"></span> Done (12)</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--done">NV.1</span><span class="task-desc">Wire <code>bubbles/list</code> into left pane</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.3</span><span class="task-desc">Wire <code>bubbles/viewport</code> into right pane</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.4</span><span class="task-desc">Visual focus indicator; <code>Ctrl+W</code> pane switching</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.5</span><span class="task-desc"><code>j</code>/<code>k</code> scroll in left pane</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.7</span><span class="task-desc"><code>alt+shift+&#8593;/&#8595;</code> jump to top/bottom</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.8</span><span class="task-desc"><code>bubbles/spinner</code> for async operations</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.9</span><span class="task-desc">Status bar: node ID, type badges, edge count</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.10</span><span class="task-desc">Glamour markdown rendering in right pane</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.11</span><span class="task-desc">Computed column alignment in left-pane list</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.13</span><span class="task-desc">Left pane selection wired to right pane detail</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.14</span><span class="task-desc">Broadcast all messages to all panes</span></li>
-                <li class="task-item"><span class="task-id task-id--done">NV.15</span><span class="task-desc"><code>HandleFocusLost()</code> on PaneModel interface</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- M3 -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M3 &mdash; Capture &amp; Forms</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--todo" style="width:78%"></div></div>
-            <span class="ms-summary-pct">7/9 &mdash; 78%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">CP.6</span>
-                  <span class="task-desc">Link-to-selected: offer edge to focused node on form submit</span>
-                  <span class="task-dep">depends on CP.2, NV.4 (all done)</span>
-                </li>
-                <li class="task-item"><span class="task-id task-id--todo">CP.7</span>
-                  <span class="task-desc"><code>huh</code>-based spend entry form</span>
-                  <span class="task-dep">depends on CP.1 (done)</span>
-                </li>
-              </ul>
-            </div>
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--done"></span> Done (7)</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--done">CP.0</span><span class="task-desc">Wire capture bar: <code>i</code> focuses, Enter dispatches form, Esc cancels</span></li>
-                <li class="task-item"><span class="task-id task-id--done">CP.1</span><span class="task-desc">Add <code>charm.land/huh/v2</code> dependency</span></li>
-                <li class="task-item"><span class="task-id task-id--done">CP.2</span><span class="task-desc"><code>huh</code> task creation form triggered by <code>t:</code> prefix</span></li>
-                <li class="task-item"><span class="task-id task-id--done">CP.3</span><span class="task-desc"><code>huh</code> journal entry form triggered by <code>j:</code> prefix</span></li>
-                <li class="task-item"><span class="task-id task-id--done">CP.4</span><span class="task-desc"><code>huh</code> note creation form triggered by <code>n:</code> prefix</span></li>
-                <li class="task-item"><span class="task-id task-id--done">CP.5</span><span class="task-desc">Configure textarea body fields: per-type line heights, placeholders, accurate keybinding help</span></li>
-                <li class="task-item"><span class="task-id task-id--done">CP.8</span><span class="task-desc">Capture bar dispatches forms; forms mount in right pane; submit refreshes dashboard</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- M4 -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M4 &mdash; Visual Polish</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--blocked" style="width:8%"></div></div>
-            <span class="ms-summary-pct">1/12 &mdash; 8%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do (unblocked)</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">VS.1</span><span class="task-desc">Audit all view renderers for raw ANSI / hardcoded colours</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">VS.2</span><span class="task-desc">Consistent border styles: accent on active, muted on inactive pane</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">VS.6</span><span class="task-desc">Lipgloss status bar: node info left, keybind hints right</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">VS.7</span><span class="task-desc">Lipgloss command palette styling</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">VS.11</span><span class="task-desc">Layer/Canvas overlay compositing for command palette</span></li>
-              </ul>
-            </div>
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--blocked"></span> Blocked on VS.1</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--blocked">VS.3</span><span class="task-desc">Budget progress bars: colour-banded with percentage label</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">VS.4</span><span class="task-desc">Timeline view: horizontal event blocks with Lipgloss</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">VS.5</span><span class="task-desc">Schedule view: energy-level colour gradient</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">VS.8</span><span class="task-desc">Style huh forms to match active theme</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">VS.9</span><span class="task-desc">Node type badge rendering: coloured pill labels</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">VS.10</span><span class="task-desc">Test all four shipped themes (Cairn, Peat, Kiln, Fell)</span></li>
-              </ul>
-            </div>
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--done"></span> Done</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--done">VS.0</span><span class="task-desc">Charm ecosystem v2 upgrade (bubbletea, lipgloss, bubbles)</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- M5 -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M5 &mdash; Logging &amp; Observability</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--todo" style="width:1%"></div></div>
-            <span class="ms-summary-pct">0/7 &mdash; 0%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">LG.1</span><span class="task-desc">Add <code>github.com/charmbracelet/log</code> dependency</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">LG.2</span>
-                  <span class="task-desc">Initialise logger; write to <code>~/.wyrd/wyrd.log</code></span>
-                  <span class="task-dep">depends on LG.1</span>
-                </li>
-                <li class="task-item"><span class="task-id task-id--todo">LG.3</span>
-                  <span class="task-desc"><code>--log-level</code> flag and <code>WYRD_LOG_LEVEL</code> env var</span>
-                  <span class="task-dep">depends on LG.2</span>
-                </li>
-                <li class="task-item"><span class="task-id task-id--todo">LG.4</span>
-                  <span class="task-desc">Log store node/edge writes at debug level</span>
-                  <span class="task-dep">depends on LG.2</span>
-                </li>
-                <li class="task-item"><span class="task-id task-id--todo">LG.5</span>
-                  <span class="task-desc">Log sync git commands and outcomes</span>
-                  <span class="task-dep">depends on LG.2</span>
-                </li>
-                <li class="task-item"><span class="task-id task-id--todo">LG.6</span>
-                  <span class="task-desc">Log query text and row count at debug</span>
-                  <span class="task-dep">depends on LG.2</span>
-                </li>
-              </ul>
-            </div>
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--blocked"></span> Blocked on LG.2</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--blocked">LG.7</span><span class="task-desc">TUI debug overlay: <code>:log</code> tails <code>wyrd.log</code> in a viewport</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- M6 -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M6 &mdash; Rituals &amp; Workflows</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--blocked" style="width:1%"></div></div>
-            <span class="ms-summary-pct">0/8 &mdash; 0%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do (unblocked)</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">RT.1</span><span class="task-desc">Ritual scheduler on startup</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">RT.2</span><span class="task-desc">Mount ritual runner in full-screen overlay pane</span></li>
-              </ul>
-            </div>
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--blocked"></span> Blocked on RT.2</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--blocked">RT.3</span><span class="task-desc">Query steps in ritual</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">RT.4</span><span class="task-desc">Prompt steps via huh</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">RT.5</span><span class="task-desc">Gate step</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">RT.6</span><span class="task-desc">Deferral sequence (<code>Esc Esc d</code>)</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">RT.7</span><span class="task-desc">Action step</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">RT.8</span><span class="task-desc">Palette ritual command</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- M7 -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">M7 &mdash; Documentation Assets</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--blocked" style="width:1%"></div></div>
-            <span class="ms-summary-pct">0/9 &mdash; 0%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--blocked"></span> All blocked (waiting on VS.10, VS.3, VS.5, RT.5)</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--blocked">DA.1</span><span class="task-desc">Install <code>freeze</code> and <code>vhs</code></span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.2</span><span class="task-desc">Freeze screenshot: main TUI view</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.3</span><span class="task-desc">Freeze screenshot: budget view</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.4</span><span class="task-desc">Freeze screenshot: schedule view</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.5</span><span class="task-desc">VHS tape: task creation flow</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.6</span><span class="task-desc">VHS tape: ritual run</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.7</span><span class="task-desc">VHS tape: <code>wyrd sync</code></span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.8</span><span class="task-desc">Integrate screenshots/gifs into README</span></li>
-                <li class="task-item"><span class="task-id task-id--blocked">DA.9</span><span class="task-desc"><code>make demo</code> target for regenerating all gifs</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- CLI Input -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">CLI Input</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--todo" style="width:1%"></div></div>
-            <span class="ms-summary-pct">0/4 &mdash; 0%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do (all unblocked)</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">CL.1</span><span class="task-desc">Replace <code>$EDITOR</code> in <code>wyrd journal</code> with native huh form</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">CL.2</span><span class="task-desc">Replace <code>$EDITOR</code> in <code>wyrd note</code> with native huh form</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">CL.3</span><span class="task-desc">Fix <code>wyrd add</code> to prompt for title field</span></li>
-                <li class="task-item"><span class="task-id task-id--todo">CL.4</span><span class="task-desc">List available budget categories on <code>wyrd spend</code> failure</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-        <!-- Query Engine -->
-        <details class="ms-detail">
-          <summary>
-            <span class="ms-chevron">&#9654;</span>
-            <span class="ms-summary-label">Query Engine</span>
-            <div class="ms-mini-bar"><div class="ms-mini-fill progress-fill--todo" style="width:1%"></div></div>
-            <span class="ms-summary-pct">0/1 &mdash; 0%</span>
-          </summary>
-          <div class="ms-detail-body">
-            <div class="task-group">
-              <div class="task-group-label"><span class="dot dot--todo"></span> To Do</div>
-              <ul class="task-list">
-                <li class="task-item"><span class="task-id task-id--todo">QE.1</span><span class="task-desc"><code>UNION</code> / <code>UNION ALL</code> support &mdash; required for multi-type dashboard queries and grouped sections (NV.12)</span></li>
-              </ul>
-            </div>
-          </div>
-        </details>
-
-      </div>
-    </section>
-
-    <!-- 3. Dependency Graph ──────────────────────────────────────────────── -->
-    <section id="s-graph">
-      <h2 class="section-heading">Dependency Graph</h2>
-
-      <div class="diagram-shell">
-        <div class="diagram-toolbar">
-          <button id="btn-zoom-in">+</button>
-          <button id="btn-zoom-out">&minus;</button>
-          <button id="btn-zoom-reset">reset</button>
-          <button id="btn-expand">&#x26F6; expand</button>
-          <span class="hint">Ctrl+scroll to zoom &middot; drag to pan</span>
+    <!-- M2 -->
+    <details id="m2" class="milestone-card" open>
+      <summary>
+        <span class="milestone-badge">M2</span>
+        <span class="milestone-title">Core Navigation &amp; Display</span>
+        <span class="milestone-stats">11 / 13 &mdash; 85%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (2)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">NV.6</span> Fuzzy filter on node list using <code>bubbles/list</code> built-in filter <span class="task-dep">depends on NV.1</span></li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">NV.12</span> Grouped sections in left pane: group headers as non-selectable separators <span class="task-dep">depends on NV.1, QE.1</span></li>
+          </ul>
         </div>
-        <div class="mermaid-wrap" id="mermaid-wrap">
-          <div class="mermaid-inner" id="mermaid-inner">
-            <pre class="mermaid">
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "primaryColor": "#e3f7ff", "primaryTextColor": "#001f28", "primaryBorderColor": "#007590", "lineColor": "#999999"}}}%%
+        <div class="task-group">
+          <div class="task-group__header task-group__header--done">Completed (11)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.1</span> Wire <code>bubbles/list</code> into left pane</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.3</span> Wire <code>bubbles/viewport</code> into right detail pane</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.4</span> Visual focus indicator; Ctrl+W pane switching</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.5</span> j/k scroll in left pane, synced to detail pane</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.7</span> alt+shift+up/down jump-to-top/bottom</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.8</span> Wire <code>bubbles/spinner</code> for async operations</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.9</span> Status bar: focused node ID, type badges, edge count</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.10</span> Render node body markdown via Glamour</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.11</span> Aligned columns in left-pane list with computed widths</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.13</span> Left pane selection wired to right pane detail render</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.14</span> Broadcast all messages to all panes unconditionally</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">NV.15</span> Add <code>HandleFocusLost()</code> to PaneModel interface</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- M3 -->
+    <details id="m3" class="milestone-card" open>
+      <summary>
+        <span class="milestone-badge">M3</span>
+        <span class="milestone-title">Capture &amp; Forms</span>
+        <span class="milestone-stats">8 / 12 &mdash; 67%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (1)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">CP.9</span> Allow unlinked node creation — make edge linking opt-in</li>
+          </ul>
+        </div>
+        <div class="task-group">
+          <div class="task-group__header task-group__header--blocked">Blocked (3)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">CP.7</span> huh-based spend entry form <span class="task-dep">depends on CP.9</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">CP.10</span> Edit existing node <span class="task-dep">depends on CP.9</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">CP.11</span> Edge management in edit form <span class="task-dep">depends on CP.10</span></li>
+          </ul>
+        </div>
+        <div class="task-group">
+          <div class="task-group__header task-group__header--done">Completed (8)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.0</span> Wire capture bar: i focuses, Enter dispatches, Escape cancels</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.1</span> Add <code>charm.land/huh/v2</code> dependency</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.2</span> huh-based task creation form via <code>t:</code> prefix</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.3</span> huh-based journal entry form via <code>j:</code> prefix</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.4</span> huh-based note creation form via <code>n:</code> prefix</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.5</span> Configure textarea heights and keybinding hints in all forms</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.6</span> Wire link-to-selected: offer edge on submit when node focused</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">CP.8</span> Wire capture bar to open appropriate form by prefix</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- M4 -->
+    <details id="m4" class="milestone-card" open>
+      <summary>
+        <span class="milestone-badge">M4</span>
+        <span class="milestone-title">Visual Polish</span>
+        <span class="milestone-stats">7 / 12 &mdash; 58%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (5)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">VS.3</span> Budget progress bars — colour-banded OK/Caution/Over with percentage label</li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">VS.4</span> Timeline view — horizontal event blocks with Lipgloss padding</li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">VS.5</span> Schedule view — energy-level colour gradient (green to amber to red)</li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">VS.9</span> Node type badge rendering — short coloured pill labels</li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">VS.10</span> Test all four themes: Cairn, Peat, Kiln, Fell</li>
+          </ul>
+        </div>
+        <div class="task-group">
+          <div class="task-group__header task-group__header--done">Completed (7)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.0</span> Upgrade Charm ecosystem to v2</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.1</span> Audit renderers for hardcoded hex colours; switch to <code>color.Color</code></li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.2</span> Consistent border styles: active pane uses <code>AccentPrimary()</code></li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.6</span> Status bar polish: separator, keybind hints, <code>Spacer()</code></li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.7</span> Command palette: <code>Selection()</code> background highlight</li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.8</span> Style huh forms to match active theme via <code>wyrdHuhTheme()</code></li>
+            <li class="task-item task-item--done done-item"><span class="task-id task-id--done">VS.11</span> Replace line-replacement hack with Lipgloss v2 Compositor</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- M5 -->
+    <details id="m5" class="milestone-card">
+      <summary>
+        <span class="milestone-badge">M5</span>
+        <span class="milestone-title">Logging &amp; Observability</span>
+        <span class="milestone-stats">0 / 7 &mdash; 0%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (1)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">LG.1</span> Add <code>github.com/charmbracelet/log</code> dependency</li>
+          </ul>
+        </div>
+        <div class="task-group">
+          <div class="task-group__header task-group__header--blocked">Blocked (6)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">LG.2</span> Initialise logger in main.go; write to <code>~/.wyrd/wyrd.log</code> <span class="task-dep">depends on LG.1</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">LG.3</span> Add <code>--log-level</code> flag and <code>WYRD_LOG_LEVEL</code> env var <span class="task-dep">depends on LG.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">LG.4</span> Thread logger through store operations <span class="task-dep">depends on LG.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">LG.5</span> Thread logger through sync <span class="task-dep">depends on LG.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">LG.6</span> Thread logger through query engine <span class="task-dep">depends on LG.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">LG.7</span> TUI debug overlay (<code>:log</code> palette command) <span class="task-dep">depends on LG.2</span></li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- M6 -->
+    <details id="m6" class="milestone-card">
+      <summary>
+        <span class="milestone-badge">M6</span>
+        <span class="milestone-title">Rituals &amp; Workflows</span>
+        <span class="milestone-stats">0 / 8 &mdash; 0%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (2)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">RT.1</span> Ritual scheduler on startup</li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">RT.2</span> Mount ritual runner in full-screen overlay pane</li>
+          </ul>
+        </div>
+        <div class="task-group">
+          <div class="task-group__header task-group__header--blocked">Blocked (6)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">RT.3</span> Query steps in ritual <span class="task-dep">depends on RT.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">RT.4</span> Prompt steps via huh <span class="task-dep">depends on RT.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">RT.5</span> Gate step <span class="task-dep">depends on RT.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">RT.6</span> Deferral sequence (Esc Esc d) <span class="task-dep">depends on RT.5</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">RT.7</span> Action step <span class="task-dep">depends on RT.2</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">RT.8</span> Palette ritual command <span class="task-dep">depends on RT.2</span></li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- M7 -->
+    <details id="m7" class="milestone-card">
+      <summary>
+        <span class="milestone-badge">M7</span>
+        <span class="milestone-title">Documentation Assets</span>
+        <span class="milestone-stats">0 / 9 &mdash; 0%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--blocked">All Blocked (9)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.1</span> Install freeze &amp; vhs <span class="task-dep">depends on VS.10</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.2</span> Main view freeze screenshot <span class="task-dep">depends on VS.10</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.3</span> Budget freeze screenshot <span class="task-dep">depends on VS.3</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.4</span> Schedule freeze screenshot <span class="task-dep">depends on VS.5</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.5</span> VHS tape: task creation flow <span class="task-dep">depends on CP.2, DA.1</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.6</span> VHS tape: ritual run <span class="task-dep">depends on RT.5, DA.1</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.7</span> VHS tape: wyrd sync <span class="task-dep">depends on NV.8, DA.1</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.8</span> Integrate screenshots into README <span class="task-dep">depends on DA.2, DA.3, DA.4</span></li>
+            <li class="task-item task-item--blocked"><span class="task-id task-id--blocked">DA.9</span> VHS tapes in docs/vhs/ + make demo target <span class="task-dep">depends on DA.5, DA.6, DA.7</span></li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- CLI -->
+    <details id="cli" class="milestone-card">
+      <summary>
+        <span class="milestone-badge" style="background:var(--color-todo-bg); color:var(--color-todo)">CLI</span>
+        <span class="milestone-title">CLI Input</span>
+        <span class="milestone-stats">0 / 4 &mdash; 0%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (4)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">CL.1</span> Replace <code>$EDITOR</code> in <code>wyrd journal</code> with huh form <span class="task-dep">depends on CP.1</span></li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">CL.2</span> Replace <code>$EDITOR</code> in <code>wyrd note</code> with huh form <span class="task-dep">depends on CP.1</span></li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">CL.3</span> Fix <code>wyrd add</code> to prompt for Title as required field</li>
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">CL.4</span> List available budget categories when <code>wyrd spend</code> fails</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- QE -->
+    <details id="qe" class="milestone-card">
+      <summary>
+        <span class="milestone-badge" style="background:var(--color-todo-bg); color:var(--color-todo)">QE</span>
+        <span class="milestone-title">Query Engine Enhancements</span>
+        <span class="milestone-stats">0 / 1 &mdash; 0%</span>
+      </summary>
+      <div class="milestone-body">
+        <div class="task-group">
+          <div class="task-group__header task-group__header--todo">To Do (1)</div>
+          <ul class="task-list">
+            <li class="task-item task-item--todo"><span class="task-id task-id--todo">QE.1</span> Implement UNION / UNION ALL &mdash; required for NV.12 grouped sections</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+  </section>
+
+  <!-- 03: DEPENDENCY GRAPH -->
+  <section id="dependency-graph" class="section animate" style="--i:3">
+    <div class="section__heading">
+      <span class="section__label">03</span>
+      <h2>Dependency Graph</h2>
+    </div>
+
+    <section class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + scroll to zoom &middot; drag to pan &middot; double-click to fit &middot; click &#x26F6; to expand</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading...</span>
+        </div>
+        <div class="mermaid-viewport">
+          <div class="mermaid mermaid-canvas"></div>
+        </div>
+      </div>
+      <script type="text/plain" class="diagram-source">
 graph TD
 
-m2["`**M2**
-Navigation`"]:::mile
-m3["`**M3**
-Capture`"]:::mile
-m4["`**M4**
-Visual`"]:::mile
-m5["`**M5**
-Logging`"]:::mile
-m6["`**M6**
-Rituals`"]:::mile
-m7["`**M7**
-Docs`"]:::mile
-mcli["`**CLI**`"]:::mile
-mqe["`**QE**`"]:::mile
-
 QE1["`*QE.1*
-UNION`"]:::open
+UNION support`"]:::open
+
 NV6["`*NV.6*
 Fuzzy filter`"]:::open
 NV12["`*NV.12*
 Grouped sections`"]:::open
-CP6["`*CP.6*
-Link-selected`"]:::open
+
+CP9["`*CP.9*
+Unlinked creation`"]:::open
 CP7["`*CP.7*
-Spend form`"]:::open
+Spend form`"]:::blocked
+CP10["`*CP.10*
+Edit node`"]:::blocked
+CP11["`*CP.11*
+Edge mgmt`"]:::blocked
+
 CL1["`*CL.1*
-Journal CLI`"]:::open
+Journal native`"]:::open
 CL2["`*CL.2*
-Note CLI`"]:::open
+Note native`"]:::open
 CL3["`*CL.3*
-wyrd add title`"]:::open
+add title`"]:::open
 CL4["`*CL.4*
-Spend cats`"]:::open
-VS1["`*VS.1*
-Audit views`"]:::open
-VS2["`*VS.2*
-Pane borders`"]:::open
+spend cats`"]:::open
+
 VS3["`*VS.3*
-Budget bars`"]:::blocked
+Budget bars`"]:::open
 VS4["`*VS.4*
-Timeline`"]:::blocked
+Timeline`"]:::open
 VS5["`*VS.5*
-Schedule`"]:::blocked
-VS6["`*VS.6*
-Status bar`"]:::open
-VS7["`*VS.7*
-Cmd palette`"]:::open
-VS8["`*VS.8*
-huh theme`"]:::blocked
+Schedule`"]:::open
 VS9["`*VS.9*
-Type badges`"]:::blocked
+Type badges`"]:::open
 VS10["`*VS.10*
-Four themes`"]:::blocked
-VS11["`*VS.11*
-Overlay`"]:::open
+Four themes`"]:::open
+
 LG1["`*LG.1*
-Add dep`"]:::open
+Log dep`"]:::open
 LG2["`*LG.2*
 Init logger`"]:::blocked
 LG3["`*LG.3*
 Log level`"]:::blocked
 LG4["`*LG.4*
-Store logs`"]:::blocked
+Store log`"]:::blocked
 LG5["`*LG.5*
-Sync logs`"]:::blocked
+Sync log`"]:::blocked
 LG6["`*LG.6*
-Query logs`"]:::blocked
+Query log`"]:::blocked
 LG7["`*LG.7*
 TUI overlay`"]:::blocked
+
 RT1["`*RT.1*
 Scheduler`"]:::open
 RT2["`*RT.2*
@@ -1081,6 +1064,7 @@ RT7["`*RT.7*
 Action step`"]:::blocked
 RT8["`*RT.8*
 Palette cmd`"]:::blocked
+
 DA1["`*DA.1*
 freeze/vhs`"]:::blocked
 DA2["`*DA.2*
@@ -1088,261 +1072,415 @@ Main freeze`"]:::blocked
 DA3["`*DA.3*
 Budget freeze`"]:::blocked
 DA4["`*DA.4*
-Schedule`"]:::blocked
+Schedule freeze`"]:::blocked
 DA5["`*DA.5*
-Task vhs`"]:::blocked
+Task VHS`"]:::blocked
 DA6["`*DA.6*
-Ritual vhs`"]:::blocked
+Ritual VHS`"]:::blocked
 DA7["`*DA.7*
-Sync vhs`"]:::blocked
+Sync VHS`"]:::blocked
 DA8["`*DA.8*
 README imgs`"]:::blocked
 DA9["`*DA.9*
 make demo`"]:::blocked
 
-CP6 --> DA5
-VS1 --> VS3 & VS4 & VS5 & VS8 & VS9 & VS10
 VS3 --> DA3
 VS5 --> DA4
-VS10 --> DA1 & DA2
+VS10 --> DA1
+VS10 --> DA2
+
 LG1 --> LG2
-LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
-RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
-RT5 --> RT6 & DA6
-DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
-DA2 & DA3 & DA4 --> DA8
-DA5 & DA6 & DA7 --> DA9
+LG2 --> LG3
+LG2 --> LG4
+LG2 --> LG5
+LG2 --> LG6
+LG2 --> LG7
+
+RT2 --> RT3
+RT2 --> RT4
+RT2 --> RT5
+RT2 --> RT7
+RT2 --> RT8
+RT5 --> RT6
+RT5 --> DA6
+
+DA1 --> DA2
+DA1 --> DA3
+DA1 --> DA4
+DA1 --> DA5
+DA1 --> DA6
+DA1 --> DA7
+DA2 --> DA8
+DA3 --> DA8
+DA4 --> DA8
+DA5 --> DA9
+DA6 --> DA9
+DA7 --> DA9
+
+CP9 --> CP7
+CP9 --> CP10
+CP10 --> CP11
+
 NV12 -.->|needs| QE1
-m2 --> NV6 & NV12
-m3 --> CP6 & CP7
-m4 --> VS1 & VS2 & VS3 & VS4 & VS5 & VS6 & VS7 & VS8 & VS9 & VS10 & VS11
-m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
-m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
-m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
-mcli --> CL1 & CL2 & CL3 & CL4
-mqe --> QE1
 
-classDef open    fill:#f6f6f6,stroke:#6f6f6f,color:#1a1a1a;
-classDef blocked fill:#fff7fb,stroke:#d2008f,color:#4b0030;
-classDef mile    fill:#e3f7ff,stroke:#007590,color:#001f28,font-weight:bold;
-classDef done    fill:#d7fff7,stroke:#007c6e,color:#002922;
-            </pre>
-          </div>
-        </div>
-      </div>
+classDef open fill:#e3f7ff88,stroke:#007590,stroke-width:1.5px
+classDef blocked fill:#fff1f588,stroke:#d2008f,stroke-width:1.5px
+      </script>
     </section>
+  </section>
 
-    <!-- 4. Next Up ──────────────────────────────────────────────────────── -->
-    <section id="s-next">
-      <h2 class="section-heading">Next Up</h2>
-      <p class="intro-note">Unblocked tasks &mdash; all dependencies satisfied or complete.</p>
+  <!-- 04: NEXT UP -->
+  <section id="next-up" class="section animate" style="--i:4">
+    <div class="section__heading">
+      <span class="section__label">04</span>
+      <h2>Next Up</h2>
+    </div>
+    <p style="font-size:13px; color:var(--text-dim); margin-bottom:28px;">Unblocked tasks, ready to pick up immediately.</p>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">M2 &mdash; Navigation</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">NV.6</span>
-            <span class="task-desc"><code>/</code> fuzzy filter on node list</span>
-            <span class="ms-pill">M2</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">M2 Navigation</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">NV.6</span>
+          <span class="next-up-item__desc">Fuzzy filter on node list using bubbles/list built-in filter</span>
+        </li>
+      </ul>
+    </div>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">M3 &mdash; Capture &amp; Forms</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">CP.6</span>
-            <span class="task-desc">Link-to-selected: offer edge to focused node on submit</span>
-            <span class="ms-pill">M3</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">CP.7</span>
-            <span class="task-desc"><code>huh</code>-based spend entry form</span>
-            <span class="ms-pill">M3</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">M3 Capture</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">CP.9</span>
+          <span class="next-up-item__desc">Allow unlinked node creation — make edge linking opt-in</span>
+        </li>
+      </ul>
+    </div>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">M4 &mdash; Visual Polish</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">VS.1</span>
-            <span class="task-desc">Audit all view renderers for raw ANSI / hardcoded colours <strong>(unblocks VS.3–VS.5, VS.8–VS.10)</strong></span>
-            <span class="ms-pill">M4</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">VS.2</span>
-            <span class="task-desc">Consistent pane border styles</span>
-            <span class="ms-pill">M4</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">VS.6</span>
-            <span class="task-desc">Lipgloss status bar</span>
-            <span class="ms-pill">M4</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">VS.7</span>
-            <span class="task-desc">Lipgloss command palette styling</span>
-            <span class="ms-pill">M4</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">VS.11</span>
-            <span class="task-desc">Layer/Canvas overlay compositing for command palette</span>
-            <span class="ms-pill">M4</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">M4 Visual Polish</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">VS.3</span>
+          <span class="next-up-item__desc">Budget progress bars — colour-banded OK/Caution/Over</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">VS.4</span>
+          <span class="next-up-item__desc">Timeline view — horizontal event blocks with Lipgloss styling</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">VS.5</span>
+          <span class="next-up-item__desc">Schedule view — energy-level colour gradient (green to red)</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">VS.9</span>
+          <span class="next-up-item__desc">Node type badge rendering — coloured pill labels</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">VS.10</span>
+          <span class="next-up-item__desc">Test all four shipped themes: Cairn, Peat, Kiln, Fell</span>
+        </li>
+      </ul>
+    </div>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">M5 &mdash; Logging</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">LG.1</span>
-            <span class="task-desc">Add <code>charmbracelet/log</code> dependency <strong>(unblocks entire logging chain)</strong></span>
-            <span class="ms-pill">M5</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">M5 Logging</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">LG.1</span>
+          <span class="next-up-item__desc">Add charmbracelet/log dependency — unblocks all of M5</span>
+        </li>
+      </ul>
+    </div>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">M6 &mdash; Rituals</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">RT.1</span>
-            <span class="task-desc">Ritual scheduler on startup</span>
-            <span class="ms-pill">M6</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">RT.2</span>
-            <span class="task-desc">Mount ritual runner in overlay pane <strong>(unblocks RT.3–RT.8)</strong></span>
-            <span class="ms-pill">M6</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">M6 Rituals</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">RT.1</span>
+          <span class="next-up-item__desc">Ritual scheduler on startup</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">RT.2</span>
+          <span class="next-up-item__desc">Mount ritual runner in full-screen overlay — unblocks RT.3–RT.8</span>
+        </li>
+      </ul>
+    </div>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">CLI Input</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">CL.1</span>
-            <span class="task-desc">Replace <code>$EDITOR</code> in <code>wyrd journal</code></span>
-            <span class="ms-pill">CLI</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">CL.2</span>
-            <span class="task-desc">Replace <code>$EDITOR</code> in <code>wyrd note</code></span>
-            <span class="ms-pill">CLI</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">CL.3</span>
-            <span class="task-desc">Fix <code>wyrd add</code> to prompt for title</span>
-            <span class="ms-pill">CLI</span>
-          </li>
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">CL.4</span>
-            <span class="task-desc">List available budget categories on spend failure</span>
-            <span class="ms-pill">CLI</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">CLI Input</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">CL.1</span>
+          <span class="next-up-item__desc">Replace $EDITOR in wyrd journal with huh form</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">CL.2</span>
+          <span class="next-up-item__desc">Replace $EDITOR in wyrd note with huh form</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">CL.3</span>
+          <span class="next-up-item__desc">Fix wyrd add to prompt for Title as required field</span>
+        </li>
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">CL.4</span>
+          <span class="next-up-item__desc">List available budget categories on spend failure</span>
+        </li>
+      </ul>
+    </div>
 
-      <div class="next-up-group">
-        <div class="next-up-group-label">Query Engine</div>
-        <ul class="next-up-list">
-          <li class="next-up-item">
-            <span class="task-id task-id--todo" style="position:absolute;left:0;top:3px;">QE.1</span>
-            <span class="task-desc"><code>UNION</code> / <code>UNION ALL</code> support <strong>(unblocks NV.12)</strong></span>
-            <span class="ms-pill">QE</span>
-          </li>
-        </ul>
-      </div>
+    <div class="next-up-group">
+      <div class="next-up-group__title">Query Engine</div>
+      <ul class="next-up-list">
+        <li class="next-up-item">
+          <span class="task-id task-id--todo">QE.1</span>
+          <span class="next-up-item__desc">Implement UNION / UNION ALL — unblocks NV.12 grouped sections</span>
+        </li>
+      </ul>
+    </div>
 
-    </section>
-  </main>
-</div>
+  </section>
 
-<script>
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const cfg = {
+    fitPadding: 28, minHeight: 360, maxHeightPx: 1200, maxHeightVh: 0.88,
+    maxInitialZoom: 1.8, minZoom: 0.05, maxZoom: 6.5, zoomStep: 0.14, readabilityFloor: 0.45
+  };
+
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  let activeDrag = null;
+  addEventListener('mousemove', (e) => activeDrag?.onMove(e));
+  addEventListener('mouseup',   () => { activeDrag?.onEnd(); activeDrag = null; });
+
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.registerLayoutLoaders(elkLayouts);
   mermaid.initialize({
-    startOnLoad: true,
+    startOnLoad: false,
     theme: 'base',
+    look: 'classic',
+    layout: 'elk',
     themeVariables: {
-      fontSize: '16px',
-      primaryColor: '#e3f7ff',
-      primaryTextColor: '#001f28',
-      primaryBorderColor: '#007590',
-      lineColor: '#999999'
-    },
-    flowchart: { useMaxWidth: false, htmlLabels: true }
+      fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+      fontSize: '13px',
+      primaryColor:         isDark ? '#001f28' : '#e3f7ff',
+      primaryBorderColor:   isDark ? '#aee9ff' : '#007590',
+      primaryTextColor:     isDark ? '#e3f7ff' : '#001f28',
+      secondaryColor:       isDark ? '#2a0016' : '#fff7fb',
+      secondaryBorderColor: isDark ? '#ffdcec' : '#d2008f',
+      secondaryTextColor:   isDark ? '#fff7fb' : '#2a0016',
+      tertiaryColor:        isDark ? '#001c14' : '#d7fff7',
+      tertiaryBorderColor:  isDark ? '#5ee7d6' : '#007c6e',
+      tertiaryTextColor:    isDark ? '#d7fff7' : '#001c14',
+      lineColor:            isDark ? '#8b99b0' : '#6b7280',
+      noteBkgColor:         isDark ? '#1c2333' : '#fafafa',
+      noteTextColor:        isDark ? '#e4eaf4' : '#1a1a1f',
+      noteBorderColor:      isDark ? '#8b99b0' : '#6b7280',
+    }
   });
 
-  (function () {
-    const wrap  = document.getElementById('mermaid-wrap');
-    const inner = document.getElementById('mermaid-inner');
-    let scale = 1, tx = 0, ty = 0;
-    let dragging = false, startX = 0, startY = 0, baseTx = 0, baseTy = 0;
+  function initDiagram(shell) {
+    const wrap     = shell.querySelector('.mermaid-wrap');
+    const viewport = shell.querySelector('.mermaid-viewport');
+    const canvas   = shell.querySelector('.mermaid-canvas');
+    const source   = shell.querySelector('.diagram-source');
+    const label    = shell.querySelector('.zoom-label');
+    if (!wrap || !viewport || !canvas || !source || !label) return;
 
-    function applyTransform() {
-      inner.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    let zoom = 1, fitMode = 'contain', panX = 0, panY = 0, svgW = 0, svgH = 0;
+    let sx = 0, sy = 0, spx = 0, spy = 0, touchDist = 0, touchCx = 0, touchCy = 0;
+
+    function constrainPan() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const rW = svgW * zoom, rH = svgH * zoom, pad = cfg.fitPadding;
+      panX = (rW + pad*2 <= vpW) ? (vpW-rW)/2 : clamp(panX, vpW-rW-pad, pad);
+      panY = (rH + pad*2 <= vpH) ? (vpH-rH)/2 : clamp(panY, vpH-rH-pad, pad);
     }
-
-    function zoom(delta, cx, cy) {
-      const prev = scale;
-      scale = Math.min(4, Math.max(0.15, scale + delta));
-      const factor = scale / prev;
-      const rect = wrap.getBoundingClientRect();
-      const ox = (cx !== undefined ? cx : rect.width / 2) - rect.left;
-      const oy = (cy !== undefined ? cy : rect.height / 2) - rect.top;
-      tx = ox - factor * (ox - tx);
-      ty = oy - factor * (oy - ty);
+    function applyTransform() {
+      const svg = canvas.querySelector('svg');
+      if (!svg || !svgW) return;
+      constrainPan();
+      svg.style.width  = (svgW * zoom) + 'px';
+      svg.style.height = (svgH * zoom) + 'px';
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+      label.textContent = Math.round(zoom * 100) + '% \u2014 ' + fitMode;
+    }
+    function canPan() {
+      return svgW * zoom + cfg.fitPadding*2 > viewport.clientWidth
+          || svgH * zoom + cfg.fitPadding*2 > viewport.clientHeight;
+    }
+    function computeSmartFit() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const aW = Math.max(80, vpW - cfg.fitPadding*2);
+      const aH = Math.max(80, vpH - cfg.fitPadding*2);
+      const contain = Math.min(aW / svgW, aH / svgH);
+      let z = contain, mode = 'contain';
+      if (contain < cfg.readabilityFloor) {
+        const chartR = svgH / svgW, vpR = vpH / Math.max(vpW, 1);
+        if (chartR >= vpR) { z = aW / svgW; mode = 'width-priority'; }
+        else               { z = aH / svgH; mode = 'height-priority'; }
+      }
+      return { zoom: clamp(z, cfg.minZoom, cfg.maxInitialZoom), mode };
+    }
+    function fitDiagram() {
+      if (!svgW) return;
+      const fit = computeSmartFit();
+      zoom = fit.zoom; fitMode = fit.mode;
+      panX = (viewport.clientWidth  - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
       applyTransform();
     }
+    function setOneToOne() {
+      zoom = clamp(1, cfg.minZoom, cfg.maxZoom); fitMode = '1:1';
+      panX = (viewport.clientWidth  - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function zoomAround(factor, cx, cy) {
+      const next = clamp(zoom * factor, cfg.minZoom, cfg.maxZoom);
+      const ratio = next / zoom;
+      panX = cx - ratio * (cx - panX);
+      panY = cy - ratio * (cy - panY);
+      zoom = next; fitMode = 'custom'; applyTransform();
+    }
+    function readSvgNaturalSize(svg) {
+      let w = 0, h = 0;
+      if (svg.viewBox?.baseVal?.width > 0) { w = svg.viewBox.baseVal.width; h = svg.viewBox.baseVal.height; }
+      if (!w) { w = parseFloat(svg.getAttribute('width'))||0; h = parseFloat(svg.getAttribute('height'))||0; }
+      if (!w) { const b = svg.getBBox(); w = b.width; h = b.height; }
+      if (!w) { const r = svg.getBoundingClientRect(); w = r.width||1000; h = r.height||700; }
+      if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      return { w, h };
+    }
+    function setAdaptiveHeight() {
+      if (!svgW) return;
+      const usableW = Math.max(280, wrap.getBoundingClientRect().width - 2);
+      const idealH  = (svgH / svgW) * usableW + cfg.fitPadding * 2;
+      const maxVp   = Math.floor(innerHeight * cfg.maxHeightVh);
+      const hardMax = Math.min(cfg.maxHeightPx, Math.max(cfg.minHeight + 40, maxVp));
+      wrap.style.height = Math.round(clamp(idealH, cfg.minHeight, hardMax)) + 'px';
+    }
+    function openInNewTab() {
+      const svg = canvas.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.style.width = ''; clone.style.height = '';
+      const bg = isDark ? '#0e1117' : '#fafafa';
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Dependency Graph</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90vh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
+      open(URL.createObjectURL(new Blob([html], {type:'text/html'})), '_blank');
+    }
 
-    document.getElementById('btn-zoom-in').addEventListener('click', () => zoom(0.2));
-    document.getElementById('btn-zoom-out').addEventListener('click', () => zoom(-0.2));
-    document.getElementById('btn-zoom-reset').addEventListener('click', () => {
-      scale = 1; tx = 0; ty = 0; applyTransform();
-    });
-    document.getElementById('btn-expand').addEventListener('click', () => {
-      wrap.classList.toggle('expanded');
-    });
+    async function render() {
+      try {
+        const code = source.textContent.trim();
+        if (!code) { label.textContent = 'Error: Empty source'; return; }
+        const id = 'diag-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+        const { svg } = await mermaid.render(id, code);
+        canvas.innerHTML = svg;
+        const svgNode = canvas.querySelector('svg');
+        if (!svgNode) { label.textContent = 'Error: No SVG'; return; }
+        const size = readSvgNaturalSize(svgNode);
+        svgW = size.w; svgH = size.h;
+        svgNode.removeAttribute('width'); svgNode.removeAttribute('height');
+        svgNode.style.maxWidth = 'none'; svgNode.style.display = 'block';
+        setAdaptiveHeight(); fitDiagram();
+      } catch (err) {
+        console.error('Mermaid render failed:', err);
+        label.textContent = 'Error: ' + (err.message || 'Render failed');
+      }
+    }
 
-    wrap.addEventListener('wheel', (e) => {
+    const actions = {
+      'zoom-in':     () => zoomAround(1 + cfg.zoomStep, viewport.clientWidth/2, viewport.clientHeight/2),
+      'zoom-out':    () => zoomAround(1/(1+cfg.zoomStep), viewport.clientWidth/2, viewport.clientHeight/2),
+      'zoom-fit':    fitDiagram,
+      'zoom-one':    setOneToOne,
+      'zoom-expand': openInNewTab
+    };
+    Object.entries(actions).forEach(([a, h]) => wrap.querySelector(`[data-action="${a}"]`)?.addEventListener('click', h));
+
+    viewport.addEventListener('dblclick', fitDiagram);
+    viewport.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        zoom(e.deltaY < 0 ? 0.15 : -0.15, e.clientX, e.clientY);
+        const r = viewport.getBoundingClientRect();
+        const factor = e.deltaY < 0 ? 1+cfg.zoomStep : 1/(1+cfg.zoomStep);
+        zoomAround(factor, e.clientX-r.left, e.clientY-r.top);
+        return;
+      }
+      if (canPan()) { e.preventDefault(); panX -= e.deltaX; panY -= e.deltaY; applyTransform(); }
+    }, { passive: false });
+
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-controls') || !canPan()) return;
+      wrap.classList.add('is-panning');
+      sx = e.clientX; sy = e.clientY; spx = panX; spy = panY; e.preventDefault();
+      activeDrag = {
+        onMove: (ev) => { panX = spx+(ev.clientX-sx); panY = spy+(ev.clientY-sy); applyTransform(); },
+        onEnd:  ()   => wrap.classList.remove('is-panning')
+      };
+    });
+
+    viewport.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY; spx = panX; spy = panY;
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchDist = Math.sqrt(dx*dx + dy*dy);
+        const r = viewport.getBoundingClientRect();
+        touchCx = (e.touches[0].clientX + e.touches[1].clientX)/2 - r.left;
+        touchCy = (e.touches[0].clientY + e.touches[1].clientY)/2 - r.top;
+      }
+    }, { passive: true });
+
+    viewport.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && canPan()) {
+        if (touchDist > 0) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; spx = panX; spy = panY; touchDist = 0; }
+        e.preventDefault();
+        panX = spx+(e.touches[0].clientX-sx); panY = spy+(e.touches[0].clientY-sy); applyTransform();
+      } else if (e.touches.length === 2 && touchDist > 0) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        zoomAround(d/touchDist, touchCx, touchCy); touchDist = d;
       }
     }, { passive: false });
 
-    wrap.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
-      dragging = true;
-      startX = e.clientX; startY = e.clientY;
-      baseTx = tx; baseTy = ty;
-    });
-    window.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      tx = baseTx + (e.clientX - startX);
-      ty = baseTy + (e.clientY - startY);
-      applyTransform();
-    });
-    window.addEventListener('mouseup', () => { dragging = false; });
+    new ResizeObserver(() => { if (svgW) { setAdaptiveHeight(); fitDiagram(); } }).observe(wrap);
+    render();
+  }
 
-    wrap.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
-      dragging = true;
-      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-      baseTx = tx; baseTy = ty;
-    }, { passive: true });
-    wrap.addEventListener('touchmove', (e) => {
-      if (!dragging || e.touches.length !== 1) return;
-      tx = baseTx + (e.touches[0].clientX - startX);
-      ty = baseTy + (e.touches[0].clientY - startY);
-      applyTransform();
-    }, { passive: true });
-    wrap.addEventListener('touchend', () => { dragging = false; });
-  })();
+  document.querySelectorAll('.diagram-shell').forEach(initDiagram);
+
+  // Active sidebar link
+  const sections = document.querySelectorAll('section[id], details[id]');
+  const navLinks = document.querySelectorAll('.sidebar a');
+  new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        document.querySelector(`.sidebar a[href="#${entry.target.id}"]`)?.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' }).observe
+    ? sections.forEach(s => {
+        new IntersectionObserver((ents) => {
+          ents.forEach(en => {
+            if (en.isIntersecting) {
+              navLinks.forEach(l => l.classList.remove('active'));
+              document.querySelector(`.sidebar a[href="#${en.target.id}"]`)?.classList.add('active');
+            }
+          });
+        }, { rootMargin: '-20% 0px -70% 0px' }).observe(s);
+      })
+    : null;
 </script>
 
 </body>
