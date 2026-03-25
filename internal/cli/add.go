@@ -13,6 +13,9 @@ type AddOptions struct {
 	// Body is the primary content for the new node.
 	Body string
 
+	// Title is an optional short display title.
+	Title string
+
 	// NodeType overrides the default "task" type.
 	NodeType string
 
@@ -36,6 +39,7 @@ func Add(store types.StoreFS, opts AddOptions) (string, error) {
 	node := &types.Node{
 		ID:       uuid.New().String(),
 		Body:     opts.Body,
+		Title:    opts.Title,
 		Types:    []string{nodeType},
 		Created:  now,
 		Modified: now,

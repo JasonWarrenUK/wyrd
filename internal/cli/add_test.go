@@ -32,6 +32,29 @@ func TestAdd_ValidTask(t *testing.T) {
 	if len(node.Types) != 1 || node.Types[0] != "task" {
 		t.Errorf("node.Types = %v, want [task]", node.Types)
 	}
+	if node.Title != "" {
+		t.Errorf("node.Title = %q, want empty", node.Title)
+	}
+}
+
+func TestAdd_WithTitle(t *testing.T) {
+	s, err := store.New(t.TempDir(), types.RealClock{})
+	if err != nil {
+		t.Fatalf("opening store: %v", err)
+	}
+
+	id, err := cli.Add(s, cli.AddOptions{Body: "buy oat milk", Title: "Groceries"})
+	if err != nil {
+		t.Fatalf("Add returned unexpected error: %v", err)
+	}
+
+	node, err := s.ReadNode(id)
+	if err != nil {
+		t.Fatalf("ReadNode(%q) failed: %v", id, err)
+	}
+	if node.Title != "Groceries" {
+		t.Errorf("node.Title = %q, want %q", node.Title, "Groceries")
+	}
 }
 
 func TestAdd_CustomType(t *testing.T) {
