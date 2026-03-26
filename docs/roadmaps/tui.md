@@ -313,7 +313,6 @@ mqe["`**Query Engine**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
-NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::done
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
@@ -373,7 +372,7 @@ CP10 --> CP11
 
 NV12 -.->|needs| QE1
 
-m2 --> NV6 & NV12
+m2 --> NV12
 m3 --> CP7 & CP10 & CP11
 m4 --> VS3 & VS4 & VS5 & VS9 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
