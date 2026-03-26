@@ -153,7 +153,7 @@ func New(cfg Config) (Model, error) {
 	// Wire up the built-in "theme" command now that we have a storePath.
 	palette.Register(Command{
 		Name:        "theme",
-		Description: "Switch to a named theme (e.g. theme ember-violet)",
+		Description: "Switch to a named theme (e.g. theme peat)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) == 0 {
 				return nil
