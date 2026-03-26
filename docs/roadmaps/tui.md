@@ -10,7 +10,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.6, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | grouped sections (NV.12) | — |
 | **CP**   | CP.0–CP.9 done | CP.7 (spend form), CP.10 (edit node) | CP.11 (needs CP.10) |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
-| **VS**   | VS.0–VS.2, VS.6–VS.8, VS.11 done | VS.3–VS.5, VS.9, VS.10 (all unblocked) | — |
+| **VS**   | VS.0–VS.2, VS.6–VS.9, VS.11 done | VS.3–VS.5, VS.10 (all unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | freeze + vhs setup           | VS (need polished UI first)    |
@@ -147,7 +147,6 @@ _(none)_
 - [ ] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1 (done)**
 - [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1 (done)**
 - [ ] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1 (done)**
-- [ ] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1 (done)**
 - [ ] VS.10. Test all four shipped themes (Cairn, Peat, Kiln, Fell) render correctly at each polish point — **depends on VS.1 (done)**
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
@@ -162,6 +161,7 @@ _(none)_
 - [x] VS.6. Status bar polish: separator line above bar, keybind hints section, `Spacer()` used for all internal gaps — **depends on NV.9 (done)**
 - [x] VS.7. Command palette visual refinement: selected row now uses `Selection()` background for distinct highlight — **depends on VS.0 (done)**
 - [x] VS.8. Style huh forms to match active theme (input borders, label colours, focus indicators) via `wyrdHuhTheme()` — **depends on VS.1 (done), CP.1 (done)**
+- [x] VS.9. Add node type badge rendering: short coloured pill labels using Lipgloss — **depends on VS.1 (done)**
 - [x] VS.11. Replace line-replacement hack in `app.go` with lipgloss v2 `Compositor` (`NewLayer`/`NewCompositor`) for palette overlay — **depends on VS.0 (done)**
 
 ---
@@ -324,7 +324,6 @@ CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 VS3["`*VS.3*<br/>**Visual**<br/>Budget bars`"]:::open
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::open
 VS5["`*VS.5*<br/>**Visual**<br/>Schedule gradient`"]:::open
-VS9["`*VS.9*<br/>**Visual**<br/>Type badges`"]:::open
 VS10["`*VS.10*<br/>**Visual**<br/>Four themes`"]:::open
 
 LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::open
@@ -374,7 +373,7 @@ NV12 -.->|needs| QE1
 
 m2 --> NV12
 m3 --> CP7 & CP10 & CP11
-m4 --> VS3 & VS4 & VS5 & VS9 & VS10
+m4 --> VS3 & VS4 & VS5 & VS10
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
