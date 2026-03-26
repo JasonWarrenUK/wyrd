@@ -1,39 +1,39 @@
 {
-	// Cairn theme — dark, warm · Stacked stone at dusk.
+	// Kiln theme — light, warm · Terracotta. Orange and cinnamon earth tones, red glaze accents.
 	// Palette source: Reasonable Colors (reasonable.work/colors)
 	// Reference: docs/aesthetics/visual-references/palette-swatches.html
-	"name": "cairn",
+	"name": "kiln",
 	"source": "https://github.com/jasonwarrenuk/wyrd",
 	"tiers": {
 		"truecolor": {
 			"bg": {
-				"primary": "#000000",
-				"secondary": "#222222"
+				"primary": "#fff8f5",
+				"secondary": "#fff8f3"
 			},
 			"fg": {
-				"primary": "#f6f6f6",
-				"muted": "#8b8b8b"
+				"primary": "#401600",
+				"muted": "#752100"
 			},
 			"accent": {
-				"primary": "#9b70ff",
-				"secondary": "#d57300"
+				"primary": "#cd3c00",
+				"secondary": "#e0002b"
 			},
-			"border": "#3e3e3e",
-			"selection": "#2d0fbf",
-			"status_bar": "#3e3e3e",
+			"border": "#ffded1",
+			"selection": "#ffdfc6",
+			"status_bar": "#ffded1",
 			"energy": {
-				"deep": "#794aff",
-				"medium": "#b98300",
-				"low": "#6f6f6f"
+				"deep": "#cd3c00",
+				"medium": "#ac5c00",
+				"low": "#8b8b8b"
 			},
 			"overflow": {
-				"warn": "#d57300",
-				"critical": "#ff4647"
+				"warn": "#ac5c00",
+				"critical": "#e0002b"
 			},
 			"budget": {
 				"ok": "#009e8c",
-				"caution": "#b98300",
-				"over": "#ff4647"
+				"caution": "#ac5c00",
+				"over": "#e0002b"
 			}
 		}
 	},
