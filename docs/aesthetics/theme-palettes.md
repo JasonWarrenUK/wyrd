@@ -75,7 +75,7 @@ All palettes built from [Reasonable Colors](https://www.reasonable.work/colors/)
 | accent.primary | `#004908` | green-5 |
 | accent.secondary | `#82002c` | raspberry-5 |
 | border | `#ffe0b2` | amber-2 |
-| selection | `#d5f200` | lime-2 |
+| selection | `#e0ffd9` | green-1 |
 | energy.deep | `#004908` | green-5 |
 | energy.medium | `#82002c` | raspberry-5 |
 | energy.low | `#926700` | amber-4 |
