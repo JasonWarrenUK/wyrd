@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | fuzzy filter (NV.6), grouped sections (NV.12) | — |
+| **NV**   | NV.1, NV.3, NV.4, NV.5, NV.6, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | grouped sections (NV.12) | — |
 | **CP**   | CP.0–CP.9 done | CP.7 (spend form), CP.10 (edit node) | CP.11 (needs CP.10) |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.2, VS.6–VS.8, VS.11 done | VS.3–VS.5, VS.9, VS.10 (all unblocked) | — |
@@ -77,7 +77,6 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [ ] NV.12. Support grouped sections in the left pane: when a view returns multiple node types (e.g. tasks, notes, journals), render each group under a visually distinct subheading (bold label + separator line) rather than as a flat list. Groups are defined by a designated column (e.g. `category`) in the query result; items are sorted by group, then by the existing row order within each group. The `bubbles/list` delegate renders group headers as non-selectable separator items. — **depends on NV.1, QE.1**
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
@@ -86,6 +85,7 @@ _(none)_
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
+- [x] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [x] NV.1. Wire `bubbles/list` component into the left pane for node listing
 - [x] NV.3. Wire `bubbles/viewport` into the right (detail) pane for scrollable node body
 - [x] NV.4. Implement visual focus indicator (border colour change on active pane); `Ctrl+W` pane switching is already wired
@@ -313,7 +313,7 @@ mqe["`**Query Engine**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 
-NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::open
+NV6["`*NV.6*<br/>**Navigation**<br/>Fuzzy filter`"]:::done
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
