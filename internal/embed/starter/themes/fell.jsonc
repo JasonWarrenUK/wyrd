@@ -1,39 +1,39 @@
 {
-	// Cairn theme — dark, warm · Stacked stone at dusk.
+	// Fell theme — light, cartographic · Cream paper, contour-line greens, footpath pinks, grid blue.
 	// Palette source: Reasonable Colors (reasonable.work/colors)
 	// Reference: docs/aesthetics/visual-references/palette-swatches.html
-	"name": "cairn",
+	"name": "fell",
 	"source": "https://github.com/jasonwarrenuk/wyrd",
 	"tiers": {
 		"truecolor": {
 			"bg": {
-				"primary": "#000000",
-				"secondary": "#222222"
+				"primary": "#fff8ef",
+				"secondary": "#fff9e5"
 			},
 			"fg": {
-				"primary": "#f6f6f6",
-				"muted": "#8b8b8b"
+				"primary": "#371d00",
+				"muted": "#926700"
 			},
 			"accent": {
-				"primary": "#9b70ff",
-				"secondary": "#d57300"
+				"primary": "#004908",
+				"secondary": "#82002c"
 			},
-			"border": "#3e3e3e",
-			"selection": "#2d0fbf",
-			"status_bar": "#3e3e3e",
+			"border": "#ffe0b2",
+			"selection": "#e0ffd9",
+			"status_bar": "#ffe0b2",
 			"energy": {
-				"deep": "#794aff",
-				"medium": "#b98300",
-				"low": "#6f6f6f"
+				"deep": "#004908",
+				"medium": "#82002c",
+				"low": "#926700"
 			},
 			"overflow": {
-				"warn": "#d57300",
-				"critical": "#ff4647"
+				"warn": "#cd3c00",
+				"critical": "#e0002b"
 			},
 			"budget": {
-				"ok": "#009e8c",
-				"caution": "#b98300",
-				"over": "#ff4647"
+				"ok": "#004908",
+				"caution": "#82002c",
+				"over": "#e0002b"
 			}
 		}
 	},

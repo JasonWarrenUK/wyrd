@@ -47,7 +47,7 @@ Load theme JSONC files from `/store/themes/`. Detect terminal colour capability:
 
 Expose a `Theme` struct with methods like `BgPrimary()`, `FgMuted()`, `AccentPrimary()` etc. that return `lipgloss.Color` values appropriate for the detected tier.
 
-Load the theme specified in `/store/config.jsonc` (field: `"theme": "ember-violet"`). Fall back to the first available theme if the specified one doesn't exist.
+Load the theme specified in `/store/config.jsonc` (field: `"theme": "cairn"`). Fall back to the first available theme if the specified one doesn't exist.
 
 ### 4. Keyboard Model
 

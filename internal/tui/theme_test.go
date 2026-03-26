@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	wyrdEmbed "github.com/jasonwarrenuk/wyrd/internal/embed"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -223,6 +225,131 @@ func TestStyleHelpersDoNotPanic(t *testing.T) {
 	_ = theme.StyleBorder()
 	_ = theme.StyleSectionHeader()
 	_ = theme.StyleStatusBar()
+}
+
+// copyEmbeddedThemes extracts all JSONC files from the embedded starter/themes
+// directory into a temp store directory so they can be loaded by LoadTheme.
+func copyEmbeddedThemes(t *testing.T, destDir string) {
+	t.Helper()
+	themesDir := filepath.Join(destDir, "themes")
+	if err := os.MkdirAll(themesDir, 0o755); err != nil {
+		t.Fatalf("mkdir themes: %v", err)
+	}
+	entries, err := fs.ReadDir(wyrdEmbed.StarterFS, "starter/themes")
+	if err != nil {
+		t.Fatalf("read embedded themes: %v", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		data, err := fs.ReadFile(wyrdEmbed.StarterFS, "starter/themes/"+e.Name())
+		if err != nil {
+			t.Fatalf("read embedded theme %s: %v", e.Name(), err)
+		}
+		if err := os.WriteFile(filepath.Join(themesDir, e.Name()), data, 0o644); err != nil {
+			t.Fatalf("write theme %s: %v", e.Name(), err)
+		}
+	}
+}
+
+// TestAllShippedThemesLoad verifies that all four shipped themes (Cairn, Peat,
+// Kiln, Fell) parse correctly and that every colour accessor and glyph field
+// returns a non-zero value.
+func TestAllShippedThemesLoad(t *testing.T) {
+	dir := t.TempDir()
+	copyEmbeddedThemes(t, dir)
+
+	themes := []string{"cairn", "peat", "kiln", "fell"}
+	for _, name := range themes {
+		t.Run(name, func(t *testing.T) {
+			theme, err := tui.LoadTheme(dir, name)
+			if err != nil {
+				t.Fatalf("LoadTheme(%q): %v", name, err)
+			}
+			if theme.Name() != name {
+				t.Errorf("expected name %q, got %q", name, theme.Name())
+			}
+
+			// All 17 colour accessors must return non-zero values.
+			checks := []struct {
+				label string
+				value color.Color
+			}{
+				{"BgPrimary", theme.BgPrimary()},
+				{"BgSecondary", theme.BgSecondary()},
+				{"FgPrimary", theme.FgPrimary()},
+				{"FgMuted", theme.FgMuted()},
+				{"AccentPrimary", theme.AccentPrimary()},
+				{"AccentSecondary", theme.AccentSecondary()},
+				{"Border", theme.Border()},
+				{"Selection", theme.Selection()},
+				{"StatusBar", theme.StatusBar()},
+				{"EnergyDeep", theme.EnergyDeep()},
+				{"EnergyMedium", theme.EnergyMedium()},
+				{"EnergyLow", theme.EnergyLow()},
+				{"OverflowWarn", theme.OverflowWarn()},
+				{"OverflowCritical", theme.OverflowCritical()},
+				{"BudgetOK", theme.BudgetOK()},
+				{"BudgetCaution", theme.BudgetCaution()},
+				{"BudgetOver", theme.BudgetOver()},
+			}
+			for _, c := range checks {
+				if !colourIsNonZero(c.value) {
+					t.Errorf("%s.%s returned a nil or zero colour", name, c.label)
+				}
+			}
+
+			// All 9 glyph fields must be non-empty.
+			g := theme.Glyphs()
+			glyphs := []struct {
+				label string
+				value string
+			}{
+				{"EnergyDeep", g.EnergyDeep},
+				{"EnergyMedium", g.EnergyMedium},
+				{"EnergyLow", g.EnergyLow},
+				{"Overflow", g.Overflow},
+				{"Blocked", g.Blocked},
+				{"Waiting", g.Waiting},
+				{"BudgetOK", g.BudgetOK},
+				{"BudgetCaution", g.BudgetCaution},
+				{"BudgetOver", g.BudgetOver},
+			}
+			for _, gl := range glyphs {
+				if gl.value == "" {
+					t.Errorf("%s glyph %s is empty", name, gl.label)
+				}
+			}
+		})
+	}
+}
+
+// TestShippedThemesHaveDistinctPalettes verifies that each shipped theme has a
+// unique AccentPrimary colour, confirming that theme switching actually changes
+// the active palette.
+func TestShippedThemesHaveDistinctPalettes(t *testing.T) {
+	dir := t.TempDir()
+	copyEmbeddedThemes(t, dir)
+
+	names := []string{"cairn", "peat", "kiln", "fell"}
+	accents := make(map[string]string) // theme name → AccentPrimary string representation
+	for _, name := range names {
+		theme, err := tui.LoadTheme(dir, name)
+		if err != nil {
+			t.Fatalf("LoadTheme(%q): %v", name, err)
+		}
+		accents[name] = fmt.Sprintf("%v", theme.AccentPrimary())
+	}
+
+	// Every pair must be distinct.
+	for i, a := range names {
+		for _, b := range names[i+1:] {
+			if accents[a] == accents[b] {
+				t.Errorf("AccentPrimary identical for %q and %q: %s", a, b, accents[a])
+			}
+		}
+	}
 }
 
 // TestRuntimeThemeSwitch verifies that the app correctly switches theme

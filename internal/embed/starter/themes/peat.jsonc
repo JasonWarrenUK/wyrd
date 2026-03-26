@@ -1,28 +1,28 @@
 {
-	// Cairn theme — dark, warm · Stacked stone at dusk.
+	// Peat theme — dark, cool · Boggy dark greens and teal accents. Earthy, damp, quiet.
 	// Palette source: Reasonable Colors (reasonable.work/colors)
 	// Reference: docs/aesthetics/visual-references/palette-swatches.html
-	"name": "cairn",
+	"name": "peat",
 	"source": "https://github.com/jasonwarrenuk/wyrd",
 	"tiers": {
 		"truecolor": {
 			"bg": {
 				"primary": "#000000",
-				"secondary": "#222222"
+				"secondary": "#002722"
 			},
 			"fg": {
-				"primary": "#f6f6f6",
-				"muted": "#8b8b8b"
+				"primary": "#d7fff7",
+				"muted": "#6f6f6f"
 			},
 			"accent": {
-				"primary": "#9b70ff",
+				"primary": "#009e8c",
 				"secondary": "#d57300"
 			},
-			"border": "#3e3e3e",
-			"selection": "#2d0fbf",
-			"status_bar": "#3e3e3e",
+			"border": "#00443c",
+			"selection": "#00443c",
+			"status_bar": "#00443c",
 			"energy": {
-				"deep": "#794aff",
+				"deep": "#009e8c",
 				"medium": "#b98300",
 				"low": "#6f6f6f"
 			},

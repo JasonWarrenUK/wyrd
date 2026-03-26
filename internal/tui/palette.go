@@ -79,7 +79,7 @@ func builtinCommands() []Command {
 		},
 		{
 			Name:        "theme",
-			Description: "Switch to a named theme (e.g. theme ember-violet)",
+			Description: "Switch to a named theme (e.g. theme peat)",
 			Hint:        "",
 			Execute:     nil, // wired up in app.go via RegisterCommand
 		},
