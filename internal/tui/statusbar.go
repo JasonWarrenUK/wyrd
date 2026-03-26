@@ -170,11 +170,10 @@ func (sb *StatusBar) View() string {
 	var centreContent string
 	if sb.nodeID != "" {
 		idStyle := lipgloss.NewStyle().Foreground(sb.theme.FgMuted()).Background(bg)
-		typeStyle := lipgloss.NewStyle().Foreground(sb.theme.AccentSecondary()).Background(bg)
 
 		parts := []string{idStyle.Render(sb.nodeID)}
 		if len(sb.nodeTypes) > 0 {
-			parts = append(parts, typeStyle.Render("["+strings.Join(sb.nodeTypes, " ")+"]"))
+			parts = append(parts, TypeBadges(sb.nodeTypes, bg))
 		}
 		if sb.edgeCount > 0 {
 			suffix := "s"

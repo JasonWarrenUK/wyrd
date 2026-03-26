@@ -126,6 +126,12 @@ func (r *DetailRenderer) Render(
 	sb.WriteString(titleStyle.Render(title))
 	sb.WriteString("\n\n")
 
+	// --- Type badges ---
+	if len(node.Types) > 0 {
+		sb.WriteString(TypeBadges(node.Types, bg))
+		sb.WriteString("\n\n")
+	}
+
 	// --- Body (full markdown content) ---
 	// Strip the first line of body when it duplicates the title to avoid
 	// showing the same text twice. This happens when:
