@@ -266,6 +266,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// When the node list is actively filtering, key input goes exclusively to
+	// it — same pattern as the capture bar. ctrl+c is checked first so the
+	// user can always quit, even mid-filter.
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		if lp, ok := m.leftPane.(nodeListPane); ok && m.focus == FocusLeft && lp.IsFiltering() {
+			if key.Matches(keyMsg, m.keyMap.Quit) {
+				m.quitting = true
+				return m, tea.Quit
+			}
+			return m.updateFocusedPane(keyMsg)
+		}
+	}
+
 	// Handle async capture messages regardless of capture bar focus state.
 	switch msg := msg.(type) {
 	case captureSubmitMsg:
@@ -345,6 +358,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.rightPane = NewEmptyPane(m.theme)
+		return m, nil
+
+	case filterStateChangedMsg:
+		m.syncKeyHints()
 		return m, nil
 
 	case switchThemeMsg:

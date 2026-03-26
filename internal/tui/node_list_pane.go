@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -47,6 +48,10 @@ const (
 	listMinColWidth = 4
 )
 
+// filterStateChangedMsg is emitted when the node list filter state transitions
+// so that app.go can sync key hints in the status bar.
+type filterStateChangedMsg struct{}
+
 // nodeListPane is a PaneModel that renders a QueryResult as a scrollable list
 // using the charmbracelet/bubbles list component. Navigation uses arrow keys,
 // pgup/pgdn, and home/end; vim-style single-char bindings are disabled.
@@ -77,12 +82,14 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	l := list.New(items, delegate, initialWidth, 22)
 
 	// Disable all built-in chrome — we own the surrounding frame.
+	// SetShowFilter(false) keeps the title-bar area hidden; we render the
+	// filter input ourselves in View() so we control its position and styling.
 	l.SetShowTitle(false)
 	l.SetShowFilter(false)
 	l.SetShowStatusBar(false)
 	l.SetShowPagination(false)
 	l.SetShowHelp(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(true)
 
 	// Reconfigure key bindings to match Wyrd's preferences. The canonical
 	// Bubble Tea pattern is to configure the child component's KeyMap rather
@@ -90,18 +97,32 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	//
 	// Keep arrow/pgup/pgdn/home/end; remove all single-char vim keys so they
 	// can never collide with terminal protocol response bytes.
+	// Filter/ClearFilter are left enabled — updateKeybindings() in bubbles/list
+	// manages them dynamically based on filter state.
 	l.KeyMap.CursorUp.SetKeys("up")
 	l.KeyMap.CursorDown.SetKeys("down")
 	l.KeyMap.PrevPage.SetKeys("left", "pgup")
 	l.KeyMap.NextPage.SetKeys("right", "pgdown")
 	l.KeyMap.GoToStart.SetKeys("home", "alt+shift+up")
 	l.KeyMap.GoToEnd.SetKeys("end", "alt+shift+down")
-	l.KeyMap.Filter.SetEnabled(false)
-	l.KeyMap.ClearFilter.SetEnabled(false)
+	// Remove ctrl+k (conflicts with app-level FuzzyPalette) and ctrl+j (vim-adjacent).
+	l.KeyMap.AcceptWhileFiltering.SetKeys("enter", "tab", "shift+tab", "up", "down")
 	l.KeyMap.ShowFullHelp.SetEnabled(false)
 	l.KeyMap.CloseFullHelp.SetEnabled(false)
 	l.KeyMap.Quit.SetEnabled(false)
 	l.KeyMap.ForceQuit.SetEnabled(false)
+
+	// Style the filter text input with theme colours.
+	filterStyles := textinput.DefaultStyles(true)
+	filterStyles.Focused.Prompt = lipgloss.NewStyle().
+		Foreground(theme.AccentPrimary()).
+		Background(theme.BgPrimary())
+	filterStyles.Focused.Text = lipgloss.NewStyle().
+		Foreground(theme.FgPrimary()).
+		Background(theme.BgPrimary())
+	filterStyles.Cursor.Color = theme.AccentPrimary()
+	l.FilterInput.SetStyles(filterStyles)
+	l.FilterInput.Prompt = "/ "
 
 	return nodeListPane{
 		list:      l,
@@ -151,6 +172,7 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	}
 
 	prevIndex := p.list.Index()
+	prevState := p.list.FilterState()
 	var cmd tea.Cmd
 	p.list, cmd = p.list.Update(msg)
 
@@ -162,12 +184,18 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		}
 	}
 
+	// Notify app when filter state transitions so key hints can be synced.
+	if p.list.FilterState() != prevState {
+		cmd = tea.Batch(cmd, func() tea.Msg { return filterStateChangedMsg{} })
+	}
+
 	return p, cmd
 }
 
-// View renders the column header followed by the bubbles/list content.
-// The combined output is padded via PadLines so every line reaches the pane
-// edge with the correct background colour, preventing terminal bleed.
+// View renders the column header (or filter input while filtering) followed by
+// the bubbles/list content. The combined output is padded via PadLines so every
+// line reaches the pane edge with the correct background colour, preventing
+// terminal bleed.
 func (p nodeListPane) View() string {
 	var bg color.Color
 	var fg color.Color
@@ -175,20 +203,55 @@ func (p nodeListPane) View() string {
 		bg = p.theme.BgPrimary()
 		fg = p.theme.FgPrimary()
 	}
-	header := renderListHeader(p.columns, p.colWidths, fg, bg)
+
+	var header string
+	if p.list.FilterState() == list.Filtering {
+		// Replace the column header with the themed filter input row.
+		filterStyle := lipgloss.NewStyle().
+			Background(bg).
+			Foreground(fg).
+			Padding(0, 0, 0, 1)
+		header = filterStyle.Render(p.list.FilterInput.View())
+	} else {
+		header = renderListHeader(p.columns, p.colWidths, fg, bg)
+	}
+
 	content := p.list.View()
 	raw := lipgloss.JoinVertical(lipgloss.Left, header, content)
 	return PadLines(raw, p.width, bg)
 }
 
 // KeyBindings advertises the navigation keys this pane handles.
+// Returns context-sensitive hints based on the current filter state.
 func (p nodeListPane) KeyBindings() []KeyBinding {
-	return []KeyBinding{
-		{Key: "↓/↑", Description: "Navigate"},
-		{Key: "←/→", Description: "Page"},
-		{Key: "home/end", Description: "Start/end"},
-		{Key: "alt+shift+↑/↓", Description: "Jump top/bottom"},
+	switch p.list.FilterState() {
+	case list.Filtering:
+		return []KeyBinding{
+			{Key: "esc", Description: "Cancel filter"},
+			{Key: "enter", Description: "Apply filter"},
+		}
+	case list.FilterApplied:
+		return []KeyBinding{
+			{Key: "↓/↑", Description: "Navigate"},
+			{Key: "←/→", Description: "Page"},
+			{Key: "home/end", Description: "Start/end"},
+			{Key: "alt+shift+↑/↓", Description: "Jump top/bottom"},
+			{Key: "esc", Description: "Clear filter"},
+		}
+	default:
+		return []KeyBinding{
+			{Key: "↓/↑", Description: "Navigate"},
+			{Key: "←/→", Description: "Page"},
+			{Key: "home/end", Description: "Start/end"},
+			{Key: "alt+shift+↑/↓", Description: "Jump top/bottom"},
+			{Key: "/", Description: "Filter"},
+		}
 	}
+}
+
+// IsFiltering reports whether the list is actively in filter-input mode.
+func (p nodeListPane) IsFiltering() bool {
+	return p.list.FilterState() == list.Filtering
 }
 
 // HandleFocusLost is a no-op for the node list pane.
