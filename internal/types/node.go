@@ -37,12 +37,12 @@ type Node struct {
 	// ID is a UUID v4, auto-generated and immutable.
 	ID string `json:"id"`
 
-	// Body is the primary markdown content. Required.
-	Body string `json:"body"`
-
 	// Title is an optional short display title. When present it is preferred
 	// over the first line of Body for list views and headings.
 	Title string `json:"title,omitempty"`
+
+	// Body is the primary markdown content. Required.
+	Body string `json:"body"`
 
 	// Types is the list of template types applied to this node.
 	// Minimum one type. Determines which conditional fields are active.
