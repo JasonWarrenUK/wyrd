@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.6, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | grouped sections (NV.12) | — |
-| **CP**   | CP.0–CP.10, CP.12 done | CP.7 (spend form) | CP.11 (needs CP.10 — now unblocked) |
+| **CP**   | CP.0–CP.10, CP.12 done | CP.7 (spend form), CP.11 (edge mgmt) | — |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
@@ -113,10 +113,11 @@ _(none yet)_
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **no blockers**
+- [ ] CP.11. Edge management in edit form — **no blockers**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-- [ ] CP.11. Edge management in edit form — **no blockers** (CP.10 complete)
+_(none)_
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -316,9 +317,7 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
-CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::done
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
-CP12["`*CP.12*<br/>**Capture**<br/>Archive node`"]:::done
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
@@ -361,12 +360,11 @@ DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-CP10 --> CP11
 
 NV12 -.->|needs| QE1
 
 m2 --> NV12
-m3 --> CP7 & CP10 & CP11
+m3 --> CP7 & CP11
 m4 --> VS4
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
