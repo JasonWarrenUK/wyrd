@@ -360,6 +360,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = NewEmptyPane(m.theme)
 		return m, nil
 
+	case editSubmitMsg:
+		m.rightPane = NewEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		return m.handleEditSubmit(msg)
+
 	case filterStateChangedMsg:
 		m.syncKeyHints()
 		return m, nil
@@ -388,6 +394,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keyMap.Capture):
 			return m.handleCapture(msg)
+		case key.Matches(msg, m.keyMap.EditNode):
+			return m.handleEditNode()
 		default:
 			return m.updateFocusedPane(msg)
 		}
@@ -514,6 +522,85 @@ func (m Model) handleCaptureSubmit(msg captureSubmitMsg) (tea.Model, tea.Cmd) {
 	return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
 		return captureConfirmClearMsg{}
 	})
+}
+
+// handleEditNode opens an edit form for the currently selected node. It is a
+// no-op when a form is already active, when no node is selected, or when the
+// store is unavailable.
+func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
+	// Guard: form already open.
+	if _, isForm := m.rightPane.(formPane); isForm {
+		return m, nil
+	}
+	// Guard: store unavailable.
+	if m.store == nil {
+		return m, nil
+	}
+	// Guard: no node selected.
+	lp, ok := m.leftPane.(nodeListPane)
+	if !ok {
+		return m, nil
+	}
+	nodeID := lp.SelectedNodeID()
+	if nodeID == "" {
+		return m, nil
+	}
+	// Read the full node from the store for reliable Properties.
+	node, err := m.store.ReadNode(nodeID)
+	if err != nil || node == nil {
+		return m, nil
+	}
+
+	primaryType := ""
+	if len(node.Types) > 0 {
+		primaryType = node.Types[0]
+	}
+	var fp formPane
+	switch primaryType {
+	case "journal":
+		fp = newEditJournalFormPane(m.theme, m.store, m.clock, node)
+	case "note":
+		fp = newEditNoteFormPane(m.theme, m.store, m.clock, node)
+	default:
+		fp = newEditTaskFormPane(m.theme, m.store, m.clock, node)
+	}
+
+	m.rightPane = fp
+	m.focus = FocusRight
+	m.syncKeyHints()
+	return m, fp.form.Init()
+}
+
+// handleEditSubmit refreshes the dashboard and detail pane after a node is
+// updated, and shows a brief confirmation in the status bar.
+func (m Model) handleEditSubmit(msg editSubmitMsg) (tea.Model, tea.Cmd) {
+	m.statusBar.SetCaptureText("Updated " + msg.label)
+
+	if m.queryRunner != nil {
+		dq := DefaultDashboardQuery()
+		if m.store != nil {
+			if view, err := m.store.ReadView("dashboard"); err == nil {
+				dq = DashboardQueryFromView(view)
+			}
+		}
+		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+			lp := newNodeListPane(result, m.theme)
+			sized, _ := lp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.leftPane = sized
+		}
+	}
+
+	// Re-render the detail pane so the right side shows the updated content.
+	detailCmd := m.renderDetailAsync(msg.nodeID)
+
+	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return captureConfirmClearMsg{}
+	})
+
+	return m, tea.Batch(detailCmd, clearCmd)
 }
 
 // captureDisplayText formats capture bar input for display in the status bar,
