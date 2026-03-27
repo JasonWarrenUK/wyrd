@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.6, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | grouped sections (NV.12) | — |
-| **CP**   | CP.0–CP.9 done | CP.7 (spend form), CP.10 (edit node) | CP.11 (needs CP.10) |
+| **CP**   | CP.0–CP.10 done | CP.7 (spend form) | CP.11 (needs CP.10 — now unblocked) |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
@@ -113,11 +113,10 @@ _(none yet)_
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **no blockers**
-- [ ] CP.10. Edit existing node — **no blockers**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-- [ ] CP.11. Edge management in edit form — **depends on CP.10**
+- [ ] CP.11. Edge management in edit form — **no blockers** (CP.10 complete)
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -130,6 +129,7 @@ _(none yet)_
 - [x] CP.6. Wire link-to-selected: when a node is focused in left pane, offer to link new node as edge on form submit — **depends on CP.2 (done), NV.4 (done)**
 - [x] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix; forms mount in right pane; submission refreshes dashboard
 - [x] CP.9. Allow node creation without linking: when a node is selected, a "Link to selected node?" confirm field (default Yes) appears on all three forms; unchecking it skips edge creation — **no blockers**
+- [x] CP.10. Edit existing node — `ctrl+o` opens a pre-populated huh form for the selected node; preserves original ID and Created timestamp; emits `editSubmitMsg` which refreshes dashboard and detail pane
 
 ---
 
@@ -315,8 +315,8 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::open
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
-CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::open
-CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::blocked
+CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::done
+CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
