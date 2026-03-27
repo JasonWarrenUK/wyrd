@@ -54,10 +54,12 @@ RETURN n.id AS id, n.title AS title, n.date.due AS date, "task" AS category
 ORDER BY n.date.due`,
 
 		Notes: `MATCH (n:note)
+WHERE n.status <> "archived"
 RETURN n.id AS id, n.title AS title, null AS date, "note" AS category
 LIMIT 10`,
 
 		Journals: `MATCH (n:journal)
+WHERE n.status <> "archived"
 RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category
 ORDER BY n.date.created DESC
 LIMIT 5`,

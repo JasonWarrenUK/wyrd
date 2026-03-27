@@ -83,6 +83,7 @@ func (m *mockStore) AllRituals() ([]*types.Ritual, error)             { return n
 func (m *mockStore) ReadTheme(_ string) (*types.Theme, error)         { return nil, nil }
 func (m *mockStore) ReadConfig() (*types.Config, error)               { return nil, nil }
 func (m *mockStore) WriteConfig(_ *types.Config) error                { return nil }
+func (m *mockStore) ArchiveNode(id string) error                      { n := m.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
 func (m *mockStore) StorePath() string                                 { return "/tmp/store" }
 
 // ---- Fixtures --------------------------------------------------------------

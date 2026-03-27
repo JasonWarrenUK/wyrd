@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"time"
 
 	huh "charm.land/huh/v2"
 	tea "charm.land/bubbletea/v2"
@@ -29,6 +30,13 @@ type formSubmitMsg struct {
 // formCancelMsg is emitted by a formPane when the user aborts with Escape.
 type formCancelMsg struct{}
 
+// editSubmitMsg is emitted by a formPane in edit mode when the user completes
+// and submits the form. The updated node has already been written to the store.
+type editSubmitMsg struct {
+	nodeID string
+	label  string
+}
+
 // formPane wraps a huh.Form and satisfies PaneModel. It is mounted in the
 // right pane when the capture bar dispatches a creation form.
 type formPane struct {
@@ -39,6 +47,11 @@ type formPane struct {
 	theme          *ActiveTheme
 	selectedNodeID string // used to create a "related" edge on submit
 	linkToSelected bool   // set by huh.Confirm; only meaningful when selectedNodeID != ""
+
+	// editingNodeID is non-empty when editing an existing node. It carries the
+	// original node ID so buildNode preserves it instead of generating a new UUID.
+	editingNodeID  string
+	editingCreated time.Time // original Created timestamp, preserved on update
 
 	// Field values — written by huh via pointer accessors.
 	title  string
@@ -255,6 +268,176 @@ func newNoteFormPane(
 	return f
 }
 
+// NewEditTaskFormPane builds a formPane for editing an existing task node.
+// All fields are pre-filled from the node. Exported for use in tests.
+func NewEditTaskFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	node *types.Node,
+) PaneModel {
+	return newEditTaskFormPane(theme, store, clock, node)
+}
+
+// newEditTaskFormPane is the internal constructor.
+func newEditTaskFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	node *types.Node,
+) formPane {
+	status := "inbox"
+	if v, ok := node.Properties["status"].(string); ok && v != "" {
+		status = v
+	}
+	energy := "medium"
+	if v, ok := node.Properties["energy"].(string); ok && v != "" {
+		energy = v
+	}
+
+	f := formPane{
+		kind:           formTask,
+		store:          store,
+		clock:          clock,
+		theme:          theme,
+		title:          node.Title,
+		body:           node.Body,
+		status:         status,
+		energy:         energy,
+		editingNodeID:  node.ID,
+		editingCreated: node.Created,
+	}
+
+	f.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Title").
+				Value(&f.title).
+				Validate(notEmpty("title")),
+
+			huh.NewText().
+				Title("Body").
+				Value(&f.body).
+				Lines(6).
+				Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
+
+			huh.NewSelect[string]().
+				Title("Status").
+				Options(
+					huh.NewOption("Inbox", "inbox"),
+					huh.NewOption("Active", "active"),
+					huh.NewOption("Waiting", "waiting"),
+				).
+				Value(&f.status),
+
+			huh.NewSelect[string]().
+				Title("Energy").
+				Options(
+					huh.NewOption("Deep", "deep"),
+					huh.NewOption("Medium", "medium"),
+					huh.NewOption("Low", "low"),
+				).
+				Value(&f.energy),
+		),
+	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
+
+	return f
+}
+
+// NewEditJournalFormPane builds a formPane for editing an existing journal node.
+// Exported for use in tests.
+func NewEditJournalFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	node *types.Node,
+) PaneModel {
+	return newEditJournalFormPane(theme, store, clock, node)
+}
+
+// newEditJournalFormPane is the internal constructor.
+func newEditJournalFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	node *types.Node,
+) formPane {
+	f := formPane{
+		kind:           formJournal,
+		store:          store,
+		clock:          clock,
+		theme:          theme,
+		title:          node.Title,
+		body:           node.Body,
+		editingNodeID:  node.ID,
+		editingCreated: node.Created,
+	}
+
+	f.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Title").
+				Value(&f.title),
+
+			huh.NewText().
+				Title("Body").
+				Value(&f.body).
+				Lines(12).
+				Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
+				Validate(notEmpty("body")),
+		),
+	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
+
+	return f
+}
+
+// NewEditNoteFormPane builds a formPane for editing an existing note node.
+// Exported for use in tests.
+func NewEditNoteFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	node *types.Node,
+) PaneModel {
+	return newEditNoteFormPane(theme, store, clock, node)
+}
+
+// newEditNoteFormPane is the internal constructor.
+func newEditNoteFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	node *types.Node,
+) formPane {
+	f := formPane{
+		kind:           formNote,
+		store:          store,
+		clock:          clock,
+		theme:          theme,
+		title:          node.Title,
+		body:           node.Body,
+		editingNodeID:  node.ID,
+		editingCreated: node.Created,
+	}
+
+	f.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Title").
+				Value(&f.title).
+				Validate(notEmpty("title")),
+
+			huh.NewText().
+				Title("Body").
+				Value(&f.body).
+				Lines(8).
+				Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
+		),
+	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
+
+	return f
+}
+
 // Update forwards messages to the huh form and detects completion/abort.
 func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	if f.done {
@@ -280,7 +463,7 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			// Non-fatal — emit cancel so the pane is restored.
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
-		if f.selectedNodeID != "" && f.linkToSelected {
+		if f.editingNodeID == "" && f.selectedNodeID != "" && f.linkToSelected {
 			now := f.clock.Now()
 			edge := &types.Edge{
 				ID:      uuid.New().String(),
@@ -297,6 +480,11 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		}
 		if len(label) > 40 {
 			label = label[:37] + "…"
+		}
+		if f.editingNodeID != "" {
+			return f, tea.Batch(cmd, func() tea.Msg {
+				return editSubmitMsg{nodeID: node.ID, label: label}
+			})
 		}
 		return f, tea.Batch(cmd, func() tea.Msg {
 			return formSubmitMsg{nodeID: node.ID, label: label}
@@ -335,13 +523,20 @@ func (f formPane) KeyBindings() []KeyBinding {
 func (f formPane) HandleFocusLost() tea.Cmd { return nil }
 
 // buildNode constructs a types.Node from the captured form field values.
+// When editingNodeID is set, the original ID and Created timestamp are preserved.
 func (f formPane) buildNode() *types.Node {
 	now := f.clock.Now()
+	id := uuid.New().String()
+	created := now
+	if f.editingNodeID != "" {
+		id = f.editingNodeID
+		created = f.editingCreated
+	}
 	node := &types.Node{
-		ID:         uuid.New().String(),
+		ID:         id,
 		Title:      f.title,
 		Body:       f.body,
-		Created:    now,
+		Created:    created,
 		Modified:   now,
 		Properties: make(map[string]interface{}),
 	}

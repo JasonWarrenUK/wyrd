@@ -28,6 +28,7 @@ func (s *formTestStore) WriteNode(n *types.Node) error                      { s.
 func (s *formTestStore) ReadEdge(id string) (*types.Edge, error)            { return s.edges[id], nil }
 func (s *formTestStore) WriteEdge(e *types.Edge) error                      { s.edges[e.ID] = e; return nil }
 func (s *formTestStore) DeleteEdge(id string) error                         { delete(s.edges, id); return nil }
+func (s *formTestStore) ArchiveNode(id string) error                        { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
 func (s *formTestStore) ReadTemplate(_ string) (*types.Template, error)     { return nil, nil }
 func (s *formTestStore) AllTemplates() ([]*types.Template, error)           { return nil, nil }
 func (s *formTestStore) ReadView(_ string) (*types.SavedView, error)        { return nil, nil }
@@ -214,6 +215,87 @@ func TestFormNoConfirmFieldWhenUnlinked(t *testing.T) {
 	v := sized.View()
 	if strings.Contains(v, "Link to selected node") {
 		t.Errorf("did not expect confirm field in view when selectedNodeID is empty; got:\n%s", v)
+	}
+}
+
+// --- CP.10: edit form tests ---
+
+// seedNode is a helper that creates a minimal node for edit form tests.
+func seedNode(id, title, body string, nodeTypes []string) *types.Node {
+	return &types.Node{
+		ID:         id,
+		Title:      title,
+		Body:       body,
+		Types:      nodeTypes,
+		Created:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Modified:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Properties: map[string]interface{}{"status": "active", "energy": "deep"},
+	}
+}
+
+// TestEditTaskFormPaneViewRenders verifies that an edit task form produces a
+// non-empty view and does not panic.
+func TestEditTaskFormPaneViewRenders(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+	node := seedNode("node-1", "Buy groceries", "From the list", []string{"task"})
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if v == "" {
+		t.Error("expected non-empty view from edit task formPane")
+	}
+}
+
+// TestEditJournalFormPaneViewRenders verifies the edit journal form renders.
+func TestEditJournalFormPaneViewRenders(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+	node := seedNode("node-2", "2026-01-01", "Today I did things", []string{"journal"})
+
+	fp := tui.NewEditJournalFormPane(theme, store, clock, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if v == "" {
+		t.Error("expected non-empty view from edit journal formPane")
+	}
+}
+
+// TestEditNoteFormPaneViewRenders verifies the edit note form renders.
+func TestEditNoteFormPaneViewRenders(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+	node := seedNode("node-3", "Architecture notes", "The system uses...", []string{"note"})
+
+	fp := tui.NewEditNoteFormPane(theme, store, clock, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if v == "" {
+		t.Error("expected non-empty view from edit note formPane")
+	}
+}
+
+// TestEditFormNoLinkField verifies the "Link to selected node?" confirm field
+// is absent from edit forms (it only makes sense on creation).
+func TestEditFormNoLinkField(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+	node := seedNode("node-4", "Some task", "", []string{"task"})
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	v := sized.View()
+	if strings.Contains(v, "Link to selected node") {
+		t.Errorf("did not expect link confirm field in edit form; got:\n%s", v)
 	}
 }
 

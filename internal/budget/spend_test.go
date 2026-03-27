@@ -19,6 +19,7 @@ func (m *mockStore) WriteNode(node *types.Node) error                  { m.writt
 func (m *mockStore) ReadEdge(id string) (*types.Edge, error)           { return nil, nil }
 func (m *mockStore) WriteEdge(edge *types.Edge) error                  { return nil }
 func (m *mockStore) DeleteEdge(id string) error                        { return nil }
+func (m *mockStore) ArchiveNode(_ string) error                        { return nil }
 func (m *mockStore) ReadTemplate(typeName string) (*types.Template, error) { return nil, nil }
 func (m *mockStore) AllTemplates() ([]*types.Template, error)           { return nil, nil }
 func (m *mockStore) ReadView(name string) (*types.SavedView, error)    { return nil, nil }

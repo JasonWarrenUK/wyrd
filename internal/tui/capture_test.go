@@ -58,6 +58,7 @@ func (s *captureStore) AllRituals() ([]*types.Ritual, error)             { retur
 func (s *captureStore) ReadTheme(_ string) (*types.Theme, error)         { return nil, nil }
 func (s *captureStore) ReadConfig() (*types.Config, error)               { return nil, nil }
 func (s *captureStore) WriteConfig(_ *types.Config) error                { return nil }
+func (s *captureStore) ArchiveNode(id string) error                      { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
 func (s *captureStore) StorePath() string                                 { return "/tmp/store" }
 
 func fixedCaptureClock() types.Clock {
