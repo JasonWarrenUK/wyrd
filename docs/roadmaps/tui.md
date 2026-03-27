@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3, NV.4, NV.5, NV.6, NV.7, NV.8, NV.9, NV.10, NV.11, NV.13, NV.14, NV.15 done | grouped sections (NV.12) | — |
-| **CP**   | CP.0–CP.10 done | CP.7 (spend form) | CP.11 (needs CP.10 — now unblocked) |
+| **CP**   | CP.0–CP.10, CP.12 done | CP.7 (spend form) | CP.11 (needs CP.10 — now unblocked) |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
@@ -130,6 +130,7 @@ _(none yet)_
 - [x] CP.8. Wire capture bar focus (`i` key) to open the appropriate form based on prefix; forms mount in right pane; submission refreshes dashboard
 - [x] CP.9. Allow node creation without linking: when a node is selected, a "Link to selected node?" confirm field (default Yes) appears on all three forms; unchecking it skips edge creation — **no blockers**
 - [x] CP.10. Edit existing node — `ctrl+o` opens a pre-populated huh form for the selected node; preserves original ID and Created timestamp; emits `editSubmitMsg` which refreshes dashboard and detail pane
+- [x] CP.12. Archive node — `ctrl+d` sets `status: "archived"` on the selected node, removes it from the dashboard, and shows a brief confirmation; no-op when a form is open or no node is selected
 
 ---
 
@@ -317,6 +318,7 @@ NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::open
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
 CP10["`*CP.10*<br/>**Capture**<br/>Edit existing node`"]:::done
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
+CP12["`*CP.12*<br/>**Capture**<br/>Archive node`"]:::done
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
 
