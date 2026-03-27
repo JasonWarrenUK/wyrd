@@ -623,6 +623,104 @@ func TestSpuriousBytesDoNotTriggerActions(t *testing.T) {
 	}
 }
 
+// --- CP.10: edit node tests ---
+
+// newTestModelWithNode creates a model pre-seeded with a single task node
+// for edit-form testing.
+func newTestModelWithNode(t *testing.T) (tui.Model, string) {
+	t.Helper()
+	dir := t.TempDir()
+	clock := types.StubClock{Fixed: time.Date(2026, 3, 23, 9, 0, 0, 0, time.UTC)}
+	s, err := store.New(dir, clock)
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	node, err := s.CreateNode("Fix the bug", []string{"task"})
+	if err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	node.Title = "Fix the bug"
+	if err := s.WriteNode(node); err != nil {
+		t.Fatalf("WriteNode: %v", err)
+	}
+
+	engine := query.NewEngine(s.Index(), 10)
+	m, err := tui.New(tui.Config{
+		Store:       s,
+		StorePath:   dir,
+		Index:       s.Index(),
+		QueryRunner: engine,
+		Clock:       clock,
+	})
+	if err != nil {
+		t.Fatalf("tui.New: %v", err)
+	}
+	return m, node.ID
+}
+
+// TestEditNodeKeyOpensEditForm verifies that pressing ctrl+o when a node is
+// available in the dashboard mounts an edit form in the right pane.
+func TestEditNodeKeyOpensEditForm(t *testing.T) {
+	m, _ := newTestModelWithNode(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	// The dashboard is populated; press ctrl+o to open the edit form.
+	m = pressModKey(t, m, 'o', tea.ModCtrl)
+
+	v := m.View().Content
+	// The edit form should render the Title field.
+	if !strings.Contains(v, "Title") {
+		t.Errorf("expected edit form with Title field after ctrl+o; got content length %d", len(v))
+	}
+}
+
+// TestEditNodeIgnoredWhenNoSelection verifies that ctrl+o does nothing when
+// the node list is empty (no node to edit).
+func TestEditNodeIgnoredWhenNoSelection(t *testing.T) {
+	// newTestModel boots without any nodes — list is empty.
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	v1 := m.View().Content
+
+	m = pressModKey(t, m, 'o', tea.ModCtrl)
+
+	v2 := m.View().Content
+	// The view should be identical (no form opened).
+	if strings.Contains(v2, "Title") && !strings.Contains(v1, "Title") {
+		t.Error("ctrl+o should not open edit form when no node is selected")
+	}
+}
+
+// TestEditNodeIgnoredWhenFormActive verifies that ctrl+o is a no-op when
+// a creation form is already open in the right pane.
+func TestEditNodeIgnoredWhenFormActive(t *testing.T) {
+	m, _ := newTestModelWithNode(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	// Open a creation form first via capture bar.
+	m = pressModKey(t, m, 'n', tea.ModCtrl)
+	for _, r := range "t: Buy milk" {
+		m = pressKey(t, m, r, string(r))
+	}
+	m = pressKey(t, m, tea.KeyEnter, "")
+
+	// Capture the view with the creation form active.
+	viewWithForm := m.View().Content
+
+	// Press ctrl+o — should be a no-op because a form is already active.
+	m = pressModKey(t, m, 'o', tea.ModCtrl)
+
+	viewAfterCtrlO := m.View().Content
+
+	// The view should be unchanged (ctrl+o did nothing).
+	if viewAfterCtrlO != viewWithForm {
+		t.Error("ctrl+o should not change the view when a creation form is already active")
+	}
+}
+
 // TestCtrlCWorksBeforeReady verifies that ctrl+c (which has a modifier) is
 // not blocked by the readiness gate and produces a quit command immediately.
 func TestCtrlCWorksBeforeReady(t *testing.T) {
