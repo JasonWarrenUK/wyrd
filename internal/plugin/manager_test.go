@@ -35,6 +35,7 @@ func (s *mockStore) WriteNode(node *types.Node) error                     { s.no
 func (s *mockStore) ReadEdge(id string) (*types.Edge, error)              { return s.edges[id], nil }
 func (s *mockStore) WriteEdge(edge *types.Edge) error                     { s.edges[edge.ID] = edge; return nil }
 func (s *mockStore) DeleteEdge(id string) error                           { delete(s.edges, id); return nil }
+func (s *mockStore) ArchiveNode(_ string) error                           { return nil }
 func (s *mockStore) ReadTemplate(_ string) (*types.Template, error)       { return nil, nil }
 func (s *mockStore) AllTemplates() ([]*types.Template, error)             { return nil, nil }
 func (s *mockStore) ReadView(_ string) (*types.SavedView, error)          { return nil, nil }
