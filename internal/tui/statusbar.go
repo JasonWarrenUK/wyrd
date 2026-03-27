@@ -195,16 +195,13 @@ func (sb *StatusBar) View() string {
 	// Key hints: compact summary of bindings for the active pane.
 	var hintsContent string
 	if len(sb.keyHints) > 0 {
-		hintStyle := lipgloss.NewStyle().Foreground(sb.theme.FgMuted()).Background(bg)
+		keyStyle := lipgloss.NewStyle().Foreground(sb.theme.FgPrimary()).Background(bg)
+		descStyle := lipgloss.NewStyle().Foreground(sb.theme.FgMuted()).Background(bg)
 		parts := make([]string, 0, len(sb.keyHints))
 		for _, h := range sb.keyHints {
-			parts = append(parts, h.Key)
+			parts = append(parts, keyStyle.Render(h.Key)+descStyle.Render(" "+h.Description))
 		}
-		// Show at most 4 hints to avoid overflow.
-		if len(parts) > 4 {
-			parts = parts[:4]
-		}
-		hintsContent = hintStyle.Render(strings.Join(parts, " · "))
+		hintsContent = strings.Join(parts, descStyle.Render("  ·  "))
 	}
 
 	// Distribute space: left, hints (left-biased), centre, right.
