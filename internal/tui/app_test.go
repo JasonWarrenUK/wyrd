@@ -721,6 +721,59 @@ func TestEditNodeIgnoredWhenFormActive(t *testing.T) {
 	}
 }
 
+// --- CP.11 (archive node) tests ---
+
+// TestArchiveNodeShowsConfirmation verifies that pressing ctrl+d on a selected
+// node shows an "Archived …" confirmation in the status bar.
+func TestArchiveNodeShowsConfirmation(t *testing.T) {
+	m, _ := newTestModelWithNode(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	m = pressModKey(t, m, 'd', tea.ModCtrl)
+
+	after := m.View().Content
+	if !strings.Contains(after, "Archived") {
+		t.Error("expected 'Archived' confirmation in status bar after ctrl+d")
+	}
+}
+
+// TestArchiveNodeIgnoredWhenNoSelection verifies that ctrl+d does nothing when
+// the node list is empty.
+func TestArchiveNodeIgnoredWhenNoSelection(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	v1 := m.View().Content
+	m = pressModKey(t, m, 'd', tea.ModCtrl)
+	v2 := m.View().Content
+
+	if v1 != v2 {
+		t.Error("ctrl+d should not change the view when no node is selected")
+	}
+}
+
+// TestArchiveNodeIgnoredWhenFormActive verifies that ctrl+d is a no-op when a
+// form is already open.
+func TestArchiveNodeIgnoredWhenFormActive(t *testing.T) {
+	m, _ := newTestModelWithNode(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	// Open a creation form.
+	m = pressModKey(t, m, 'n', tea.ModCtrl)
+	for _, r := range "t: Buy milk" {
+		m = pressKey(t, m, r, string(r))
+	}
+	m = pressKey(t, m, tea.KeyEnter, "")
+
+	viewWithForm := m.View().Content
+
+	m = pressModKey(t, m, 'd', tea.ModCtrl)
+
+	if m.View().Content != viewWithForm {
+		t.Error("ctrl+d should not change the view when a form is already active")
+	}
+}
+
 // TestCtrlCWorksBeforeReady verifies that ctrl+c (which has a modifier) is
 // not blocked by the readiness gate and produces a quit command immediately.
 func TestCtrlCWorksBeforeReady(t *testing.T) {
