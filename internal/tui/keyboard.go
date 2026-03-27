@@ -17,6 +17,7 @@ type AppKeyMap struct {
 	FuzzyPalette   key.Binding
 	Capture        key.Binding
 	EditNode       key.Binding
+	ArchiveNode    key.Binding
 }
 
 // DefaultAppKeyMap returns the built-in key bindings.
@@ -46,6 +47,10 @@ func DefaultAppKeyMap() AppKeyMap {
 			key.WithKeys("ctrl+o"),
 			key.WithHelp("ctrl+o", "edit node"),
 		),
+		ArchiveNode: key.NewBinding(
+			key.WithKeys("ctrl+d"),
+			key.WithHelp("ctrl+d", "archive node"),
+		),
 	}
 }
 
@@ -59,6 +64,7 @@ func (km AppKeyMap) AllBindings() []KeyBinding {
 		km.FuzzyPalette,
 		km.Capture,
 		km.EditNode,
+		km.ArchiveNode,
 	}
 	result := make([]KeyBinding, 0, len(bindings))
 	for _, b := range bindings {

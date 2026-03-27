@@ -45,6 +45,9 @@ type StoreFS interface {
 	// Nodes are never deleted; use archive instead.
 	DeleteEdge(id string) error
 
+	// ArchiveNode sets status to "archived" on the node. Never deletes the file.
+	ArchiveNode(id string) error
+
 	// ReadTemplate reads a template definition by type name.
 	ReadTemplate(typeName string) (*Template, error)
 

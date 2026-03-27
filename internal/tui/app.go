@@ -396,6 +396,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleCapture(msg)
 		case key.Matches(msg, m.keyMap.EditNode):
 			return m.handleEditNode()
+		case key.Matches(msg, m.keyMap.ArchiveNode):
+			return m.handleArchiveNode()
 		default:
 			return m.updateFocusedPane(msg)
 		}
@@ -601,6 +603,73 @@ func (m Model) handleEditSubmit(msg editSubmitMsg) (tea.Model, tea.Cmd) {
 	})
 
 	return m, tea.Batch(detailCmd, clearCmd)
+}
+
+// handleArchiveNode archives the currently selected node. It is a no-op when a
+// form is active, when no node is selected, or when the store is unavailable.
+func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
+	// Guard: form already open.
+	if _, isForm := m.rightPane.(formPane); isForm {
+		return m, nil
+	}
+	// Guard: store unavailable.
+	if m.store == nil {
+		return m, nil
+	}
+	// Guard: no node selected.
+	lp, ok := m.leftPane.(nodeListPane)
+	if !ok {
+		return m, nil
+	}
+	nodeID := lp.SelectedNodeID()
+	if nodeID == "" {
+		return m, nil
+	}
+
+	node, err := m.store.ReadNode(nodeID)
+	if err != nil || node == nil {
+		return m, nil
+	}
+
+	if err := m.store.ArchiveNode(nodeID); err != nil {
+		return m, nil
+	}
+
+	label := node.Title
+	if label == "" {
+		label = nodeID
+	}
+	if len(label) > 40 {
+		label = label[:37] + "…"
+	}
+	m.statusBar.SetCaptureText("Archived " + label)
+
+	// Refresh the dashboard so the archived node disappears from the list.
+	if m.queryRunner != nil {
+		dq := DefaultDashboardQuery()
+		if view, err := m.store.ReadView("dashboard"); err == nil {
+			dq = DashboardQueryFromView(view)
+		}
+		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+			lp := newNodeListPane(result, m.theme)
+			sized, _ := lp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.leftPane = sized
+		}
+	}
+
+	// Clear the right pane and return focus to the list.
+	m.rightPane = NewEmptyPane(m.theme)
+	m.focus = FocusLeft
+	m.syncKeyHints()
+
+	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return captureConfirmClearMsg{}
+	})
+
+	return m, clearCmd
 }
 
 // captureDisplayText formats capture bar input for display in the status bar,
