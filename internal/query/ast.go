@@ -1,5 +1,29 @@
 package query
 
+// Query is the top-level AST node returned by Parse(). It wraps one or more
+// Statement sub-queries joined by UNION or UNION ALL.
+//
+// A simple (non-UNION) query has exactly one Statement; OrderBy and Limit are
+// nil on the Query itself and may be set on Statements[0] instead.
+type Query struct {
+	// Statements holds the individual MATCH…RETURN sub-queries in order.
+	Statements []*Statement
+
+	// UnionAll records the join mode for each junction between adjacent
+	// statements. len(UnionAll) == len(Statements)-1.
+	// UnionAll[i] == true means UNION ALL; false means UNION (with dedup).
+	UnionAll []bool
+
+	// OrderBy applies to the combined result when ORDER BY appears after the
+	// final UNION clause. Nil for single-statement queries (ORDER BY lives on
+	// the Statement instead).
+	OrderBy *OrderByClause
+
+	// Limit applies to the combined result when LIMIT appears after the final
+	// UNION clause. Nil for single-statement queries.
+	Limit *LimitClause
+}
+
 // Statement is the top-level AST node for a Cypher query.
 // Only a single MATCH…RETURN form is supported; anything else produces an error.
 type Statement struct {

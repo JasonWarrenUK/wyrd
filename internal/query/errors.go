@@ -45,6 +45,24 @@ func (e *MutationError) Error() string {
 	return fmt.Sprintf("mutation keyword %q is not permitted; the query engine is read-only", e.Keyword)
 }
 
+// UnionColumnMismatchError is returned when a UNION sub-query returns a
+// different number of columns than the first sub-query.
+type UnionColumnMismatchError struct {
+	// Index is the 0-based position of the mismatching sub-query (always ≥ 1).
+	Index int
+	// Expected is the column count of the first sub-query.
+	Expected int
+	// Got is the column count of the mismatching sub-query.
+	Got int
+}
+
+func (e *UnionColumnMismatchError) Error() string {
+	return fmt.Sprintf(
+		"UNION sub-query %d returns %d column(s), but the first sub-query returns %d",
+		e.Index+1, e.Got, e.Expected,
+	)
+}
+
 // PathDepthError is returned when a variable-length path pattern exceeds the
 // configured maximum depth.
 type PathDepthError struct {

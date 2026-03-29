@@ -49,6 +49,90 @@ func newEvaluator(index types.GraphIndex, clock types.Clock, maxDepth int, query
 	}
 }
 
+// runQuery executes a parsed Query (single-statement or UNION compound) and
+// returns the merged QueryResult.
+func (ev *evaluator) runQuery(q *Query) (*types.QueryResult, error) {
+	// Single statement: delegate directly to run() — no overhead.
+	if len(q.Statements) == 1 {
+		return ev.run(q.Statements[0])
+	}
+
+	// Compound UNION: execute each sub-statement and merge results.
+	var columns []string
+	var allRows []map[string]interface{}
+
+	for i, stmt := range q.Statements {
+		result, err := ev.run(stmt)
+		if err != nil {
+			return nil, err
+		}
+		if i == 0 {
+			columns = result.Columns
+		} else if len(result.Columns) != len(columns) {
+			return nil, &UnionColumnMismatchError{
+				Index:    i,
+				Expected: len(columns),
+				Got:      len(result.Columns),
+			}
+		}
+		allRows = append(allRows, result.Rows...)
+	}
+
+	// Deduplicate if any junction uses UNION (not UNION ALL).
+	needsDedup := false
+	for _, all := range q.UnionAll {
+		if !all {
+			needsDedup = true
+			break
+		}
+	}
+	if needsDedup {
+		allRows = deduplicateRows(allRows, columns)
+	}
+
+	result := &types.QueryResult{Columns: columns, Rows: allRows}
+
+	// Apply compound-level ORDER BY.
+	if q.OrderBy != nil {
+		if err := ev.evalOrderBy(result, q.OrderBy); err != nil {
+			return nil, err
+		}
+	}
+
+	// Apply compound-level LIMIT.
+	if q.Limit != nil && q.Limit.Count < len(result.Rows) {
+		result.Rows = result.Rows[:q.Limit.Count]
+	}
+
+	return result, nil
+}
+
+// deduplicateRows returns a new slice with duplicate rows removed, preserving
+// first-occurrence order. Rows are compared by their projected column values.
+func deduplicateRows(rows []map[string]interface{}, columns []string) []map[string]interface{} {
+	seen := make(map[string]bool, len(rows))
+	out := make([]map[string]interface{}, 0, len(rows))
+	for _, row := range rows {
+		key := rowFingerprint(row, columns)
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+// rowFingerprint produces a string key for a row based on its projected column
+// values. Uses fmt.Sprintf("%v", ...) which is correct for the scalar types
+// (string, int64, float64, bool, time.Time, nil) that RETURN clauses project.
+func rowFingerprint(row map[string]interface{}, columns []string) string {
+	parts := make([]string, len(columns))
+	for i, col := range columns {
+		parts[i] = fmt.Sprintf("%v", row[col])
+	}
+	return strings.Join(parts, "\x00")
+}
+
 // run executes the parsed statement and returns a QueryResult.
 func (ev *evaluator) run(stmt *Statement) (*types.QueryResult, error) {
 	// Step 1: resolve MATCH patterns into candidate bindings.

@@ -24,16 +24,18 @@ func NewEngine(index types.GraphIndex, maxDepth int) *Engine {
 // Run executes the query and returns results. Returns QueryError on failure.
 // Variables like $today and $now are resolved against the provided clock.
 // The engine is read-only; mutation keywords produce a MutationError.
+// UNION and UNION ALL are supported: each sub-query is evaluated independently
+// and results are merged (with deduplication for UNION).
 func (e *Engine) Run(query string, clock types.Clock) (*types.QueryResult, error) {
 	if clock == nil {
 		clock = types.RealClock{}
 	}
 
-	stmt, err := Parse(query)
+	q, err := Parse(query)
 	if err != nil {
 		return nil, err
 	}
 
 	ev := newEvaluator(e.index, clock, e.maxDepth, query)
-	return ev.run(stmt)
+	return ev.runQuery(q)
 }

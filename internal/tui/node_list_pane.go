@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"image/color"
+	"io"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -13,6 +14,23 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
+
+// groupHeaderItem is a non-selectable separator item rendered as a bold group
+// heading in the node list. The custom delegate renders it distinctly from
+// data rows, and Update() skips over it during cursor movement.
+type groupHeaderItem struct {
+	label string
+}
+
+// FilterValue returns "" so group headers are invisible to the bubbles/list
+// filter — they are never matched and always hidden when filtering is active.
+func (g groupHeaderItem) FilterValue() string { return "" }
+
+// Title implements list.DefaultItem (used by the delegate's type switch).
+func (g groupHeaderItem) Title() string { return g.label }
+
+// Description implements list.DefaultItem.
+func (g groupHeaderItem) Description() string { return "" }
 
 // nodeListItem wraps a single row from a QueryResult so it satisfies the
 // list.DefaultItem interface required by bubbles/list.
@@ -52,6 +70,81 @@ const (
 // so that app.go can sync key hints in the status bar.
 type filterStateChangedMsg struct{}
 
+// groupedDelegate is a list.ItemDelegate that renders nodeListItem rows as
+// data rows and groupHeaderItem rows as bold section headings. It replaces
+// the standard DefaultDelegate when grouping is active.
+type groupedDelegate struct {
+	normalStyle   lipgloss.Style
+	selectedStyle lipgloss.Style
+	dimmedStyle   lipgloss.Style
+	headerStyle   lipgloss.Style
+}
+
+func newGroupedDelegate(theme *ActiveTheme) groupedDelegate {
+	normalStyle := lipgloss.NewStyle().
+		Background(theme.BgPrimary()).
+		Foreground(theme.FgPrimary()).
+		Padding(0, 0, 0, 1)
+
+	selectedStyle := lipgloss.NewStyle().
+		Background(theme.Selection()).
+		Foreground(theme.AccentPrimary()).
+		Bold(true).
+		Padding(0, 0, 0, 1)
+
+	dimmedStyle := lipgloss.NewStyle().
+		Background(theme.BgPrimary()).
+		Foreground(theme.FgMuted()).
+		Padding(0, 0, 0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(theme.AccentPrimary()).
+		Background(theme.BgPrimary()).
+		Padding(0, 0, 0, 1)
+
+	return groupedDelegate{
+		normalStyle:   normalStyle,
+		selectedStyle: selectedStyle,
+		dimmedStyle:   dimmedStyle,
+		headerStyle:   headerStyle,
+	}
+}
+
+func (d groupedDelegate) Height() int  { return 1 }
+func (d groupedDelegate) Spacing() int { return 0 }
+
+func (d groupedDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d groupedDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	switch it := item.(type) {
+	case groupHeaderItem:
+		fmt.Fprint(w, d.headerStyle.Render(it.label))
+	case nodeListItem:
+		style := d.normalStyle
+		if index == m.Index() {
+			style = d.selectedStyle
+		} else if m.FilterState() == list.FilterApplied {
+			style = d.dimmedStyle
+		}
+		title := it.Title()
+		// Truncate if wider than available space (width minus left padding).
+		maxW := m.Width() - style.GetPaddingLeft() - style.GetPaddingRight()
+		if maxW > 0 {
+			runes := []rune(title)
+			if len(runes) > maxW {
+				ellipsisWidth := utf8.RuneCountInString(listColEllipsis)
+				cut := maxW - ellipsisWidth
+				if cut < 0 {
+					cut = 0
+				}
+				title = string(runes[:cut]) + listColEllipsis
+			}
+		}
+		fmt.Fprint(w, style.Render(title))
+	}
+}
+
 // nodeListPane is a PaneModel that renders a QueryResult as a scrollable list
 // using the charmbracelet/bubbles list component. Navigation uses arrow keys,
 // pgup/pgdn, and home/end; vim-style single-char bindings are disabled.
@@ -60,9 +153,12 @@ type nodeListPane struct {
 	columns   []string
 	colWidths []int
 	rows      []map[string]interface{}
-	width     int
-	height    int
-	theme     *ActiveTheme
+	// groupCol is the column name used to group rows into sections (e.g.
+	// "category"). Empty string means flat list with no group headers.
+	groupCol string
+	width    int
+	height   int
+	theme    *ActiveTheme
 }
 
 // newNodeListPane constructs a pane from a QueryResult, wiring the theme
@@ -73,12 +169,21 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 		cols = dashboardColumns
 	}
 
+	// Detect the group column: use "category" when present.
+	groupCol := detectGroupCol(cols)
+
 	const initialWidth = 80
 	const delegatePad = 1 // left padding added by the delegate style
 	widths := calculateColWidths(result.Rows, cols, initialWidth-delegatePad)
-	items := rowsToItems(result.Rows, cols, widths)
+	items := rowsToItems(result.Rows, cols, widths, groupCol)
 
-	delegate := buildDelegate(theme)
+	// Use groupedDelegate when grouping is active, DefaultDelegate otherwise.
+	var delegate list.ItemDelegate
+	if groupCol != "" {
+		delegate = newGroupedDelegate(theme)
+	} else {
+		delegate = buildDelegate(theme)
+	}
 	l := list.New(items, delegate, initialWidth, 22)
 
 	// Disable all built-in chrome — we own the surrounding frame.
@@ -124,11 +229,17 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	l.FilterInput.SetStyles(filterStyles)
 	l.FilterInput.Prompt = "/ "
 
+	// If the first item is a group header, advance the cursor to the first
+	// data item so ctrl+o / ctrl+d work immediately without requiring a
+	// manual cursor move.
+	skipInitialHeaders(&l)
+
 	return nodeListPane{
 		list:      l,
 		columns:   cols,
 		colWidths: widths,
 		rows:      result.Rows,
+		groupCol:  groupCol,
 		width:     initialWidth,
 		height:    22,
 		theme:     theme,
@@ -166,7 +277,8 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		p.list.SetSize(p.width, listHeight(msg.Height))
 		// Recompute column widths for the new inner pane width and rebuild items.
 		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
-		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths))
+		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol))
+		skipInitialHeaders(&p.list)
 		return p, nil
 
 	}
@@ -175,6 +287,35 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	prevState := p.list.FilterState()
 	var cmd tea.Cmd
 	p.list, cmd = p.list.Update(msg)
+
+	// Skip group header items — nudge cursor to the nearest data item.
+	if _, isHeader := p.list.SelectedItem().(groupHeaderItem); isHeader {
+		direction := 1
+		if p.list.Index() < prevIndex {
+			direction = -1
+		}
+		items := p.list.Items()
+		newIdx := p.list.Index() + direction
+		for newIdx >= 0 && newIdx < len(items) {
+			if _, ok := items[newIdx].(groupHeaderItem); !ok {
+				break
+			}
+			newIdx += direction
+		}
+		// If we ran off the end, try the other direction.
+		if newIdx < 0 || newIdx >= len(items) {
+			newIdx = p.list.Index() - direction
+			for newIdx >= 0 && newIdx < len(items) {
+				if _, ok := items[newIdx].(groupHeaderItem); !ok {
+					break
+				}
+				newIdx -= direction
+			}
+		}
+		if newIdx >= 0 && newIdx < len(items) {
+			p.list.Select(newIdx)
+		}
+	}
 
 	// Emit a selection message when the cursor moves to a different item.
 	if p.list.Index() != prevIndex {
@@ -272,17 +413,98 @@ func (p nodeListPane) SelectedNodeID() string {
 
 // --- helpers -----------------------------------------------------------------
 
+// skipInitialHeaders advances the list cursor past any leading groupHeaderItem
+// entries so that the first selected item is always a data row. This is called
+// after initial construction and after SetItems to ensure ctrl+o / ctrl+d work
+// immediately without requiring a manual cursor move.
+func skipInitialHeaders(l *list.Model) {
+	items := l.Items()
+	for i, item := range items {
+		if _, ok := item.(groupHeaderItem); !ok {
+			if i != l.Index() {
+				l.Select(i)
+			}
+			return
+		}
+	}
+	// All items are headers (or list is empty) — leave cursor as-is.
+}
+
+// detectGroupCol returns the first column in cols that should be used for
+// grouping. Currently "category" is the only supported group column.
+func detectGroupCol(cols []string) string {
+	for _, c := range cols {
+		if c == "category" {
+			return "category"
+		}
+	}
+	return ""
+}
+
+// groupLabel converts a raw category value into a display heading.
+// Known values are mapped to capitalised plural labels; unknowns are
+// capitalised with a trailing "s".
+var groupLabelMap = map[string]string{
+	"task":    "Tasks",
+	"note":    "Notes",
+	"journal": "Journals",
+}
+
+func toGroupLabel(raw string) string {
+	if label, ok := groupLabelMap[strings.ToLower(raw)]; ok {
+		return label
+	}
+	if len(raw) == 0 {
+		return raw
+	}
+	return strings.ToUpper(raw[:1]) + raw[1:] + "s"
+}
+
 // rowsToItems converts QueryResult rows into bubbles/list items.
-// Each item's title is the formatted, column-aligned display string for that row.
-// colWidths must be the same length as the non-id columns in cols.
-func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int) []list.Item {
-	items := make([]list.Item, len(rows))
-	for i, row := range rows {
-		id, _ := row["id"].(string)
-		items[i] = nodeListItem{
-			row:   row,
-			title: formatRowTitle(row, cols, colWidths),
-			id:    id,
+// When groupCol is non-empty, rows are grouped by that column and
+// groupHeaderItem separators are inserted at each group boundary.
+// colWidths must be the same length as the non-id, non-groupCol display columns.
+func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, groupCol string) []list.Item {
+	if groupCol == "" {
+		items := make([]list.Item, len(rows))
+		for i, row := range rows {
+			id, _ := row["id"].(string)
+			items[i] = nodeListItem{
+				row:   row,
+				title: formatRowTitle(row, cols, colWidths),
+				id:    id,
+			}
+		}
+		return items
+	}
+
+	// Group rows by groupCol, preserving first-appearance order.
+	type group struct {
+		label string
+		rows  []map[string]interface{}
+	}
+	var groups []group
+	groupIndex := map[string]int{}
+	for _, row := range rows {
+		raw := fmt.Sprintf("%v", row[groupCol])
+		if idx, ok := groupIndex[raw]; ok {
+			groups[idx].rows = append(groups[idx].rows, row)
+		} else {
+			groupIndex[raw] = len(groups)
+			groups = append(groups, group{label: toGroupLabel(raw), rows: []map[string]interface{}{row}})
+		}
+	}
+
+	var items []list.Item
+	for _, g := range groups {
+		items = append(items, groupHeaderItem{label: g.label})
+		for _, row := range g.rows {
+			id, _ := row["id"].(string)
+			items = append(items, nodeListItem{
+				row:   row,
+				title: formatRowTitle(row, cols, colWidths),
+				id:    id,
+			})
 		}
 	}
 	return items
