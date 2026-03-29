@@ -159,3 +159,156 @@ func TestEngine_ScalarFunction_Labels(t *testing.T) {
 		t.Errorf("expected 3 rows, got %d", len(result.Rows))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// UNION / UNION ALL
+// ---------------------------------------------------------------------------
+
+func TestEngine_UnionAll(t *testing.T) {
+	// task nodes (n1,n2,n3) UNION ALL project nodes (n4) → 4 rows, no dedup.
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.id AS id
+UNION ALL
+MATCH (n:project) RETURN n.id AS id`, clock)
+	if err != nil {
+		t.Fatalf("UNION ALL error: %v", err)
+	}
+	if len(result.Rows) != 4 {
+		t.Errorf("expected 4 rows (3 tasks + 1 project), got %d", len(result.Rows))
+	}
+	if len(result.Columns) != 1 || result.Columns[0] != "id" {
+		t.Errorf("expected columns [id], got %v", result.Columns)
+	}
+}
+
+func TestEngine_UnionDeduplicates(t *testing.T) {
+	// Both sub-queries return all nodes. UNION should deduplicate.
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.id AS id
+UNION
+MATCH (n:task) RETURN n.id AS id`, clock)
+	if err != nil {
+		t.Fatalf("UNION dedup error: %v", err)
+	}
+	// Duplicates removed: still 3 unique task rows.
+	if len(result.Rows) != 3 {
+		t.Errorf("expected 3 deduplicated rows, got %d", len(result.Rows))
+	}
+}
+
+func TestEngine_UnionAllPreservesDuplicates(t *testing.T) {
+	// UNION ALL must NOT deduplicate.
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.id AS id
+UNION ALL
+MATCH (n:task) RETURN n.id AS id`, clock)
+	if err != nil {
+		t.Fatalf("UNION ALL duplicate error: %v", err)
+	}
+	// 3 tasks × 2 = 6 rows (no dedup).
+	if len(result.Rows) != 6 {
+		t.Errorf("expected 6 rows (no dedup), got %d", len(result.Rows))
+	}
+}
+
+func TestEngine_UnionColumnMismatch(t *testing.T) {
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	_, err := e.Run(`MATCH (n:task) RETURN n.id AS id
+UNION
+MATCH (n:project) RETURN n.id AS id, n.status AS status`, clock)
+	if err == nil {
+		t.Fatal("expected column mismatch error")
+	}
+	if _, ok := err.(*UnionColumnMismatchError); !ok {
+		t.Errorf("expected UnionColumnMismatchError, got %T: %v", err, err)
+	}
+}
+
+func TestEngine_UnionCompoundOrderBy(t *testing.T) {
+	// Tasks have status "open" or "done"; project has status "active".
+	// UNION ALL, then ORDER BY status ASC.
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.status AS status
+UNION ALL
+MATCH (n:project) RETURN n.status AS status
+ORDER BY status`, clock)
+	if err != nil {
+		t.Fatalf("compound ORDER BY error: %v", err)
+	}
+	// 3 tasks (open,open,done) + 1 project (active) = 4 rows.
+	if len(result.Rows) != 4 {
+		t.Errorf("expected 4 rows, got %d", len(result.Rows))
+	}
+	// Ascending: "active" < "done" < "open".
+	first := result.Rows[0]["status"]
+	if first != "active" {
+		t.Errorf("expected first row 'active' after sort, got %q", first)
+	}
+}
+
+func TestEngine_UnionCompoundLimit(t *testing.T) {
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.id AS id
+UNION ALL
+MATCH (n:project) RETURN n.id AS id
+LIMIT 2`, clock)
+	if err != nil {
+		t.Fatalf("compound LIMIT error: %v", err)
+	}
+	if len(result.Rows) != 2 {
+		t.Errorf("expected 2 rows after LIMIT 2, got %d", len(result.Rows))
+	}
+}
+
+func TestEngine_UnionThreeWay(t *testing.T) {
+	// Three branches: tasks, then tasks again (ALL), then projects.
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.id AS id
+UNION ALL
+MATCH (n:task) RETURN n.id AS id
+UNION ALL
+MATCH (n:project) RETURN n.id AS id`, clock)
+	if err != nil {
+		t.Fatalf("three-way UNION ALL error: %v", err)
+	}
+	// 3 + 3 + 1 = 7 rows (no dedup because all UNION ALL).
+	if len(result.Rows) != 7 {
+		t.Errorf("expected 7 rows, got %d", len(result.Rows))
+	}
+}
+
+func TestEngine_UnionSingleStatementUnchanged(t *testing.T) {
+	// A Query wrapping a single Statement should behave identically to before.
+	g := buildTestGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.status AS status ORDER BY n.status LIMIT 2`, clock)
+	if err != nil {
+		t.Fatalf("single-statement query error: %v", err)
+	}
+	if len(result.Rows) != 2 {
+		t.Errorf("expected 2 rows, got %d", len(result.Rows))
+	}
+}
