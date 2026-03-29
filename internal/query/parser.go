@@ -392,8 +392,9 @@ func (p *parser) keywordIs(kw string) bool {
 }
 
 // Parse is the entry point. It rejects mutation and unsupported keywords before
-// building the AST.
-func Parse(query string) (*Statement, error) {
+// building the AST. Returns a *Query that wraps one or more sub-statements
+// joined by UNION / UNION ALL.
+func Parse(query string) (*Query, error) {
 	if err := rejectForbiddenKeywords(query); err != nil {
 		return nil, err
 	}
@@ -402,7 +403,7 @@ func Parse(query string) (*Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.parseStatement()
+	return p.parseQuery()
 }
 
 // rejectForbiddenKeywords does a quick keyword scan before full parsing.
@@ -453,7 +454,10 @@ func isIdentRune(r rune) bool {
 // Grammar rules
 // ---------------------------------------------------------------------------
 
-func (p *parser) parseStatement() (*Statement, error) {
+// parseSubStatement parses a single MATCH…WHERE?…RETURN sub-query without
+// ORDER BY, LIMIT, or an EOF check. Used by parseQuery() for each branch of a
+// UNION expression.
+func (p *parser) parseSubStatement() (*Statement, error) {
 	stmt := &Statement{}
 
 	match, err := p.parseMatchClause()
@@ -482,22 +486,70 @@ func (p *parser) parseStatement() (*Statement, error) {
 	}
 	stmt.Return = ret
 
-	// Optional ORDER BY
+	return stmt, nil
+}
+
+// parseQuery parses a full query, which may be a single MATCH…RETURN statement
+// or two or more sub-statements joined by UNION / UNION ALL.
+//
+// Grammar:
+//
+//	Query = SubStatement (("UNION" "ALL"? SubStatement)*) OrderByClause? LimitClause?
+func (p *parser) parseQuery() (*Query, error) {
+	first, err := p.parseSubStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	q := &Query{
+		Statements: []*Statement{first},
+	}
+
+	// Collect additional UNION branches.
+	for p.keywordIs("UNION") {
+		p.consume() // consume UNION
+
+		unionAll := false
+		if p.keywordIs("ALL") {
+			p.consume() // consume ALL
+			unionAll = true
+		}
+		q.UnionAll = append(q.UnionAll, unionAll)
+
+		next, err := p.parseSubStatement()
+		if err != nil {
+			return nil, err
+		}
+		q.Statements = append(q.Statements, next)
+	}
+
+	// Parse trailing ORDER BY / LIMIT.
+	// For a single statement these belong to the statement itself;
+	// for a compound query they apply to the merged result and live on Query.
+	compound := len(q.Statements) > 1
+
 	if p.keywordIs("ORDER") {
 		orderBy, err := p.parseOrderByClause()
 		if err != nil {
 			return nil, err
 		}
-		stmt.OrderBy = orderBy
+		if compound {
+			q.OrderBy = orderBy
+		} else {
+			q.Statements[0].OrderBy = orderBy
+		}
 	}
 
-	// Optional LIMIT
 	if p.keywordIs("LIMIT") {
 		limit, err := p.parseLimitClause()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Limit = limit
+		if compound {
+			q.Limit = limit
+		} else {
+			q.Statements[0].Limit = limit
+		}
 	}
 
 	// Ensure nothing remains.
@@ -506,7 +558,7 @@ func (p *parser) parseStatement() (*Statement, error) {
 		return nil, p.errorf(t, "unexpected token %q at line %d column %d", t.value, t.line, t.col)
 	}
 
-	return stmt, nil
+	return q, nil
 }
 
 func (p *parser) parseMatchClause() (*MatchClause, error) {
@@ -1209,6 +1261,7 @@ var reservedKeywords = map[string]bool{
 	"TRUE": true, "FALSE": true, "NULL": true, "IS": true, "ASC": true, "DESC": true,
 	"WITH": true, "UNWIND": true, "CASE": true, "OPTIONAL": true,
 	"CREATE": true, "SET": true, "DELETE": true, "MERGE": true, "REMOVE": true,
+	"UNION": true, "ALL": true,
 }
 
 func isReservedKeyword(s string) bool {
