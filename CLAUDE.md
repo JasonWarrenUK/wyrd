@@ -70,7 +70,7 @@ Store layout on disk:
 
 `query.NewEngine(index, maxDepth)` returns an `Engine`. `Engine.Run(query, clock)` parses with [Participle](https://github.com/alecthomas/participle) (LL(1) parser combinator), then evaluates against the `GraphIndex`. Mutations are rejected. Returns `*QueryResult{Columns []string, Rows []map[string]any}`.
 
-Supported built-in date variables: `$today`, `$now`, `$week_start`, `$month_start` — with optional arithmetic offsets (e.g. `$today + 7d`). Not yet implemented but planned: `UNION` (tracked in roadmap).
+Supported built-in date variables: `$today`, `$now`, `$week_start`, `$month_start` — with optional arithmetic offsets (e.g. `$today + 7d`). `UNION` / `UNION ALL` are implemented (QE.1): `Parse()` returns `*Query` wrapping one or more `*Statement` sub-queries; `Engine.Run()` merges results with optional deduplication and compound ORDER BY / LIMIT.
 
 ### CLI layer (`internal/cli/` + `cmd/wyrd/main.go`)
 
