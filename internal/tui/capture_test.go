@@ -165,19 +165,20 @@ func TestCaptureBar_SpendPrefix(t *testing.T) {
 	bar := tui.NewCaptureBar(store, fixedCaptureClock())
 
 	bar.Focus("")
-	// The s: prefix returns "spend" as the node type. The actual spend form is
-	// opened by handleCaptureKey in app.go; this just verifies prefix parsing.
+	// "spend" is a routing token, not a node type. Submit() should return nil
+	// rather than creating a node. The actual spend form is opened by
+	// handleCaptureKey in app.go.
 	bar.SetInput("s: coffee beans")
 
 	result, err := bar.Submit()
 	if err != nil {
 		t.Fatalf("Submit: %v", err)
 	}
-	if result.Node.Types[0] != "spend" {
-		t.Errorf("expected type spend, got %q", result.Node.Types[0])
+	if result != nil {
+		t.Error("expected nil result for spend prefix (not a node type)")
 	}
-	if result.Node.Body != "coffee beans" {
-		t.Errorf("unexpected body: %q", result.Node.Body)
+	if len(store.nodes) != 0 {
+		t.Errorf("expected 0 nodes written for spend prefix, got %d", len(store.nodes))
 	}
 }
 

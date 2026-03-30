@@ -370,8 +370,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = NewEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		label := fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category)
-		return m.handleCaptureSubmit(captureSubmitMsg{label: label})
+		m.statusBar.SetCaptureText(fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category))
+		if m.queryRunner != nil {
+			dq := DefaultDashboardQuery()
+			if m.store != nil {
+				if view, err := m.store.ReadView("dashboard"); err == nil {
+					dq = DashboardQueryFromView(view)
+				}
+			}
+			if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+				lp := newNodeListPane(result, m.theme)
+				sized, _ := lp.Update(tea.WindowSizeMsg{
+					Width:  m.layout.TotalWidth(),
+					Height: m.layout.TotalHeight(),
+				})
+				m.leftPane = sized
+			}
+		}
+		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+			return captureConfirmClearMsg{}
+		})
 
 	case filterStateChangedMsg:
 		m.syncKeyHints()

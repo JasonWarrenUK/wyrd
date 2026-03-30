@@ -111,6 +111,14 @@ func (c *CaptureBar) Submit() (*CaptureResult, error) {
 	}
 
 	nodeType, body := parseCapturePrefixes(raw)
+
+	// "spend" is a routing token handled by handleCaptureKey, not a node type.
+	// Submit() should never create a node for it.
+	if nodeType == "spend" {
+		c.reset()
+		return nil, nil
+	}
+
 	now := c.clock.Now()
 
 	node := &types.Node{

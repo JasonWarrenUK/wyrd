@@ -1,6 +1,7 @@
 package tui_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -142,8 +143,10 @@ func TestSpendFormPanePrefillNote(t *testing.T) {
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	v := sized.View()
-	// The pre-filled note text should appear in the rendered form.
 	if v == "" {
 		t.Error("expected non-empty view")
+	}
+	if !strings.Contains(v, "coffee beans") {
+		t.Errorf("expected pre-filled note 'coffee beans' in view, got:\n%s", v)
 	}
 }
