@@ -11,6 +11,14 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
+// formActivePane is implemented by any pane that represents an active form.
+// The root model uses this interface to guard against replacing the right pane
+// (with a detail view, new form, etc.) while the user is filling in a form.
+type formActivePane interface {
+	PaneModel
+	isFormActive() // marker method
+}
+
 // formKind identifies which node type a form creates.
 type formKind int
 
@@ -66,8 +74,9 @@ type formPane struct {
 	done bool
 }
 
-// Compile-time check: formPane must satisfy PaneModel.
+// Compile-time checks: formPane must satisfy both PaneModel and formActivePane.
 var _ PaneModel = formPane{}
+var _ formActivePane = formPane{}
 
 // NewTaskFormPane builds a formPane for task creation. prefillTitle is the
 // text the user typed in the capture bar after the "t:" prefix (may be empty).
@@ -521,6 +530,9 @@ func (f formPane) KeyBindings() []KeyBinding {
 
 // HandleFocusLost is a no-op for form panes.
 func (f formPane) HandleFocusLost() tea.Cmd { return nil }
+
+// isFormActive satisfies the formActivePane marker interface.
+func (formPane) isFormActive() {}
 
 // buildNode constructs a types.Node from the captured form field values.
 // When editingNodeID is set, the original ID and Created timestamp are preserved.
