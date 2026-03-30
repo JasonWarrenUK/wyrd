@@ -160,6 +160,27 @@ func TestCaptureBar_NotePrefix(t *testing.T) {
 	}
 }
 
+func TestCaptureBar_SpendPrefix(t *testing.T) {
+	store := newCaptureStore()
+	bar := tui.NewCaptureBar(store, fixedCaptureClock())
+
+	bar.Focus("")
+	// The s: prefix returns "spend" as the node type. The actual spend form is
+	// opened by handleCaptureKey in app.go; this just verifies prefix parsing.
+	bar.SetInput("s: coffee beans")
+
+	result, err := bar.Submit()
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	if result.Node.Types[0] != "spend" {
+		t.Errorf("expected type spend, got %q", result.Node.Types[0])
+	}
+	if result.Node.Body != "coffee beans" {
+		t.Errorf("unexpected body: %q", result.Node.Body)
+	}
+}
+
 func TestCaptureBar_EmptyInput(t *testing.T) {
 	store := newCaptureStore()
 	bar := tui.NewCaptureBar(store, fixedCaptureClock())
