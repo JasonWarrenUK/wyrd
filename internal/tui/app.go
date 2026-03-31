@@ -312,7 +312,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case nodeSelectedMsg:
 		// Don't overwrite the right pane with detail if a form is active.
-		if _, isForm := m.rightPane.(formPane); !isForm {
+		if _, isForm := m.rightPane.(formActivePane); !isForm {
 			// Render detail asynchronously so Glamour initialisation doesn't
 			// block the event loop. The right pane shows a placeholder until
 			// the detailReadyMsg arrives.
@@ -337,7 +337,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case detailReadyMsg:
 		// Result of async detail rendering. Mount the pane unless a form
 		// has taken over the right pane in the meantime.
-		if _, isForm := m.rightPane.(formPane); !isForm {
+		if _, isForm := m.rightPane.(formActivePane); !isForm {
 			m.rightPane = msg.pane
 		}
 		return m, nil
@@ -365,6 +365,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		return m.handleEditSubmit(msg)
+
+	case spendSubmitMsg:
+		m.rightPane = NewEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		m.statusBar.SetCaptureText(fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category))
+		if m.queryRunner != nil {
+			dq := DefaultDashboardQuery()
+			if m.store != nil {
+				if view, err := m.store.ReadView("dashboard"); err == nil {
+					dq = DashboardQueryFromView(view)
+				}
+			}
+			if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+				lp := newNodeListPane(result, m.theme)
+				sized, _ := lp.Update(tea.WindowSizeMsg{
+					Width:  m.layout.TotalWidth(),
+					Height: m.layout.TotalHeight(),
+				})
+				m.leftPane = sized
+			}
+		}
+		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+			return captureConfirmClearMsg{}
+		})
 
 	case filterStateChangedMsg:
 		m.syncKeyHints()
@@ -437,7 +462,7 @@ func (m Model) handleCapture(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	// Don't steal focus if a form is active in the right pane.
-	if _, isForm := m.rightPane.(formPane); isForm {
+	if _, isForm := m.rightPane.(formActivePane); isForm {
 		return m.updateFocusedPane(msg)
 	}
 	m.captureBar.Focus("")
@@ -463,6 +488,22 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		nodeType, body := parseCapturePrefixes(input)
 		m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+
+		// Spend form has its own dispatch path: it needs the index and returns
+		// an error when no budget categories exist.
+		if nodeType == "spend" {
+			sp, err := newSpendFormPane(m.theme, m.store, m.index, m.clock, body)
+			if err != nil {
+				m.statusBar.SetCaptureText("No budget categories found")
+				return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+					return captureConfirmClearMsg{}
+				})
+			}
+			m.rightPane = sp
+			m.focus = FocusRight
+			m.syncKeyHints()
+			return m, sp.form.Init()
+		}
 
 		var selectedID string
 		if lp, ok := m.leftPane.(nodeListPane); ok {
@@ -531,7 +572,7 @@ func (m Model) handleCaptureSubmit(msg captureSubmitMsg) (tea.Model, tea.Cmd) {
 // store is unavailable.
 func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 	// Guard: form already open.
-	if _, isForm := m.rightPane.(formPane); isForm {
+	if _, isForm := m.rightPane.(formActivePane); isForm {
 		return m, nil
 	}
 	// Guard: store unavailable.
@@ -609,7 +650,7 @@ func (m Model) handleEditSubmit(msg editSubmitMsg) (tea.Model, tea.Cmd) {
 // form is active, when no node is selected, or when the store is unavailable.
 func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	// Guard: form already open.
-	if _, isForm := m.rightPane.(formPane); isForm {
+	if _, isForm := m.rightPane.(formActivePane); isForm {
 		return m, nil
 	}
 	// Guard: store unavailable.

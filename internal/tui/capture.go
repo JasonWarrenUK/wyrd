@@ -111,6 +111,14 @@ func (c *CaptureBar) Submit() (*CaptureResult, error) {
 	}
 
 	nodeType, body := parseCapturePrefixes(raw)
+
+	// "spend" is a routing token handled by handleCaptureKey, not a node type.
+	// Submit() should never create a node for it.
+	if nodeType == "spend" {
+		c.reset()
+		return nil, nil
+	}
+
 	now := c.clock.Now()
 
 	node := &types.Node{
@@ -178,6 +186,8 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 		return "journal", strings.TrimSpace(raw[2:])
 	case strings.HasPrefix(lower, "n:"):
 		return "note", strings.TrimSpace(raw[2:])
+	case strings.HasPrefix(lower, "s:"):
+		return "spend", strings.TrimSpace(raw[2:])
 	case strings.HasPrefix(lower, "t:"):
 		return "task", strings.TrimSpace(raw[2:])
 	default:
@@ -188,7 +198,7 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 // CaptureBarPlaceholder returns the placeholder text shown when the capture
 // bar is not focused and empty.
 func CaptureBarPlaceholder() string {
-	return "ctrl+n to capture — j: journal · n: note · t: task (default)"
+	return "ctrl+n to capture — j: journal · n: note · s: spend · t: task (default)"
 }
 
 // unusedTime is a compile-time assertion that time is imported.

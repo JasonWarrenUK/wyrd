@@ -112,7 +112,6 @@ _(none yet)_
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — **no blockers**
 - [ ] CP.11. Edge management in edit form — **no blockers**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
@@ -132,6 +131,7 @@ _(none)_
 - [x] CP.9. Allow node creation without linking: when a node is selected, a "Link to selected node?" confirm field (default Yes) appears on all three forms; unchecking it skips edge creation — **no blockers**
 - [x] CP.10. Edit existing node — `ctrl+o` opens a pre-populated huh form for the selected node; preserves original ID and Created timestamp; emits `editSubmitMsg` which refreshes dashboard and detail pane
 - [x] CP.12. Archive node — `ctrl+d` sets `status: "archived"` on the selected node, removes it from the dashboard, and shows a brief confirmation; no-op when a form is open or no node is selected
+- [x] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — triggered by `s:` capture prefix; Category select from budget nodes, Amount input with validation, optional Note; delegates to `budget.RecordSpend`
 
 ---
 
@@ -315,7 +315,7 @@ QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::done
 
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::done
 
-CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::open
+CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::done
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open

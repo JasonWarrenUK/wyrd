@@ -160,6 +160,28 @@ func TestCaptureBar_NotePrefix(t *testing.T) {
 	}
 }
 
+func TestCaptureBar_SpendPrefix(t *testing.T) {
+	store := newCaptureStore()
+	bar := tui.NewCaptureBar(store, fixedCaptureClock())
+
+	bar.Focus("")
+	// "spend" is a routing token, not a node type. Submit() should return nil
+	// rather than creating a node. The actual spend form is opened by
+	// handleCaptureKey in app.go.
+	bar.SetInput("s: coffee beans")
+
+	result, err := bar.Submit()
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	if result != nil {
+		t.Error("expected nil result for spend prefix (not a node type)")
+	}
+	if len(store.nodes) != 0 {
+		t.Errorf("expected 0 nodes written for spend prefix, got %d", len(store.nodes))
+	}
+}
+
 func TestCaptureBar_EmptyInput(t *testing.T) {
 	store := newCaptureStore()
 	bar := tui.NewCaptureBar(store, fixedCaptureClock())
