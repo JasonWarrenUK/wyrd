@@ -8,7 +8,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3–NV.15 done (Milestone 2 complete) | — | — |
-| **CP**   | CP.0–CP.10, CP.12 done | CP.7 (spend form), CP.11 (edge mgmt) | — |
+| **CP**   | All done except CP.11 | CP.11 (edge mgmt) | — |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
