@@ -8,8 +8,8 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3–NV.17 done | — | — |
-| **CP**   | All done except CP.11 | CP.11 (edge mgmt) | — |
-| **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
+| **CP**   | All done except CP.11 | CP.11 (edge mgmt), CP.13 (budget template) | CP.14 (needs CP.13) |
+| **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | CL.5 (needs CP.13) |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
@@ -118,10 +118,11 @@ _(none yet)_
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.11. Edge management in edit form — **no blockers**
+- [ ] CP.13. Add `budget.jsonc` starter template defining `category`, `allocated`, `warn_at`, `period`, `spend_log` fields with typed defaults — **no blockers**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-_(none)_
+- [ ] CP.14. Budget creation form — `huh`-based form triggered by `b:` capture prefix; fields for category name, allocation amount, period select, warn threshold; creates a budget-type node — **depends on CP.13**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -294,7 +295,7 @@ _(none yet)_
 
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
 
-_(none)_
+- [ ] CL.5. `wyrd budget create <category>` — CLI command to create a budget node with `--allocated`, `--period`, `--warn-at` flags; uses native huh form when flags omitted — **depends on CP.13**
 
 <a name="cli-done"><h4>Completed (CLI Input)</h4></a>
 
@@ -348,8 +349,11 @@ NV17["`*NV.17*<br/>**Navigation**<br/>Fuzzy overlay UI`"]:::done
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::done
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
+CP13["`*CP.13*<br/>**Capture**<br/>Budget template`"]:::open
+CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::blocked
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
+CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::blocked
 
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::open
 
@@ -396,18 +400,20 @@ DA5 & DA6 & DA7 --> DA9
 
 NV16 --> NV17
 
+CP13 --> CP14 & CL5
+
 CO1 --> CO2
 
 NV12 -.->|needs| QE1
 
 m2 --> NV12 & NV16 & NV17
-m3 --> CP7 & CP11
+m3 --> CP7 & CP11 & CP13 & CP14
 m4 --> VS4
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 m8 --> CO1 & CO2
-mcli --> CL4
+mcli --> CL4 & CL5
 mqe --> QE1
 
 
