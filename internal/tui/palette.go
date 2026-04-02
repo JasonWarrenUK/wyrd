@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // CommandFunc is the function executed when a palette command is invoked.
@@ -39,6 +41,14 @@ const (
 	PaletteModeFuzzy
 )
 
+// Kind prefix glyphs for fuzzy search result rows.
+// Three characters each (space + glyph + space) so all rows align regardless of kind.
+const (
+	searchPrefixCommand = " > "
+	searchPrefixNode    = " ◆ "
+	searchPrefixEdge    = " → "
+)
+
 // PaletteState holds all mutable state for the command palette overlay.
 // It is embedded in the root App model and is zero-value safe (inactive).
 type PaletteState struct {
@@ -49,11 +59,20 @@ type PaletteState struct {
 	filtered []Command
 	cursor   int
 	theme    *ActiveTheme
+
+	// index is the in-memory graph, used for node and edge search in fuzzy mode.
+	// May be nil; search degrades to commands-only when absent.
+	index types.GraphIndex
+
+	// results holds the unified search results for the current fuzzy query.
+	// confirm() reads from this; filtered is populated from it for View().
+	results []SearchResult
 }
 
 // NewPaletteState builds an inactive PaletteState pre-loaded with the
 // built-in commands. Additional commands are registered via Register.
-func NewPaletteState(theme *ActiveTheme) PaletteState {
+// index may be nil; search degrades to commands-only when absent.
+func NewPaletteState(theme *ActiveTheme, index types.GraphIndex) PaletteState {
 	ti := textinput.New()
 	ti.Prompt = ": "
 	ti.CharLimit = 256
@@ -62,6 +81,7 @@ func NewPaletteState(theme *ActiveTheme) PaletteState {
 		input:    ti,
 		theme:    theme,
 		commands: builtinCommands(),
+		index:    index,
 	}
 	return ps
 }
@@ -118,13 +138,17 @@ func (ps *PaletteState) Open(mode PaletteMode) {
 	ps.input.Reset()
 	if mode == PaletteModeFuzzy {
 		ps.input.Prompt = "  "
-		ps.input.Placeholder = "Search commands…"
+		ps.input.Placeholder = "Search nodes, edges, commands…"
 	} else {
 		ps.input.Prompt = ": "
 		ps.input.Placeholder = ""
 	}
 	ps.input.Focus()
-	ps.filter("")
+	if mode == PaletteModeFuzzy {
+		ps.filterFuzzy("")
+	} else {
+		ps.filter("")
+	}
 }
 
 // Close deactivates the palette.
@@ -136,6 +160,22 @@ func (ps *PaletteState) Close() {
 // IsActive reports whether the palette overlay is visible.
 func (ps *PaletteState) IsActive() bool {
 	return ps.active
+}
+
+// filterFuzzy runs a unified search across commands, nodes, and edges and
+// stores results in ps.results. View() reads ps.results directly in fuzzy
+// mode for kind-aware row rendering.
+func (ps *PaletteState) filterFuzzy(query string) {
+	ps.results = searchAll(query, ps.commands, ps.index)
+}
+
+// resultCount returns the number of visible results for the current mode.
+// In fuzzy mode this is len(ps.results); in CLI mode it is len(ps.filtered).
+func (ps *PaletteState) resultCount() int {
+	if ps.mode == PaletteModeFuzzy {
+		return len(ps.results)
+	}
+	return len(ps.filtered)
 }
 
 // filter updates the filtered command list based on the current query.
@@ -182,7 +222,7 @@ func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
 			return ps, nil, true
 
 		case "down", "ctrl+n", "tab":
-			if ps.cursor < len(ps.filtered)-1 {
+			if ps.cursor < ps.resultCount()-1 {
 				ps.cursor++
 			}
 			return ps, nil, true
@@ -200,10 +240,10 @@ func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
 					ps.filter("")
 				}
 			} else {
-				ps.filter(query)
+				ps.filterFuzzy(query)
 			}
-			if ps.cursor >= len(ps.filtered) {
-				ps.cursor = max(0, len(ps.filtered)-1)
+			if ps.cursor >= ps.resultCount() {
+				ps.cursor = max(0, ps.resultCount()-1)
 			}
 			return ps, inputCmd, true
 		}
@@ -219,11 +259,26 @@ func (ps *PaletteState) confirm() tea.Cmd {
 	raw := strings.TrimSpace(ps.input.Value())
 
 	if ps.mode == PaletteModeFuzzy {
-		// Fuzzy mode — execute the highlighted item.
-		if ps.cursor < len(ps.filtered) {
-			c := ps.filtered[ps.cursor]
-			if c.Execute != nil {
-				return c.Execute(nil)
+		// Fuzzy mode — dispatch based on the result kind.
+		if ps.cursor >= len(ps.results) {
+			return nil
+		}
+		r := ps.results[ps.cursor]
+		switch r.Kind {
+		case SearchResultCommand:
+			if r.Command != nil && r.Command.Execute != nil {
+				return r.Command.Execute(nil)
+			}
+		case SearchResultNode:
+			if r.NodeID != "" {
+				nodeID := r.NodeID
+				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }
+			}
+		case SearchResultEdge:
+			// Navigate to the From node of the edge.
+			if r.NodeID != "" {
+				nodeID := r.NodeID
+				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }
 			}
 		}
 		return nil
@@ -274,7 +329,7 @@ func (ps *PaletteState) View(width, height int) string {
 
 	title := "COMMAND PALETTE"
 	if ps.mode == PaletteModeFuzzy {
-		title = "SEARCH COMMANDS"
+		title = "SEARCH"
 	}
 	sb.WriteString(titleStyle.Render(title))
 	sb.WriteString("\n")
@@ -292,42 +347,62 @@ func (ps *PaletteState) View(width, height int) string {
 	sb.WriteString(divStyle.Render(strings.Repeat("─", boxWidth-4)))
 	sb.WriteString("\n")
 
-	// Filtered command list.
 	maxVisible := 10
-	for i, cmd := range ps.filtered {
-		if i >= maxVisible {
-			break
-		}
-		// cursor prefix and name/description share the same bg.
-		cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(ps.theme.FgMuted())
-		cursorText := "  "
-		nameStyle := lipgloss.NewStyle().
-			Width(boxWidth - 10).
-			MaxWidth(boxWidth - 10).
-			Background(bg).
-			Foreground(ps.theme.FgPrimary())
-		hintStyle := lipgloss.NewStyle().
-			Background(bg).
-			Foreground(ps.theme.FgMuted())
 
-		if i == ps.cursor {
-			selBg := ps.theme.Selection()
-			cursorText = "> "
-			cursorStyle = cursorStyle.Background(selBg).Foreground(ps.theme.AccentPrimary())
-			nameStyle = nameStyle.Background(selBg).Foreground(ps.theme.AccentPrimary()).Bold(true)
-			hintStyle = hintStyle.Background(selBg).Foreground(ps.theme.FgPrimary())
+	if ps.mode == PaletteModeFuzzy {
+		// Fuzzy mode: kind-aware rows read directly from ps.results.
+		if len(ps.results) == 0 {
+			noResultStyle := lipgloss.NewStyle().
+				Background(bg).
+				Foreground(ps.theme.FgMuted()).
+				Width(boxWidth - 4)
+			sb.WriteString(noResultStyle.Render("  No results"))
+			sb.WriteString("\n")
 		}
-
-		line := cursorStyle.Render(cursorText) + nameStyle.Render(cmd.Name+" — "+cmd.Description)
-		if cmd.Hint != "" {
-			rowBg := bg
-			if i == ps.cursor {
-				rowBg = ps.theme.Selection()
+		for i, r := range ps.results {
+			if i >= maxVisible {
+				break
 			}
-			line += Spacer(1, rowBg) + hintStyle.Render("["+cmd.Hint+"]")
+			sb.WriteString(ps.renderSearchRow(r, i, boxWidth, bg))
+			sb.WriteString("\n")
 		}
-		sb.WriteString(line)
-		sb.WriteString("\n")
+	} else {
+		// CLI mode: iterate ps.filtered (unchanged behaviour).
+		for i, cmd := range ps.filtered {
+			if i >= maxVisible {
+				break
+			}
+			// cursor prefix and name/description share the same bg.
+			cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(ps.theme.FgMuted())
+			cursorText := "  "
+			nameStyle := lipgloss.NewStyle().
+				Width(boxWidth - 10).
+				MaxWidth(boxWidth - 10).
+				Background(bg).
+				Foreground(ps.theme.FgPrimary())
+			hintStyle := lipgloss.NewStyle().
+				Background(bg).
+				Foreground(ps.theme.FgMuted())
+
+			if i == ps.cursor {
+				selBg := ps.theme.Selection()
+				cursorText = "> "
+				cursorStyle = cursorStyle.Background(selBg).Foreground(ps.theme.AccentPrimary())
+				nameStyle = nameStyle.Background(selBg).Foreground(ps.theme.AccentPrimary()).Bold(true)
+				hintStyle = hintStyle.Background(selBg).Foreground(ps.theme.FgPrimary())
+			}
+
+			line := cursorStyle.Render(cursorText) + nameStyle.Render(cmd.Name+" — "+cmd.Description)
+			if cmd.Hint != "" {
+				rowBg := bg
+				if i == ps.cursor {
+					rowBg = ps.theme.Selection()
+				}
+				line += Spacer(1, rowBg) + hintStyle.Render("["+cmd.Hint+"]")
+			}
+			sb.WriteString(line)
+			sb.WriteString("\n")
+		}
 	}
 
 	boxStyle := lipgloss.NewStyle().
@@ -342,6 +417,98 @@ func (ps *PaletteState) View(width, height int) string {
 	// handled by the Compositor in app.go via Layer.X(), which positions the
 	// overlay relative to the full-width frame layer.
 	return boxStyle.Render(sb.String())
+}
+
+// renderSearchRow renders a single fuzzy search result row with kind-specific
+// prefix glyphs, colour styling, and — for node results — type badges.
+// All styles carry both Background and Foreground to prevent ANSI bleed.
+// Spacer is used between segments instead of bare string literals.
+func (ps *PaletteState) renderSearchRow(r SearchResult, index, boxWidth int, bg color.Color) string {
+	rowBg := bg
+	selected := index == ps.cursor
+	if selected {
+		rowBg = ps.theme.Selection()
+	}
+
+	// Cursor indicator: ">" when selected, " " otherwise (2 chars).
+	cursorFg := ps.theme.FgMuted()
+	cursorText := " "
+	if selected {
+		cursorFg = ps.theme.AccentPrimary()
+		cursorText = ">"
+	}
+	cursorStyle := lipgloss.NewStyle().Background(rowBg).Foreground(cursorFg)
+	cursor := cursorStyle.Render(cursorText)
+
+	// Kind prefix glyph (3 chars: space + glyph + space).
+	var prefix string
+	var prefixFg color.Color
+	switch r.Kind {
+	case SearchResultCommand:
+		prefix = searchPrefixCommand
+		prefixFg = ps.theme.AccentPrimary()
+	case SearchResultNode:
+		prefix = searchPrefixNode
+		prefixFg = ps.theme.AccentSecondary()
+	case SearchResultEdge:
+		prefix = searchPrefixEdge
+		prefixFg = ps.theme.FgMuted()
+	}
+	prefixStyle := lipgloss.NewStyle().Background(rowBg).Foreground(prefixFg)
+	if selected {
+		prefixStyle = prefixStyle.Bold(true)
+	}
+	renderedPrefix := prefixStyle.Render(prefix)
+
+	// Main text area width: total box minus border/padding (4), cursor (1), prefix (3), hint margin (6).
+	mainWidth := boxWidth - 14
+	if mainWidth < 10 {
+		mainWidth = 10
+	}
+
+	mainFg := ps.theme.FgPrimary()
+	if selected {
+		mainFg = ps.theme.AccentPrimary()
+	}
+	mainStyle := lipgloss.NewStyle().
+		Width(mainWidth).
+		MaxWidth(mainWidth).
+		Background(rowBg).
+		Foreground(mainFg)
+	if selected {
+		mainStyle = mainStyle.Bold(true)
+	}
+
+	hintFg := ps.theme.FgMuted()
+	if selected {
+		hintFg = ps.theme.FgPrimary()
+	}
+	hintStyle := lipgloss.NewStyle().Background(rowBg).Foreground(hintFg)
+
+	var line string
+	switch r.Kind {
+	case SearchResultCommand:
+		text := r.Title
+		if r.Description != "" {
+			text += " — " + r.Description
+		}
+		line = cursor + renderedPrefix + mainStyle.Render(text)
+		if r.Hint != "" {
+			line += Spacer(1, rowBg) + hintStyle.Render("["+r.Hint+"]")
+		}
+
+	case SearchResultNode:
+		line = cursor + renderedPrefix + mainStyle.Render(r.Title)
+		if len(r.Types) > 0 {
+			line += Spacer(1, rowBg) + TypeBadges(r.Types, rowBg)
+		}
+
+	case SearchResultEdge:
+		// r.Title is already "type: fromTitle → toTitle" from scoreEdge().
+		line = cursor + renderedPrefix + mainStyle.Render(r.Title)
+	}
+
+	return line
 }
 
 // max returns the larger of two ints.

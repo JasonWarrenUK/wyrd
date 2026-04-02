@@ -7,7 +7,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3–NV.15 done | NV.16 (search backend), NV.17 (fuzzy overlay) | NV.17 (needs NV.16) |
+| **NV**   | NV.1, NV.3–NV.17 done | — | — |
 | **CP**   | All done except CP.11 | CP.11 (edge mgmt) | — |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
@@ -79,14 +79,16 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] NV.16. Overhaul `ctrl+k` as unified search backend: query nodes, edges, and commands from the index, return ranked results
+_(none)_
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-- [ ] NV.17. Wire node/edge search results into unified fuzzy overlay — **depends on NV.16**
+_(none)_
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
+- [x] NV.17. Wire node/edge search results into unified fuzzy overlay — **depends on NV.16**
+- [x] NV.16. Overhaul `ctrl+k` as unified search backend: query nodes, edges, and commands from the index, return ranked results
 - [x] NV.12. Support grouped sections in the left pane: bold section headers per category, custom delegate, cursor skips headers, filter excludes headers — **depends on NV.1, QE.1**
 - [x] NV.6. Implement `/` fuzzy filter on node list using `bubbles/list` built-in filter — **depends on NV.1**
 - [x] NV.1. Wire `bubbles/list` component into the left pane for node listing
@@ -341,8 +343,8 @@ mqe["`**Query Engine**`"]:::mile
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::done
 
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::done
-NV16["`*NV.16*<br/>**Navigation**<br/>Unified search backend`"]:::open
-NV17["`*NV.17*<br/>**Navigation**<br/>Fuzzy overlay UI`"]
+NV16["`*NV.16*<br/>**Navigation**<br/>Unified search backend`"]:::done
+NV17["`*NV.17*<br/>**Navigation**<br/>Fuzzy overlay UI`"]:::done
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::done
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
