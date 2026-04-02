@@ -381,7 +381,7 @@ DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
 CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::open
-CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]
+CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::blocked
 
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
