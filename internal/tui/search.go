@@ -35,6 +35,10 @@ type SearchResult struct {
 	NodeID  string   // non-empty for SearchResultNode; From node ID for SearchResultEdge
 	EdgeID  string   // non-empty for SearchResultEdge
 	Command *Command // non-nil for SearchResultCommand
+
+	// Types carries the raw node type slice for SearchResultNode entries.
+	// Used by the fuzzy overlay to render TypeBadges. Empty for other kinds.
+	Types []string
 }
 
 // searchAll queries nodes, edges, and commands and returns a ranked result list.
@@ -88,6 +92,7 @@ func searchAll(query string, commands []Command, index types.GraphIndex) []Searc
 				Title:       title,
 				Description: description,
 				NodeID:      node.ID,
+				Types:       node.Types,
 			})
 		}
 

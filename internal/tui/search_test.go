@@ -166,6 +166,9 @@ func TestSearchAllNodeTitleMatch(t *testing.T) {
 			if r.Score != 70 {
 				t.Errorf("expected score 70 for title match, got %d", r.Score)
 			}
+			if len(r.Types) == 0 {
+				t.Error("expected Types to be populated for node result")
+			}
 		}
 	}
 	if !found {
