@@ -2,6 +2,8 @@ package budget
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -68,14 +70,32 @@ func RecordSpend(
 // findBudgetNode searches the index for a budget node matching the given category.
 func findBudgetNode(index types.GraphIndex, category string) (*types.Node, error) {
 	budgetNodes := index.NodesByType("budget")
+	var available []string
 	for _, n := range budgetNodes {
 		if n.Properties == nil {
 			continue
 		}
 		cat, ok := n.Properties["category"].(string)
-		if ok && cat == category {
+		if !ok || cat == "" {
+			continue
+		}
+		if cat == category {
 			return n, nil
 		}
+		available = append(available, cat)
 	}
-	return nil, &types.NotFoundError{Kind: "budget category", ID: category}
+
+	var hint string
+	if len(available) == 0 {
+		hint = "No budget categories found — create one first."
+	} else {
+		sort.Strings(available)
+		lines := make([]string, len(available))
+		for i, c := range available {
+			lines[i] = "  • " + c
+		}
+		hint = "Available categories:\n" + strings.Join(lines, "\n")
+	}
+
+	return nil, &types.NotFoundError{Kind: "budget category", ID: category, Hint: hint}
 }

@@ -1,6 +1,7 @@
 package budget
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -185,6 +186,48 @@ func TestRecordSpend_CategoryNotFound(t *testing.T) {
 	}
 	if notFound.ID != "nonexistent-category" {
 		t.Errorf("expected ID 'nonexistent-category', got %q", notFound.ID)
+	}
+}
+
+func TestRecordSpend_CategoryNotFound_ListsAvailable(t *testing.T) {
+	grocery := newBudgetNodeForSpend("b-g", "groceries", nil)
+	transport := newBudgetNodeForSpend("b-t", "transport", nil)
+	store := &mockStore{}
+	index := newMockIndex(grocery, transport)
+
+	err := RecordSpend(store, index, "nonexistent", 10, "test", spendNow)
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+
+	notFound, ok := err.(*types.NotFoundError)
+	if !ok {
+		t.Fatalf("expected NotFoundError, got %T: %v", err, err)
+	}
+
+	msg := notFound.Error()
+	for _, cat := range []string{"groceries", "transport"} {
+		if !strings.Contains(msg, cat) {
+			t.Errorf("expected error message to mention %q, got:\n%s", cat, msg)
+		}
+	}
+	if !strings.Contains(msg, "Available categories") {
+		t.Errorf("expected 'Available categories' in error message, got:\n%s", msg)
+	}
+}
+
+func TestRecordSpend_CategoryNotFound_NoBudgetNodes(t *testing.T) {
+	store := &mockStore{}
+	index := newMockIndex() // no nodes at all
+
+	err := RecordSpend(store, index, "anything", 10, "test", spendNow)
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, "No budget categories found") {
+		t.Errorf("expected 'No budget categories found' in error message, got:\n%s", msg)
 	}
 }
 

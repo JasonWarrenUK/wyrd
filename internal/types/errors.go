@@ -8,10 +8,16 @@ type NotFoundError struct {
 	Kind string
 	// ID is the identifier that was not found.
 	ID string
+	// Hint is an optional message appended after the not-found line (e.g. a list of valid values).
+	Hint string
 }
 
 func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("%s %q not found", e.Kind, e.ID)
+	msg := fmt.Sprintf("%s %q not found", e.Kind, e.ID)
+	if e.Hint != "" {
+		msg += "\n\n" + e.Hint
+	}
+	return msg
 }
 
 // ValidationError is returned when input fails a structural check.
