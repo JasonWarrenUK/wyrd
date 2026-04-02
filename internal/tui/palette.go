@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -38,6 +39,14 @@ const (
 
 	// PaletteModeFuzzy is the Ctrl+K triggered mode — shows a filtered list.
 	PaletteModeFuzzy
+)
+
+// Kind prefix glyphs for fuzzy search result rows.
+// Three characters each (space + glyph + space) so all rows align regardless of kind.
+const (
+	searchPrefixCommand = " > "
+	searchPrefixNode    = " ◆ "
+	searchPrefixEdge    = " → "
 )
 
 // PaletteState holds all mutable state for the command palette overlay.
@@ -154,21 +163,10 @@ func (ps *PaletteState) IsActive() bool {
 }
 
 // filterFuzzy runs a unified search across commands, nodes, and edges and
-// populates both ps.results (for confirm dispatch) and ps.filtered (for
-// View rendering until NV.17 replaces it with kind-aware row rendering).
+// stores results in ps.results. View() reads ps.results directly in fuzzy
+// mode for kind-aware row rendering.
 func (ps *PaletteState) filterFuzzy(query string) {
 	ps.results = searchAll(query, ps.commands, ps.index)
-
-	// Populate ps.filtered with synthetic Command entries so View() works
-	// without modification. NV.17 will replace this with direct results rendering.
-	ps.filtered = ps.filtered[:0]
-	for _, r := range ps.results {
-		ps.filtered = append(ps.filtered, Command{
-			Name:        r.Title,
-			Description: r.Description,
-			Hint:        r.Hint,
-		})
-	}
 }
 
 // resultCount returns the number of visible results for the current mode.
@@ -331,7 +329,7 @@ func (ps *PaletteState) View(width, height int) string {
 
 	title := "COMMAND PALETTE"
 	if ps.mode == PaletteModeFuzzy {
-		title = "SEARCH COMMANDS"
+		title = "SEARCH"
 	}
 	sb.WriteString(titleStyle.Render(title))
 	sb.WriteString("\n")
@@ -349,42 +347,62 @@ func (ps *PaletteState) View(width, height int) string {
 	sb.WriteString(divStyle.Render(strings.Repeat("─", boxWidth-4)))
 	sb.WriteString("\n")
 
-	// Filtered command list.
 	maxVisible := 10
-	for i, cmd := range ps.filtered {
-		if i >= maxVisible {
-			break
-		}
-		// cursor prefix and name/description share the same bg.
-		cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(ps.theme.FgMuted())
-		cursorText := "  "
-		nameStyle := lipgloss.NewStyle().
-			Width(boxWidth - 10).
-			MaxWidth(boxWidth - 10).
-			Background(bg).
-			Foreground(ps.theme.FgPrimary())
-		hintStyle := lipgloss.NewStyle().
-			Background(bg).
-			Foreground(ps.theme.FgMuted())
 
-		if i == ps.cursor {
-			selBg := ps.theme.Selection()
-			cursorText = "> "
-			cursorStyle = cursorStyle.Background(selBg).Foreground(ps.theme.AccentPrimary())
-			nameStyle = nameStyle.Background(selBg).Foreground(ps.theme.AccentPrimary()).Bold(true)
-			hintStyle = hintStyle.Background(selBg).Foreground(ps.theme.FgPrimary())
+	if ps.mode == PaletteModeFuzzy {
+		// Fuzzy mode: kind-aware rows read directly from ps.results.
+		if len(ps.results) == 0 {
+			noResultStyle := lipgloss.NewStyle().
+				Background(bg).
+				Foreground(ps.theme.FgMuted()).
+				Width(boxWidth - 4)
+			sb.WriteString(noResultStyle.Render("  No results"))
+			sb.WriteString("\n")
 		}
-
-		line := cursorStyle.Render(cursorText) + nameStyle.Render(cmd.Name+" — "+cmd.Description)
-		if cmd.Hint != "" {
-			rowBg := bg
-			if i == ps.cursor {
-				rowBg = ps.theme.Selection()
+		for i, r := range ps.results {
+			if i >= maxVisible {
+				break
 			}
-			line += Spacer(1, rowBg) + hintStyle.Render("["+cmd.Hint+"]")
+			sb.WriteString(ps.renderSearchRow(r, i, boxWidth, bg))
+			sb.WriteString("\n")
 		}
-		sb.WriteString(line)
-		sb.WriteString("\n")
+	} else {
+		// CLI mode: iterate ps.filtered (unchanged behaviour).
+		for i, cmd := range ps.filtered {
+			if i >= maxVisible {
+				break
+			}
+			// cursor prefix and name/description share the same bg.
+			cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(ps.theme.FgMuted())
+			cursorText := "  "
+			nameStyle := lipgloss.NewStyle().
+				Width(boxWidth - 10).
+				MaxWidth(boxWidth - 10).
+				Background(bg).
+				Foreground(ps.theme.FgPrimary())
+			hintStyle := lipgloss.NewStyle().
+				Background(bg).
+				Foreground(ps.theme.FgMuted())
+
+			if i == ps.cursor {
+				selBg := ps.theme.Selection()
+				cursorText = "> "
+				cursorStyle = cursorStyle.Background(selBg).Foreground(ps.theme.AccentPrimary())
+				nameStyle = nameStyle.Background(selBg).Foreground(ps.theme.AccentPrimary()).Bold(true)
+				hintStyle = hintStyle.Background(selBg).Foreground(ps.theme.FgPrimary())
+			}
+
+			line := cursorStyle.Render(cursorText) + nameStyle.Render(cmd.Name+" — "+cmd.Description)
+			if cmd.Hint != "" {
+				rowBg := bg
+				if i == ps.cursor {
+					rowBg = ps.theme.Selection()
+				}
+				line += Spacer(1, rowBg) + hintStyle.Render("["+cmd.Hint+"]")
+			}
+			sb.WriteString(line)
+			sb.WriteString("\n")
+		}
 	}
 
 	boxStyle := lipgloss.NewStyle().
@@ -399,6 +417,98 @@ func (ps *PaletteState) View(width, height int) string {
 	// handled by the Compositor in app.go via Layer.X(), which positions the
 	// overlay relative to the full-width frame layer.
 	return boxStyle.Render(sb.String())
+}
+
+// renderSearchRow renders a single fuzzy search result row with kind-specific
+// prefix glyphs, colour styling, and — for node results — type badges.
+// All styles carry both Background and Foreground to prevent ANSI bleed.
+// Spacer is used between segments instead of bare string literals.
+func (ps *PaletteState) renderSearchRow(r SearchResult, index, boxWidth int, bg color.Color) string {
+	rowBg := bg
+	selected := index == ps.cursor
+	if selected {
+		rowBg = ps.theme.Selection()
+	}
+
+	// Cursor indicator: ">" when selected, " " otherwise (2 chars).
+	cursorFg := ps.theme.FgMuted()
+	cursorText := " "
+	if selected {
+		cursorFg = ps.theme.AccentPrimary()
+		cursorText = ">"
+	}
+	cursorStyle := lipgloss.NewStyle().Background(rowBg).Foreground(cursorFg)
+	cursor := cursorStyle.Render(cursorText)
+
+	// Kind prefix glyph (3 chars: space + glyph + space).
+	var prefix string
+	var prefixFg color.Color
+	switch r.Kind {
+	case SearchResultCommand:
+		prefix = searchPrefixCommand
+		prefixFg = ps.theme.AccentPrimary()
+	case SearchResultNode:
+		prefix = searchPrefixNode
+		prefixFg = ps.theme.AccentSecondary()
+	case SearchResultEdge:
+		prefix = searchPrefixEdge
+		prefixFg = ps.theme.FgMuted()
+	}
+	prefixStyle := lipgloss.NewStyle().Background(rowBg).Foreground(prefixFg)
+	if selected {
+		prefixStyle = prefixStyle.Bold(true)
+	}
+	renderedPrefix := prefixStyle.Render(prefix)
+
+	// Main text area width: total box minus border/padding (4), cursor (1), prefix (3), hint margin (6).
+	mainWidth := boxWidth - 14
+	if mainWidth < 10 {
+		mainWidth = 10
+	}
+
+	mainFg := ps.theme.FgPrimary()
+	if selected {
+		mainFg = ps.theme.AccentPrimary()
+	}
+	mainStyle := lipgloss.NewStyle().
+		Width(mainWidth).
+		MaxWidth(mainWidth).
+		Background(rowBg).
+		Foreground(mainFg)
+	if selected {
+		mainStyle = mainStyle.Bold(true)
+	}
+
+	hintFg := ps.theme.FgMuted()
+	if selected {
+		hintFg = ps.theme.FgPrimary()
+	}
+	hintStyle := lipgloss.NewStyle().Background(rowBg).Foreground(hintFg)
+
+	var line string
+	switch r.Kind {
+	case SearchResultCommand:
+		text := r.Title
+		if r.Description != "" {
+			text += " — " + r.Description
+		}
+		line = cursor + renderedPrefix + mainStyle.Render(text)
+		if r.Hint != "" {
+			line += Spacer(1, rowBg) + hintStyle.Render("["+r.Hint+"]")
+		}
+
+	case SearchResultNode:
+		line = cursor + renderedPrefix + mainStyle.Render(r.Title)
+		if len(r.Types) > 0 {
+			line += Spacer(1, rowBg) + TypeBadges(r.Types, rowBg)
+		}
+
+	case SearchResultEdge:
+		// r.Title is already "type: fromTitle → toTitle" from scoreEdge().
+		line = cursor + renderedPrefix + mainStyle.Render(r.Title)
+	}
+
+	return line
 }
 
 // max returns the larger of two ints.
