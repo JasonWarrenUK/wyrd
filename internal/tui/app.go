@@ -148,7 +148,7 @@ func New(cfg Config) (Model, error) {
 	}
 
 	keyMap := DefaultAppKeyMap()
-	palette := NewPaletteState(theme)
+	palette := NewPaletteState(theme, cfg.Index)
 
 	// Wire up the built-in "theme" command now that we have a storePath.
 	palette.Register(Command{

@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // CommandFunc is the function executed when a palette command is invoked.
@@ -49,11 +50,20 @@ type PaletteState struct {
 	filtered []Command
 	cursor   int
 	theme    *ActiveTheme
+
+	// index is the in-memory graph, used for node and edge search in fuzzy mode.
+	// May be nil; search degrades to commands-only when absent.
+	index types.GraphIndex
+
+	// results holds the unified search results for the current fuzzy query.
+	// confirm() reads from this; filtered is populated from it for View().
+	results []SearchResult
 }
 
 // NewPaletteState builds an inactive PaletteState pre-loaded with the
 // built-in commands. Additional commands are registered via Register.
-func NewPaletteState(theme *ActiveTheme) PaletteState {
+// index may be nil; search degrades to commands-only when absent.
+func NewPaletteState(theme *ActiveTheme, index types.GraphIndex) PaletteState {
 	ti := textinput.New()
 	ti.Prompt = ": "
 	ti.CharLimit = 256
@@ -62,6 +72,7 @@ func NewPaletteState(theme *ActiveTheme) PaletteState {
 		input:    ti,
 		theme:    theme,
 		commands: builtinCommands(),
+		index:    index,
 	}
 	return ps
 }
@@ -118,13 +129,17 @@ func (ps *PaletteState) Open(mode PaletteMode) {
 	ps.input.Reset()
 	if mode == PaletteModeFuzzy {
 		ps.input.Prompt = "  "
-		ps.input.Placeholder = "Search commands…"
+		ps.input.Placeholder = "Search nodes, edges, commands…"
 	} else {
 		ps.input.Prompt = ": "
 		ps.input.Placeholder = ""
 	}
 	ps.input.Focus()
-	ps.filter("")
+	if mode == PaletteModeFuzzy {
+		ps.filterFuzzy("")
+	} else {
+		ps.filter("")
+	}
 }
 
 // Close deactivates the palette.
@@ -136,6 +151,33 @@ func (ps *PaletteState) Close() {
 // IsActive reports whether the palette overlay is visible.
 func (ps *PaletteState) IsActive() bool {
 	return ps.active
+}
+
+// filterFuzzy runs a unified search across commands, nodes, and edges and
+// populates both ps.results (for confirm dispatch) and ps.filtered (for
+// View rendering until NV.17 replaces it with kind-aware row rendering).
+func (ps *PaletteState) filterFuzzy(query string) {
+	ps.results = searchAll(query, ps.commands, ps.index)
+
+	// Populate ps.filtered with synthetic Command entries so View() works
+	// without modification. NV.17 will replace this with direct results rendering.
+	ps.filtered = ps.filtered[:0]
+	for _, r := range ps.results {
+		ps.filtered = append(ps.filtered, Command{
+			Name:        r.Title,
+			Description: r.Description,
+			Hint:        r.Hint,
+		})
+	}
+}
+
+// resultCount returns the number of visible results for the current mode.
+// In fuzzy mode this is len(ps.results); in CLI mode it is len(ps.filtered).
+func (ps *PaletteState) resultCount() int {
+	if ps.mode == PaletteModeFuzzy {
+		return len(ps.results)
+	}
+	return len(ps.filtered)
 }
 
 // filter updates the filtered command list based on the current query.
@@ -182,7 +224,7 @@ func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
 			return ps, nil, true
 
 		case "down", "ctrl+n", "tab":
-			if ps.cursor < len(ps.filtered)-1 {
+			if ps.cursor < ps.resultCount()-1 {
 				ps.cursor++
 			}
 			return ps, nil, true
@@ -200,10 +242,10 @@ func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
 					ps.filter("")
 				}
 			} else {
-				ps.filter(query)
+				ps.filterFuzzy(query)
 			}
-			if ps.cursor >= len(ps.filtered) {
-				ps.cursor = max(0, len(ps.filtered)-1)
+			if ps.cursor >= ps.resultCount() {
+				ps.cursor = max(0, ps.resultCount()-1)
 			}
 			return ps, inputCmd, true
 		}
@@ -219,11 +261,26 @@ func (ps *PaletteState) confirm() tea.Cmd {
 	raw := strings.TrimSpace(ps.input.Value())
 
 	if ps.mode == PaletteModeFuzzy {
-		// Fuzzy mode — execute the highlighted item.
-		if ps.cursor < len(ps.filtered) {
-			c := ps.filtered[ps.cursor]
-			if c.Execute != nil {
-				return c.Execute(nil)
+		// Fuzzy mode — dispatch based on the result kind.
+		if ps.cursor >= len(ps.results) {
+			return nil
+		}
+		r := ps.results[ps.cursor]
+		switch r.Kind {
+		case SearchResultCommand:
+			if r.Command != nil && r.Command.Execute != nil {
+				return r.Command.Execute(nil)
+			}
+		case SearchResultNode:
+			if r.NodeID != "" {
+				nodeID := r.NodeID
+				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }
+			}
+		case SearchResultEdge:
+			// Navigate to the From node of the edge.
+			if r.NodeID != "" {
+				nodeID := r.NodeID
+				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }
 			}
 		}
 		return nil
