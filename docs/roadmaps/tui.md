@@ -7,13 +7,14 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 |          | Status                        | Next Up                      | Blocked                        |
 | -------- | ----------------------------- | ---------------------------- | ------------------------------ |
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3–NV.15 done (Milestone 2 complete) | — | — |
+| **NV**   | NV.1, NV.3–NV.15 done | NV.16 (search backend), NV.17 (fuzzy overlay) | NV.17 (needs NV.16) |
 | **CP**   | All done except CP.11 | CP.11 (edge mgmt) | — |
 | **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | — |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
 | **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks)    |
+| **CO**   | No compaction yet | CO.1 (archive nodes) | CO.2 (needs CO.1) |
 | **QE**   | Cypher subset + UNION/UNION ALL (QE.1) done | — | — |
 
 ---
@@ -28,6 +29,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
   - [Milestone 5: Logging & Observability](#m5)
   - [Milestone 6: Rituals & Workflows](#m6)
   - [Milestone 7: Documentation Assets](#m7)
+  - [Milestone 8: Compaction](#m8)
   - [CLI Input](#cli)
   - [Query Engine Enhancements](#qe)
 - [Progress Map](#map)
@@ -77,10 +79,11 @@ _(none yet)_
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
+- [ ] NV.16. Overhaul `ctrl+k` as unified search backend: query nodes, edges, and commands from the index, return ranked results
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-_(none)_
+- [ ] NV.17. Wire node/edge search results into unified fuzzy overlay — **depends on NV.16**
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -255,6 +258,29 @@ _(none yet)_
 
 ---
 
+<a name="m8"><h3>Milestone 8: Compaction</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** `wyrd compact` moves archived nodes to an `archive/` directory (not deleted) and detaches or archives any edges linked to those nodes. A `--dry-run` flag shows what would be moved before committing.
+
+<a name="m8-doing"><h4>In Progress (Milestone 8)</h4></a>
+
+_(none yet)_
+
+<a name="m8-todo"><h4>To Do (Milestone 8)</h4></a>
+
+- [ ] CO.1. `wyrd compact` — move archived nodes to `archive/` directory with `--dry-run` flag
+
+<a name="m8-blocked"><h4>Blocked (Milestone 8)</h4></a>
+
+- [ ] CO.2. `wyrd compact` — orphan edge handling: detach or archive edges linked to archived nodes — **depends on CO.1**
+
+<a name="m8-done"><h4>Completed (Milestone 8)</h4></a>
+
+_(none yet)_
+
+---
+
 <a name="cli"><h3>CLI Input</h3></a>
 
 > [!IMPORTANT]
@@ -308,12 +334,15 @@ m4["`**Milestone 4**<br/>Visual Polish`"]:::mile
 m5["`**Milestone 5**<br/>Logging`"]:::mile
 m6["`**Milestone 6**<br/>Rituals`"]:::mile
 m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
+m8["`**Milestone 8**<br/>Compaction`"]:::mile
 mcli["`**CLI Input**`"]:::mile
 mqe["`**Query Engine**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::done
 
 NV12["`*NV.12*<br/>**Navigation**<br/>Grouped sections`"]:::done
+NV16["`*NV.16*<br/>**Navigation**<br/>Unified search backend`"]:::open
+NV17["`*NV.17*<br/>**Navigation**<br/>Fuzzy overlay UI`"]
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::done
 CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
@@ -349,6 +378,9 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
+CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::open
+CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]
+
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
 
@@ -360,14 +392,19 @@ DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
 
+NV16 --> NV17
+
+CO1 --> CO2
+
 NV12 -.->|needs| QE1
 
-m2 --> NV12
+m2 --> NV12 & NV16 & NV17
 m3 --> CP7 & CP11
 m4 --> VS4
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
+m8 --> CO1 & CO2
 mcli --> CL4
 mqe --> QE1
 
@@ -386,7 +423,6 @@ classDef mile fill:#c4fffe,stroke:#0097a7,font-weight:bold;
 Ideas deferred until core TUI is stable and polished:
 
 - **Graph visualisation** — render edge relationships as ASCII/block-drawing graph in TUI
-- **`wyrd compact`** — implement the archive/compaction command (currently placeholder)
 - **Plugin UI** — in-TUI plugin management (install, configure, trigger) rather than CLI-only
 - **Multi-pane layouts** — three-column or dynamic split beyond left/right
 - **Mouse support** — click to focus, scroll wheel, drag-to-resize panes
