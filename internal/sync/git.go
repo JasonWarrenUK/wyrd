@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	clog "github.com/charmbracelet/log"
 )
 
 // gitAttributesContent is written to .gitattributes in the store root.
@@ -55,8 +57,9 @@ func Init(storePath string) error {
 //
 // Network errors are surfaced with actionable messages. The caller is
 // responsible for configuring the remote before calling Sync.
-func Sync(storePath string) error {
+func Sync(storePath string, logger *clog.Logger) error {
 	// Stage all changes (new, modified, and deleted files).
+	logDebug(logger, "staging all changes", "path", storePath)
 	if err := runGit(storePath, "add", "--all"); err != nil {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
@@ -69,6 +72,7 @@ func Sync(storePath string) error {
 
 	// Only commit if there is something staged.
 	if message != "" {
+		logDebug(logger, "committing", "message", message)
 		if err := runGit(storePath, "commit", "-m", message); err != nil {
 			return fmt.Errorf("failed to commit: %w", err)
 		}
@@ -76,15 +80,20 @@ func Sync(storePath string) error {
 
 	// Pull with rebase so our commits stay on top of remote changes.
 	// Capture stderr to detect network errors and produce actionable output.
+	logDebug(logger, "pulling with rebase")
 	if err := runGitWithNetworkCheck(storePath, "pull", "--rebase"); err != nil {
+		logError(logger, "pull failed", "err", err)
 		return err
 	}
 
 	// Push to the configured remote.
+	logDebug(logger, "pushing to remote")
 	if err := runGitWithNetworkCheck(storePath, "push"); err != nil {
+		logError(logger, "push failed", "err", err)
 		return err
 	}
 
+	logInfo(logger, "sync complete", "path", storePath)
 	return nil
 }
 
@@ -323,4 +332,25 @@ func appendMergeDriverConfig(configPath string) error {
 
 	_, err = f.WriteString(mergeDriverConfig)
 	return err
+}
+
+// logDebug emits a debug-level log entry when a logger is configured.
+func logDebug(logger *clog.Logger, msg string, keyvals ...interface{}) {
+	if logger != nil {
+		logger.Debug(msg, keyvals...)
+	}
+}
+
+// logInfo emits an info-level log entry when a logger is configured.
+func logInfo(logger *clog.Logger, msg string, keyvals ...interface{}) {
+	if logger != nil {
+		logger.Info(msg, keyvals...)
+	}
+}
+
+// logError emits an error-level log entry when a logger is configured.
+func logError(logger *clog.Logger, msg string, keyvals ...interface{}) {
+	if logger != nil {
+		logger.Error(msg, keyvals...)
+	}
 }
