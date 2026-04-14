@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -30,6 +31,14 @@ type captureSubmitMsg struct {
 // captureConfirmClearMsg is emitted after a short delay to clear the
 // confirmation text from the status bar.
 type captureConfirmClearMsg struct{}
+
+// ritualTriggerMsg is sent when a ritual should be presented to the user.
+type ritualTriggerMsg struct {
+	ritual *types.Ritual
+}
+
+// ritualCheckTickMsg fires on a timer to check whether any rituals are due.
+type ritualCheckTickMsg struct{}
 
 // Model is the root Bubble Tea model for the Wyrd TUI. It owns all mutable
 // state; transitions happen in Update and rendering in View. No state is held
@@ -85,6 +94,15 @@ type Model struct {
 	// detailRenderer is reused across node selections so the expensive
 	// glamour.NewTermRenderer() call only happens once (or on resize).
 	detailRenderer *DetailRenderer
+
+	// ritualOvl is the modal overlay for presenting ritual steps.
+	ritualOvl ritualOverlay
+
+	// schedulerState tracks which rituals have been dismissed today.
+	schedulerState *ritual.SchedulerState
+
+	// rituals is the list of loaded ritual definitions.
+	rituals []*types.Ritual
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -211,6 +229,36 @@ func New(cfg Config) (Model, error) {
 		captureBar = NewCaptureBar(cfg.Store, clock)
 	}
 
+	// Load rituals from the store directory. Errors are non-fatal — the TUI
+	// launches without ritual support if loading fails.
+	var rituals []*types.Ritual
+	loadedRituals, err := ritual.LoadRituals(storePath)
+	if err == nil {
+		rituals = loadedRituals
+	}
+	schedulerState := ritual.NewSchedulerState()
+
+	// Register the :ritual palette command.
+	palette.Register(Command{
+		Name:        "ritual",
+		Description: "Trigger a ritual by name (e.g. ritual morning)",
+		Execute: func(args []string) tea.Cmd {
+			if len(args) == 0 || len(rituals) == 0 {
+				return nil
+			}
+			name := strings.ToLower(args[0])
+			for _, r := range rituals {
+				if strings.ToLower(r.Name) == name {
+					matched := r
+					return func() tea.Msg {
+						return ritualTriggerMsg{ritual: matched}
+					}
+				}
+			}
+			return nil
+		},
+	})
+
 	m := Model{
 		theme:          theme,
 		storePath:      storePath,
@@ -227,6 +275,8 @@ func New(cfg Config) (Model, error) {
 		index:          cfg.Index,
 		clock:          clock,
 		detailRenderer: NewDetailRenderer(),
+		schedulerState: schedulerState,
+		rituals:        rituals,
 		ready:          false,
 	}
 
@@ -250,14 +300,47 @@ func New(cfg Config) (Model, error) {
 	return m, nil
 }
 
-// Init returns the initial command. We request a window-size message so the
-// layout is correct on first render.
+// Init returns the initial command. We fire the ritual check tick immediately
+// so any due rituals are presented on launch, then every 60 seconds thereafter.
 func (m Model) Init() tea.Cmd {
-	return nil
+	return ritualCheckTick()
+}
+
+// ritualCheckTick returns a tea.Cmd that fires a ritualCheckTickMsg immediately
+// then schedules the next check in 60 seconds.
+func ritualCheckTick() tea.Cmd {
+	return tea.Tick(0, func(_ time.Time) tea.Msg {
+		return ritualCheckTickMsg{}
+	})
+}
+
+// ritualCheckTickNext returns a tea.Cmd that fires a ritualCheckTickMsg after
+// 60 seconds.
+func ritualCheckTickNext() tea.Cmd {
+	return tea.Tick(60*time.Second, func(_ time.Time) tea.Msg {
+		return ritualCheckTickMsg{}
+	})
 }
 
 // Update is the Elm-style update function. All state changes happen here.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// When the ritual overlay is active, route messages to it first.
+	if m.ritualOvl.IsActive() {
+		cmd, consumed := m.ritualOvl.Update(msg)
+		if !m.ritualOvl.IsActive() {
+			// Overlay just closed — dismiss the ritual in the scheduler and
+			// restart the tick timer.
+			if m.ritualOvl.runner != nil {
+				r := m.ritualOvl.runner.Ritual()
+				m.schedulerState.Dismiss(r.Name, m.clock.Now())
+			}
+			return m, tea.Batch(cmd, ritualCheckTickNext())
+		}
+		if consumed {
+			return m, cmd
+		}
+	}
+
 	// When the capture bar is focused, key input goes exclusively to it.
 	// Non-key messages (resize, spinner ticks, etc.) still fall through.
 	if m.captureBar != nil && m.captureBar.IsFocused() {
@@ -302,6 +385,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case ritualCheckTickMsg:
+		// Check for pending rituals and trigger the first one found.
+		pending := ritual.PendingRituals(m.rituals, m.schedulerState, m.clock)
+		if len(pending) > 0 {
+			r := pending[0]
+			return m, func() tea.Msg {
+				return ritualTriggerMsg{ritual: r}
+			}
+		}
+		return m, ritualCheckTickNext()
+
+	case ritualTriggerMsg:
+		if m.store == nil || m.queryRunner == nil {
+			return m, ritualCheckTickNext()
+		}
+		runner := ritual.NewRunner(msg.ritual, m.store, m.queryRunner, m.clock)
+		if err := m.ritualOvl.Open(runner, m.theme, m.layout.totalWidth, m.layout.totalHeight); err != nil {
+			// Opening failed — dismiss to avoid retry loops.
+			m.schedulerState.Dismiss(msg.ritual.Name, m.clock.Now())
+			return m, ritualCheckTickNext()
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.layout.Resize(msg.Width, msg.Height)
 		m.statusBar.SetWidth(msg.Width)
@@ -772,6 +878,21 @@ func (m Model) View() tea.View {
 		// lipgloss v2 Compositor so there is no brittle line-manipulation.
 		if m.palette.IsActive() {
 			overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
+			if overlay != "" {
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
+				}
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
+			}
+		}
+
+		// If the ritual overlay is active, composite it on top of everything.
+		if m.ritualOvl.IsActive() {
+			overlay := m.ritualOvl.View()
 			if overlay != "" {
 				overlayWidth := lipgloss.Width(overlay)
 				centreX := (m.layout.totalWidth - overlayWidth) / 2
