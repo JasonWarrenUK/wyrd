@@ -224,6 +224,22 @@ Significant architectural decisions are recorded as ADRs in `docs/adr/`.
 
 ---
 
+## Screenshots & Demos
+
+Screenshots and animated terminal recordings are coming as features stabilise.
+
+**Prerequisites** (for regenerating assets):
+
+    go install github.com/charmbracelet/freeze@latest
+    go install github.com/charmbracelet/vhs@latest
+
+**Regenerate:**
+
+    make screenshots
+    make demo
+
+---
+
 ## The name
 
 Wyrd is an Anglo-Saxon word meaning fate; more precisely, "that which has become." Your present situation is shaped by your past choices. The app makes that visible.
