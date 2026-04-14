@@ -1,0 +1,33 @@
+{
+	// Budget template — defines fields for budget envelope nodes.
+	"type_name": "budget",
+	"fields": {
+		"category": {
+			"type": "string",
+			"required": true,
+			"description": "Budget category name"
+		},
+		"allocated": {
+			"type": "number",
+			"required": true,
+			"description": "Amount allocated for this period"
+		},
+		"warn_at": {
+			"type": "number",
+			"optional": true,
+			"default": 0.8,
+			"description": "Fraction of allocation that triggers a warning"
+		},
+		"period": {
+			"type": "enum",
+			"values": ["weekly", "monthly", "quarterly", "yearly"],
+			"default": "monthly",
+			"description": "Budget period"
+		},
+		"spend_log": {
+			"type": "object",
+			"optional": true,
+			"description": "Array of spend entries recorded against this budget"
+		}
+	}
+}

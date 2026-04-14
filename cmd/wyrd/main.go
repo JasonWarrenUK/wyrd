@@ -75,6 +75,7 @@ property graph. Run without arguments to launch the TUI.`,
 	root.AddCommand(addCmd(&storePath))
 	root.AddCommand(journalCmd(&storePath))
 	root.AddCommand(noteCmd(&storePath))
+	root.AddCommand(budgetCmd(&storePath))
 	root.AddCommand(spendCmd(&storePath))
 	root.AddCommand(syncCmd(&storePath))
 	root.AddCommand(queryCmd(&storePath))
@@ -267,6 +268,143 @@ func noteCmd(storePath *string) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&linkID, "link", "", "create a 'related' edge to this node ID")
+	return cmd
+}
+
+// budgetCmd implements `wyrd budget`.
+func budgetCmd(storePath *string) *cobra.Command {
+	budget := &cobra.Command{
+		Use:   "budget",
+		Short: "Manage budget envelopes",
+	}
+
+	budget.AddCommand(budgetCreateCmd(storePath))
+	return budget
+}
+
+// budgetCreateCmd implements `wyrd budget create`.
+func budgetCreateCmd(storePath *string) *cobra.Command {
+	var category string
+	var allocated float64
+	var period string
+	var warnAt float64
+	var linkID string
+
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a new budget envelope",
+		Long: `Create a new budget node with a category, allocation, period, and warning threshold.
+When flags are omitted, an interactive form prompts for missing values.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Interactive fallback: if category or allocated are not provided
+			// via flags, prompt for them.
+			needsInteractive := category == "" || allocated == 0
+
+			if needsInteractive {
+				catValue := category
+				allocStr := ""
+				if allocated > 0 {
+					allocStr = strconv.FormatFloat(allocated, 'f', 2, 64)
+				}
+				periodValue := period
+				if periodValue == "" {
+					periodValue = "monthly"
+				}
+				warnAtStr := "0.8"
+				if warnAt > 0 {
+					warnAtStr = strconv.FormatFloat(warnAt, 'f', 2, 64)
+				}
+
+				form := huh.NewForm(
+					huh.NewGroup(
+						huh.NewInput().
+							Title("Category").
+							Value(&catValue).
+							Placeholder("e.g. groceries, transport, entertainment").
+							Validate(func(s string) error {
+								if s == "" {
+									return errors.New("category is required")
+								}
+								return nil
+							}),
+
+						huh.NewInput().
+							Title("Allocated amount").
+							Value(&allocStr).
+							Placeholder("0.00").
+							Validate(func(s string) error {
+								if s == "" {
+									return errors.New("allocated amount is required")
+								}
+								v, err := strconv.ParseFloat(s, 64)
+								if err != nil {
+									return errors.New("must be a number")
+								}
+								if v <= 0 {
+									return errors.New("must be greater than zero")
+								}
+								return nil
+							}),
+
+						huh.NewSelect[string]().
+							Title("Period").
+							Options(
+								huh.NewOption("Weekly", "weekly"),
+								huh.NewOption("Monthly", "monthly"),
+								huh.NewOption("Quarterly", "quarterly"),
+								huh.NewOption("Yearly", "yearly"),
+							).
+							Value(&periodValue),
+
+						huh.NewInput().
+							Title("Warn at (fraction 0–1)").
+							Value(&warnAtStr).
+							Placeholder("0.8"),
+					),
+				).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
+
+				if err := form.Run(); err != nil {
+					if errors.Is(err, huh.ErrUserAborted) {
+						fmt.Fprintln(os.Stdout, "Cancelled.")
+						return nil
+					}
+					return err
+				}
+
+				category = catValue
+				if v, err := strconv.ParseFloat(allocStr, 64); err == nil {
+					allocated = v
+				}
+				period = periodValue
+				if v, err := strconv.ParseFloat(warnAtStr, 64); err == nil {
+					warnAt = v
+				}
+			}
+
+			s, err := openStore(*storePath)
+			if err != nil {
+				return err
+			}
+			id, err := cli.BudgetCreate(s, cli.BudgetCreateOptions{
+				Category:  category,
+				Allocated: allocated,
+				Period:    period,
+				WarnAt:    warnAt,
+				LinkID:    linkID,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "Created budget node %s\n", id)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&category, "category", "", "budget category name")
+	cmd.Flags().Float64Var(&allocated, "allocated", 0, "amount allocated for this period")
+	cmd.Flags().StringVar(&period, "period", "", "budget period (weekly, monthly, quarterly, yearly)")
+	cmd.Flags().Float64Var(&warnAt, "warn-at", 0, "fraction of allocation that triggers a warning (0–1)")
 	cmd.Flags().StringVar(&linkID, "link", "", "create a 'related' edge to this node ID")
 	return cmd
 }
