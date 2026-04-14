@@ -40,18 +40,18 @@ func TestBadgeColourFor_KnownTypes(t *testing.T) {
 		{"person", "#82002c"},
 	}
 	for _, tc := range cases {
-		got := badgeColourFor(tc.typeName)
+		got := BadgeColourFor(tc.typeName)
 		if got.BG != tc.wantBG {
-			t.Errorf("badgeColourFor(%q).BG = %q, want %q", tc.typeName, got.BG, tc.wantBG)
+			t.Errorf("BadgeColourFor(%q).BG = %q, want %q", tc.typeName, got.BG, tc.wantBG)
 		}
 	}
 }
 
 func TestBadgeColourFor_Deterministic(t *testing.T) {
-	c1 := badgeColourFor("my_custom_type")
-	c2 := badgeColourFor("my_custom_type")
+	c1 := BadgeColourFor("my_custom_type")
+	c2 := BadgeColourFor("my_custom_type")
 	if c1 != c2 {
-		t.Errorf("badgeColourFor is non-deterministic: %+v != %+v", c1, c2)
+		t.Errorf("BadgeColourFor is non-deterministic: %+v != %+v", c1, c2)
 	}
 }
 
