@@ -38,9 +38,9 @@ var fallbackBadgePalette = []BadgeColour{
 	{BG: "#9b0062", FG: "#f6f6f6"}, // magenta-5
 }
 
-// badgeColourFor returns the badge colour for a type name. Known types use the
+// BadgeColourFor returns the badge colour for a type name. Known types use the
 // fixed palette; unknown types are assigned deterministically via a byte-sum hash.
-func badgeColourFor(typeName string) BadgeColour {
+func BadgeColourFor(typeName string) BadgeColour {
 	if c, ok := badgePalette[typeName]; ok {
 		return c
 	}
@@ -55,7 +55,7 @@ func badgeColourFor(typeName string) BadgeColour {
 // with the badge's own background and foreground. The badge is self-contained
 // and readable on any container background.
 func TypeBadge(typeName string) string {
-	c := badgeColourFor(typeName)
+	c := BadgeColourFor(typeName)
 	return lipgloss.NewStyle().
 		Background(lipgloss.Color(c.BG)).
 		Foreground(lipgloss.Color(c.FG)).
