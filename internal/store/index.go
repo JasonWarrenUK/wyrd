@@ -137,6 +137,15 @@ func (idx *memIndex) upsertEdge(e *types.Edge) {
 	idx.to[e.To] = append(idx.to[e.To], e.ID)
 }
 
+// removeNode removes a node from the index by ID, including its edge references.
+func (idx *memIndex) removeNode(id string) {
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+	delete(idx.nodes, id)
+	delete(idx.from, id)
+	delete(idx.to, id)
+}
+
 // removeEdge removes an edge from the index by ID.
 func (idx *memIndex) removeEdge(id string) {
 	idx.mu.Lock()
