@@ -2,6 +2,8 @@ package tui
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	huh "charm.land/huh/v2"
@@ -45,12 +47,24 @@ type editSubmitMsg struct {
 	label  string
 }
 
+// edgeEntry describes a single edge connected to the node being edited.
+// Used to populate the multi-select field that lets the user keep or remove
+// existing edges.
+type edgeEntry struct {
+	ID        string // edge UUID
+	Direction string // "→" (outgoing) or "←" (incoming)
+	EdgeType  string // e.g. "blocks", "related"
+	TargetID  string // the other node's UUID
+	Label     string // human-readable label shown in the multi-select
+}
+
 // formPane wraps a huh.Form and satisfies PaneModel. It is mounted in the
 // right pane when the capture bar dispatches a creation form.
 type formPane struct {
 	form           *huh.Form
 	kind           formKind
 	store          types.StoreFS
+	index          types.GraphIndex
 	clock          types.Clock
 	theme          *ActiveTheme
 	selectedNodeID string // used to create a "related" edge on submit
@@ -60,6 +74,15 @@ type formPane struct {
 	// original node ID so buildNode preserves it instead of generating a new UUID.
 	editingNodeID  string
 	editingCreated time.Time // original Created timestamp, preserved on update
+
+	// Edge management (edit mode only). existingEdges holds all edges found
+	// when the edit form was constructed. keptEdgeIDs is bound to the
+	// multi-select — unchecked IDs will be deleted on submit. newEdgeType and
+	// newEdgeTarget allow creating a single new edge.
+	existingEdges []edgeEntry
+	keptEdgeIDs   []string
+	newEdgeType   string
+	newEdgeTarget string
 
 	// Field values — written by huh via pointer accessors.
 	title  string
@@ -283,9 +306,10 @@ func NewEditTaskFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	clock types.Clock,
+	index types.GraphIndex,
 	node *types.Node,
 ) PaneModel {
-	return newEditTaskFormPane(theme, store, clock, node)
+	return newEditTaskFormPane(theme, store, clock, index, node)
 }
 
 // newEditTaskFormPane is the internal constructor.
@@ -293,6 +317,7 @@ func newEditTaskFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	clock types.Clock,
+	index types.GraphIndex,
 	node *types.Node,
 ) formPane {
 	status := "inbox"
@@ -307,6 +332,7 @@ func newEditTaskFormPane(
 	f := formPane{
 		kind:           formTask,
 		store:          store,
+		index:          index,
 		clock:          clock,
 		theme:          theme,
 		title:          node.Title,
@@ -317,37 +343,41 @@ func newEditTaskFormPane(
 		editingCreated: node.Created,
 	}
 
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Value(&f.title).
+			Validate(notEmpty("title")),
+
+		huh.NewText().
+			Title("Body").
+			Value(&f.body).
+			Lines(6).
+			Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
+
+		huh.NewSelect[string]().
+			Title("Status").
+			Options(
+				huh.NewOption("Inbox", "inbox"),
+				huh.NewOption("Active", "active"),
+				huh.NewOption("Waiting", "waiting"),
+			).
+			Value(&f.status),
+
+		huh.NewSelect[string]().
+			Title("Energy").
+			Options(
+				huh.NewOption("Deep", "deep"),
+				huh.NewOption("Medium", "medium"),
+				huh.NewOption("Low", "low"),
+			).
+			Value(&f.energy),
+	}
+
+	fields = appendEdgeFields(&f, index, node, fields)
+
 	f.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Value(&f.title).
-				Validate(notEmpty("title")),
-
-			huh.NewText().
-				Title("Body").
-				Value(&f.body).
-				Lines(6).
-				Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
-
-			huh.NewSelect[string]().
-				Title("Status").
-				Options(
-					huh.NewOption("Inbox", "inbox"),
-					huh.NewOption("Active", "active"),
-					huh.NewOption("Waiting", "waiting"),
-				).
-				Value(&f.status),
-
-			huh.NewSelect[string]().
-				Title("Energy").
-				Options(
-					huh.NewOption("Deep", "deep"),
-					huh.NewOption("Medium", "medium"),
-					huh.NewOption("Low", "low"),
-				).
-				Value(&f.energy),
-		),
+		huh.NewGroup(fields...),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f
@@ -359,9 +389,10 @@ func NewEditJournalFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	clock types.Clock,
+	index types.GraphIndex,
 	node *types.Node,
 ) PaneModel {
-	return newEditJournalFormPane(theme, store, clock, node)
+	return newEditJournalFormPane(theme, store, clock, index, node)
 }
 
 // newEditJournalFormPane is the internal constructor.
@@ -369,11 +400,13 @@ func newEditJournalFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	clock types.Clock,
+	index types.GraphIndex,
 	node *types.Node,
 ) formPane {
 	f := formPane{
 		kind:           formJournal,
 		store:          store,
+		index:          index,
 		clock:          clock,
 		theme:          theme,
 		title:          node.Title,
@@ -382,19 +415,23 @@ func newEditJournalFormPane(
 		editingCreated: node.Created,
 	}
 
-	f.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Value(&f.title),
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Value(&f.title),
 
-			huh.NewText().
-				Title("Body").
-				Value(&f.body).
-				Lines(12).
-				Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
-				Validate(notEmpty("body")),
-		),
+		huh.NewText().
+			Title("Body").
+			Value(&f.body).
+			Lines(12).
+			Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
+			Validate(notEmpty("body")),
+	}
+
+	fields = appendEdgeFields(&f, index, node, fields)
+
+	f.form = huh.NewForm(
+		huh.NewGroup(fields...),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f
@@ -406,9 +443,10 @@ func NewEditNoteFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	clock types.Clock,
+	index types.GraphIndex,
 	node *types.Node,
 ) PaneModel {
-	return newEditNoteFormPane(theme, store, clock, node)
+	return newEditNoteFormPane(theme, store, clock, index, node)
 }
 
 // newEditNoteFormPane is the internal constructor.
@@ -416,11 +454,13 @@ func newEditNoteFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	clock types.Clock,
+	index types.GraphIndex,
 	node *types.Node,
 ) formPane {
 	f := formPane{
 		kind:           formNote,
 		store:          store,
+		index:          index,
 		clock:          clock,
 		theme:          theme,
 		title:          node.Title,
@@ -429,22 +469,129 @@ func newEditNoteFormPane(
 		editingCreated: node.Created,
 	}
 
-	f.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Value(&f.title).
-				Validate(notEmpty("title")),
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Value(&f.title).
+			Validate(notEmpty("title")),
 
-			huh.NewText().
-				Title("Body").
-				Value(&f.body).
-				Lines(8).
-				Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
-		),
+		huh.NewText().
+			Title("Body").
+			Value(&f.body).
+			Lines(8).
+			Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
+	}
+
+	fields = appendEdgeFields(&f, index, node, fields)
+
+	f.form = huh.NewForm(
+		huh.NewGroup(fields...),
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f
+}
+
+// buildEdgeEntries queries the index for all edges connected to nodeID and
+// returns them as edgeEntry values with human-readable labels.
+func buildEdgeEntries(index types.GraphIndex, nodeID string) []edgeEntry {
+	if index == nil {
+		return nil
+	}
+
+	var entries []edgeEntry
+
+	for _, e := range index.EdgesFrom(nodeID) {
+		label := fmt.Sprintf("→ %s → %s", e.Type, shortNodeLabel(index, e.To))
+		entries = append(entries, edgeEntry{
+			ID:        e.ID,
+			Direction: "→",
+			EdgeType:  e.Type,
+			TargetID:  e.To,
+			Label:     label,
+		})
+	}
+
+	for _, e := range index.EdgesTo(nodeID) {
+		label := fmt.Sprintf("← %s ← %s", e.Type, shortNodeLabel(index, e.From))
+		entries = append(entries, edgeEntry{
+			ID:        e.ID,
+			Direction: "←",
+			EdgeType:  e.Type,
+			TargetID:  e.From,
+			Label:     label,
+		})
+	}
+
+	return entries
+}
+
+// shortNodeLabel returns a truncated title for the given node ID, falling back
+// to the raw ID when the node is missing or untitled.
+func shortNodeLabel(index types.GraphIndex, nodeID string) string {
+	if index == nil {
+		return nodeID[:8]
+	}
+	n, err := index.GetNode(nodeID)
+	if err != nil || n.Title == "" {
+		if len(nodeID) > 8 {
+			return nodeID[:8] + "…"
+		}
+		return nodeID
+	}
+	title := n.Title
+	if len(title) > 30 {
+		title = title[:27] + "…"
+	}
+	return title
+}
+
+// appendEdgeFields builds the edge management form fields (multi-select for
+// existing edges, select for new edge type, input for new edge target) and
+// appends them to the provided fields slice. It also populates the formPane's
+// existingEdges and keptEdgeIDs fields. Returns the updated fields slice.
+func appendEdgeFields(f *formPane, index types.GraphIndex, node *types.Node, fields []huh.Field) []huh.Field {
+	entries := buildEdgeEntries(index, node.ID)
+	f.existingEdges = entries
+
+	if len(entries) > 0 {
+		// Pre-select all existing edges (user unchecks to remove).
+		allIDs := make([]string, len(entries))
+		opts := make([]huh.Option[string], len(entries))
+		for i, entry := range entries {
+			allIDs[i] = entry.ID
+			opts[i] = huh.NewOption(entry.Label, entry.ID)
+		}
+		f.keptEdgeIDs = allIDs
+
+		fields = append(fields, huh.NewMultiSelect[string]().
+			Title("Existing Edges (uncheck to remove)").
+			Options(opts...).
+			Value(&f.keptEdgeIDs),
+		)
+	}
+
+	// New edge creation fields — always shown in edit mode.
+	f.newEdgeType = "(none)"
+	fields = append(fields,
+		huh.NewSelect[string]().
+			Title("Add Edge Type").
+			Options(
+				huh.NewOption("(none)", "(none)"),
+				huh.NewOption("Related", string(types.EdgeRelated)),
+				huh.NewOption("Blocks", string(types.EdgeBlocks)),
+				huh.NewOption("Waiting On", string(types.EdgeWaitingOn)),
+				huh.NewOption("Parent", string(types.EdgeParent)),
+				huh.NewOption("Precedes", string(types.EdgePrecedes)),
+			).
+			Value(&f.newEdgeType),
+
+		huh.NewInput().
+			Title("New Edge Target (node ID)").
+			Value(&f.newEdgeTarget).
+			Placeholder("Paste a node UUID to create a new edge"),
+	)
+
+	return fields
 }
 
 // Update forwards messages to the huh form and detects completion/abort.
@@ -483,6 +630,11 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			}
 			_ = f.store.WriteEdge(edge) // non-fatal
 		}
+		// Edge management: diff kept vs existing to delete unchecked edges,
+		// then create new edge if specified.
+		if f.editingNodeID != "" {
+			f.applyEdgeChanges()
+		}
 		label := node.Types[0] + ": " + node.Title
 		if node.Title == "" {
 			label = node.Types[0] + ": " + node.Body
@@ -505,6 +657,37 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	}
 
 	return f, cmd
+}
+
+// applyEdgeChanges deletes unchecked existing edges and creates a new edge
+// if the user filled in both the type and target fields.
+func (f formPane) applyEdgeChanges() {
+	// Build a set of kept edge IDs for fast lookup.
+	kept := make(map[string]bool, len(f.keptEdgeIDs))
+	for _, id := range f.keptEdgeIDs {
+		kept[id] = true
+	}
+
+	// Delete any existing edge that was unchecked.
+	for _, entry := range f.existingEdges {
+		if !kept[entry.ID] {
+			_ = f.store.DeleteEdge(entry.ID) // non-fatal
+		}
+	}
+
+	// Create a new edge if both type and target are specified.
+	target := strings.TrimSpace(f.newEdgeTarget)
+	if f.newEdgeType != "(none)" && target != "" {
+		now := f.clock.Now()
+		edge := &types.Edge{
+			ID:      uuid.New().String(),
+			Type:    f.newEdgeType,
+			From:    f.editingNodeID,
+			To:      target,
+			Created: now,
+		}
+		_ = f.store.WriteEdge(edge) // non-fatal
+	}
 }
 
 // View renders the huh form, padded to fill the pane.
