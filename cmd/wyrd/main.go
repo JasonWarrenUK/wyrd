@@ -447,15 +447,44 @@ func pluginCmd(storePath *string) *cobra.Command {
 
 // compactCmd implements `wyrd compact`.
 func compactCmd(storePath *string) *cobra.Command {
-	return &cobra.Command{
+	var dryRun bool
+
+	cmd := &cobra.Command{
 		Use:   "compact",
-		Short: "Archive old nodes to reduce store size (coming soon)",
+		Short: "Move archived nodes and orphan edges to archive/",
+		Long:  "Compact scans for nodes with status \"archived\" and moves them (and any edges that touch them) to archive/nodes/ and archive/edges/. Use --dry-run to preview without making changes.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_ = storePath
-			fmt.Fprintln(os.Stdout, "Compact is not yet available — coming in a future release.")
+			s, err := openStore(*storePath)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+
+			result, err := s.Compact(dryRun)
+			if err != nil {
+				return err
+			}
+
+			if result.ArchivedNodes == 0 && result.ArchivedEdges == 0 {
+				fmt.Fprintln(os.Stdout, "Nothing to compact.")
+				return nil
+			}
+
+			if dryRun {
+				fmt.Fprintf(os.Stdout, "Dry run — no files moved.\n\n")
+			}
+
+			for _, detail := range result.Details {
+				fmt.Fprintf(os.Stdout, "  %s\n", detail)
+			}
+			fmt.Fprintf(os.Stdout, "\n%d node(s) and %d edge(s) archived.\n",
+				result.ArchivedNodes, result.ArchivedEdges)
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview what would be moved without making changes")
+	return cmd
 }
 
 // Ensure Store satisfies both StoreFS and PluginStore at compile time.
