@@ -9,10 +9,10 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
 | **NV**   | NV.1, NV.3–NV.17 done | — | — |
 | **CP**   | All done except CP.11 | CP.11 (edge mgmt), CP.13 (budget template) | CP.14 (needs CP.13) |
-| **CL**   | CL.1, CL.2, CL.3 done — huh forms, titles wired | category listing (CL.4) | CL.5 (needs CP.13) |
+| **CL**   | CL.1–CL.4 done | — | CL.5 (needs CP.13) |
 | **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
 | **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
-| **RT**   | Ritual runner built; not wired | RT.1, RT.2 both unblocked | RT.3–RT.8 (need RT.2) |
+| **RT**   | RT.1 done; runner built but not wired | RT.2 unblocked | RT.3–RT.8 (need RT.2) |
 | **DA**   | No screenshots/gifs           | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks)    |
 | **CO**   | No compaction yet | CO.1 (archive nodes) | CO.2 (needs CO.1) |
 | **QE**   | Cypher subset + UNION/UNION ALL (QE.1) done | — | — |
@@ -213,7 +213,6 @@ _(none yet)_
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
-- [ ] RT.1. Ritual scheduler on startup — **depends on CP.1 (done)**
 - [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **no blockers**
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
@@ -227,7 +226,7 @@ _(none yet)_
 
 <a name="m6-done"><h4>Completed (Milestone 6)</h4></a>
 
-_(none yet)_
+- [x] RT.1. Ritual scheduler on startup — **depends on CP.1 (done)**
 
 ---
 
@@ -291,7 +290,7 @@ _(none yet)_
 
 <a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
 
-- [ ] CL.4. When `wyrd spend <category>` fails with "budget category not found", list all available budget categories from the store — **no blockers**
+_(none)_
 
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
 
@@ -302,6 +301,7 @@ _(none yet)_
 - [x] CL.3. `wyrd add` prompts for `Title` via `--title` flag or interactive huh form; title field wired to node — **no blockers**
 - [x] CL.1. `wyrd journal` uses native huh form (title defaulting to today's date + multiline body); replaces `$EDITOR` — **depends on CP.1 (done)**
 - [x] CL.2. `wyrd note` uses native huh form for body input; title from positional arg; replaces `$EDITOR` — **depends on CP.1 (done)**
+- [x] CL.4. When `wyrd spend <category>` fails with "budget category not found", list all available budget categories from the store — **no blockers**
 
 ---
 
@@ -352,7 +352,7 @@ CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
 CP13["`*CP.13*<br/>**Capture**<br/>Budget template`"]:::open
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::blocked
 
-CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::open
+CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::done
 CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::blocked
 
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::open
@@ -365,7 +365,7 @@ LG5["`*LG.5*<br/>**Logging**<br/>Sync logging`"]:::blocked
 LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::blocked
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::blocked
 
-RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::open
+RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::done
 RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
 RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::blocked
 RT4["`*RT.4*<br/>**Rituals**<br/>Prompt via huh`"]:::blocked
