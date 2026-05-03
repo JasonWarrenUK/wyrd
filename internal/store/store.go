@@ -57,6 +57,8 @@ func (s *Store) ensureDirs() error {
 	dirs := []string{
 		filepath.Join(s.path, "nodes"),
 		filepath.Join(s.path, "edges"),
+		filepath.Join(s.path, "archive", "nodes"),
+		filepath.Join(s.path, "archive", "edges"),
 		filepath.Join(s.path, "templates"),
 		filepath.Join(s.path, "views"),
 		filepath.Join(s.path, "rituals"),
