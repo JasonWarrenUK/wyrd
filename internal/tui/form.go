@@ -2,6 +2,8 @@ package tui
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	huh "charm.land/huh/v2"
@@ -26,6 +28,7 @@ const (
 	formTask    formKind = iota
 	formJournal formKind = iota
 	formNote    formKind = iota
+	formBudget  formKind = iota
 )
 
 // formSubmitMsg is emitted by a formPane when the user completes and submits
@@ -62,10 +65,14 @@ type formPane struct {
 	editingCreated time.Time // original Created timestamp, preserved on update
 
 	// Field values — written by huh via pointer accessors.
-	title  string
-	body   string
-	status string
-	energy string
+	title     string
+	body      string
+	status    string
+	energy    string
+	category  string // budget category
+	allocated string // budget allocated amount (string for huh input, parsed on submit)
+	warnAt    string // budget warn_at fraction (string for huh input, parsed on submit)
+	period    string // budget period
 
 	width  int
 	height int
@@ -260,6 +267,83 @@ func newNoteFormPane(
 			Value(&f.body).
 			Lines(8).
 			Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
+	}
+	if selectedNodeID != "" {
+		fields = append(fields, huh.NewConfirm().
+			Title("Link to selected node?").
+			Value(&f.linkToSelected).
+			Affirmative("Yes").
+			Negative("No"),
+		)
+	}
+
+	f.form = huh.NewForm(
+		huh.NewGroup(fields...),
+	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
+
+	return f
+}
+
+// NewBudgetFormPane builds a formPane for budget creation.
+// prefillCategory is the text the user typed after the "b:" prefix (may be empty).
+// Exported for use in tests.
+func NewBudgetFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	selectedNodeID string,
+	prefillCategory string,
+) PaneModel {
+	return newBudgetFormPane(theme, store, clock, selectedNodeID, prefillCategory)
+}
+
+// newBudgetFormPane is the internal constructor.
+func newBudgetFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	selectedNodeID string,
+	prefillCategory string,
+) formPane {
+	f := formPane{
+		kind:           formBudget,
+		store:          store,
+		clock:          clock,
+		theme:          theme,
+		selectedNodeID: selectedNodeID,
+		category:       prefillCategory,
+		allocated:      "",
+		warnAt:         "0.8",
+		period:         "monthly",
+		linkToSelected: true,
+	}
+
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Category").
+			Value(&f.category).
+			Validate(notEmpty("category")),
+
+		huh.NewInput().
+			Title("Allocated").
+			Value(&f.allocated).
+			Placeholder("0.00").
+			Validate(validatePositiveNumber("allocated")),
+
+		huh.NewInput().
+			Title("Warn at (fraction 0–1)").
+			Value(&f.warnAt).
+			Placeholder("0.8"),
+
+		huh.NewSelect[string]().
+			Title("Period").
+			Options(
+				huh.NewOption("Weekly", "weekly"),
+				huh.NewOption("Monthly", "monthly"),
+				huh.NewOption("Quarterly", "quarterly"),
+				huh.NewOption("Yearly", "yearly"),
+			).
+			Value(&f.period),
 	}
 	if selectedNodeID != "" {
 		fields = append(fields, huh.NewConfirm().
@@ -569,6 +653,20 @@ func (f formPane) buildNode() *types.Node {
 
 	case formNote:
 		node.Types = []string{"note"}
+
+	case formBudget:
+		node.Types = []string{"budget"}
+		node.Title = f.category
+		node.Properties["category"] = f.category
+		if alloc, err := strconv.ParseFloat(f.allocated, 64); err == nil {
+			node.Properties["allocated"] = alloc
+		}
+		if warnAt, err := strconv.ParseFloat(f.warnAt, 64); err == nil {
+			node.Properties["warn_at"] = warnAt
+		} else {
+			node.Properties["warn_at"] = 0.8
+		}
+		node.Properties["period"] = f.period
 	}
 
 	return node
@@ -579,6 +677,24 @@ func notEmpty(fieldName string) func(string) error {
 	return func(s string) error {
 		if s == "" {
 			return errors.New(fieldName + " is required")
+		}
+		return nil
+	}
+}
+
+// validatePositiveNumber returns a validation function that rejects empty,
+// non-numeric, zero, and negative values.
+func validatePositiveNumber(fieldName string) func(string) error {
+	return func(s string) error {
+		if s == "" {
+			return fmt.Errorf("%s is required", fieldName)
+		}
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fmt.Errorf("%s must be a number", fieldName)
+		}
+		if v <= 0 {
+			return fmt.Errorf("%s must be greater than zero", fieldName)
 		}
 		return nil
 	}
