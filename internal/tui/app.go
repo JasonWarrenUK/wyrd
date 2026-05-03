@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
+	clog "github.com/charmbracelet/log"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -20,6 +21,9 @@ var _ PaneModel = nodeListPane{}
 type switchThemeMsg struct {
 	name string
 }
+
+// openLogOverlayMsg is emitted when the :log command is invoked.
+type openLogOverlayMsg struct{}
 
 // captureSubmitMsg is emitted after a successful node creation (from form or
 // capture bar) so the dashboard can refresh and the status bar can confirm.
@@ -103,6 +107,11 @@ type Model struct {
 
 	// rituals is the list of loaded ritual definitions.
 	rituals []*types.Ritual
+	// logger is the structured logger. May be nil.
+	logger *clog.Logger
+
+	// logOverlay is the debug log viewer overlay.
+	logOverlay logOverlay
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -141,6 +150,9 @@ type Config struct {
 	// Clock is used for date variable resolution in queries (e.g. $today).
 	// Defaults to types.RealClock{} when nil.
 	Clock types.Clock
+
+	// Logger is the structured logger. May be nil.
+	Logger *clog.Logger
 }
 
 // New builds the initial App Model. It may be called with an empty / nil store.
@@ -179,6 +191,17 @@ func New(cfg Config) (Model, error) {
 			name := args[0]
 			return func() tea.Msg {
 				return switchThemeMsg{name: name}
+			}
+		},
+	})
+
+	// Wire up the "log" command.
+	palette.Register(Command{
+		Name:        "log",
+		Description: "Show the debug log overlay",
+		Execute: func(args []string) tea.Cmd {
+			return func() tea.Msg {
+				return openLogOverlayMsg{}
 			}
 		},
 	})
@@ -277,6 +300,8 @@ func New(cfg Config) (Model, error) {
 		detailRenderer: NewDetailRenderer(),
 		schedulerState: schedulerState,
 		rituals:        rituals,
+		logger:         cfg.Logger,
+		logOverlay:     newLogOverlay(theme),
 		ready:          false,
 	}
 
@@ -349,6 +374,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// When the log overlay is active, route input to it.
+	if m.logOverlay.IsActive() {
+		cmd, consumed := m.logOverlay.Update(msg)
+		if consumed {
+			return m, cmd
+		}
+	}
+
 	// When the node list is actively filtering, key input goes exclusively to
 	// it — same pattern as the capture bar. ctrl+c is checked first so the
 	// user can always quit, even mid-filter.
@@ -364,6 +397,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle async capture messages regardless of capture bar focus state.
 	switch msg := msg.(type) {
+	case openLogOverlayMsg:
+		m.logOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
+		return m, nil
 	case captureSubmitMsg:
 		return m.handleCaptureSubmit(msg)
 	case captureConfirmClearMsg:
@@ -890,9 +926,10 @@ func (m Model) View() tea.View {
 			}
 		}
 
-		// If the ritual overlay is active, composite it on top of everything.
-		if m.ritualOvl.IsActive() {
-			overlay := m.ritualOvl.View()
+    // If the log overlay is active, composite it on top using the same
+		// pattern as the palette.
+		if m.logOverlay.IsActive() {
+			overlay := m.logOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
 			if overlay != "" {
 				overlayWidth := lipgloss.Width(overlay)
 				centreX := (m.layout.totalWidth - overlayWidth) / 2

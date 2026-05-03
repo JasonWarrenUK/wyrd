@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	clog "github.com/charmbracelet/log"
 	huh "charm.land/huh/v2"
 	"github.com/spf13/cobra"
 
@@ -18,6 +20,36 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
+
+// logger is the application-wide structured logger, initialised in
+// PersistentPreRunE. Nil until the root command runs.
+var appLogger *clog.Logger
+
+// logFilePath returns ~/.wyrd/wyrd.log.
+func logFilePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(".", "wyrd.log")
+	}
+	return filepath.Join(home, ".wyrd", "wyrd.log")
+}
+
+// parseLogLevel maps a string to a charmbracelet/log level.
+// Returns InfoLevel as the default.
+func parseLogLevel(s string) clog.Level {
+	switch strings.ToLower(s) {
+	case "debug":
+		return clog.DebugLevel
+	case "info":
+		return clog.InfoLevel
+	case "warn":
+		return clog.WarnLevel
+	case "error":
+		return clog.ErrorLevel
+	default:
+		return clog.InfoLevel
+	}
+}
 
 func main() {
 	if err := rootCmd().Execute(); err != nil {
@@ -42,34 +74,73 @@ func openStore(storePath string) (*store.Store, error) {
 			return nil, fmt.Errorf("initialising store: %w", err)
 		}
 	}
-	return store.New(storePath, types.RealClock{})
+	var opts []store.Option
+	if appLogger != nil {
+		opts = append(opts, store.WithLogger(appLogger))
+	}
+	return store.New(storePath, types.RealClock{}, opts...)
 }
 
 func rootCmd() *cobra.Command {
 	var storePath string
+	var logLevel string
 
 	root := &cobra.Command{
 		Use:   "wyrd",
 		Short: "Wyrd — a flat-file graph-based personal productivity tool",
 		Long: `Wyrd is a terminal-based personal productivity tool backed by a flat-file
 property graph. Run without arguments to launch the TUI.`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Resolve log level: flag > env var > default (info).
+			level := logLevel
+			if level == "" {
+				level = os.Getenv("WYRD_LOG_LEVEL")
+			}
+			if level == "" {
+				level = "info"
+			}
+
+			// Ensure ~/.wyrd/ exists.
+			logPath := logFilePath()
+			if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+				return fmt.Errorf("creating log directory: %w", err)
+			}
+
+			// Open the log file (append mode).
+			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+			if err != nil {
+				return fmt.Errorf("opening log file: %w", err)
+			}
+
+			appLogger = clog.New(f)
+			appLogger.SetLevel(parseLogLevel(level))
+			appLogger.SetReportTimestamp(true)
+
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStore(storePath)
 			if err != nil {
 				return err
 			}
 			defer s.Close()
+			var engineOpts []query.EngineOption
+			if appLogger != nil {
+				engineOpts = append(engineOpts, query.WithLogger(appLogger))
+			}
 			return tui.Run(tui.Config{
 				Store:       s,
 				StorePath:   storePath,
 				Index:       s.Index(),
-				QueryRunner: query.NewEngine(s.Index(), 0),
+				QueryRunner: query.NewEngine(s.Index(), 0, engineOpts...),
 				Clock:       types.RealClock{},
+				Logger:      appLogger,
 			})
 		},
 	}
 
 	root.PersistentFlags().StringVar(&storePath, "store", defaultStorePath(), "path to the Wyrd store directory")
+	root.PersistentFlags().StringVar(&logLevel, "log-level", "", "log level: debug, info, warn, error (default: info, env: WYRD_LOG_LEVEL)")
 
 	root.AddCommand(initCmd(&storePath))
 	root.AddCommand(addCmd(&storePath))
@@ -327,7 +398,11 @@ func queryCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			engine := query.NewEngine(s.Index(), 0)
+			var engineOpts []query.EngineOption
+			if appLogger != nil {
+				engineOpts = append(engineOpts, query.WithLogger(appLogger))
+			}
+			engine := query.NewEngine(s.Index(), 0, engineOpts...)
 			return cli.RunQuery(engine, types.RealClock{}, cli.QueryOptions{QueryString: args[0]}, os.Stdout)
 		},
 	}
@@ -344,7 +419,11 @@ func viewCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			engine := query.NewEngine(s.Index(), 0)
+			var engineOpts []query.EngineOption
+			if appLogger != nil {
+				engineOpts = append(engineOpts, query.WithLogger(appLogger))
+			}
+			engine := query.NewEngine(s.Index(), 0, engineOpts...)
 			return cli.RunView(s, engine, types.RealClock{}, args[0], os.Stdout)
 		},
 	}

@@ -243,6 +243,9 @@ func (s *Store) UpdateNode(id string, updates map[string]interface{}) (*types.No
 // ArchiveNode sets status to "archived" on the node. Never deletes the file.
 func (s *Store) ArchiveNode(id string) error {
 	_, err := s.UpdateNode(id, map[string]interface{}{"status": "archived"})
+	if err == nil {
+		s.logDebug("archived node", "id", id)
+	}
 	return err
 }
 
