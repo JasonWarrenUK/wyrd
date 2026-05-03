@@ -29,8 +29,10 @@ type CaptureResult struct {
 //
 // Prefix syntax (case-insensitive):
 //
+//	b:  → budget node
 //	j:  → journal node
 //	n:  → note node
+//	s:  → spend entry
 //	t:  → task node (default when no prefix given)
 type CaptureBar struct {
 	// focused reports whether the capture bar currently has keyboard focus.
@@ -112,9 +114,9 @@ func (c *CaptureBar) Submit() (*CaptureResult, error) {
 
 	nodeType, body := parseCapturePrefixes(raw)
 
-	// "spend" is a routing token handled by handleCaptureKey, not a node type.
-	// Submit() should never create a node for it.
-	if nodeType == "spend" {
+	// "spend" and "budget" are routing tokens handled by handleCaptureKey,
+	// not direct node creation types. Submit() should never create a node for them.
+	if nodeType == "spend" || nodeType == "budget" {
 		c.reset()
 		return nil, nil
 	}
@@ -182,6 +184,8 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 	lower := strings.ToLower(raw)
 
 	switch {
+	case strings.HasPrefix(lower, "b:"):
+		return "budget", strings.TrimSpace(raw[2:])
 	case strings.HasPrefix(lower, "j:"):
 		return "journal", strings.TrimSpace(raw[2:])
 	case strings.HasPrefix(lower, "n:"):
@@ -198,7 +202,7 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 // CaptureBarPlaceholder returns the placeholder text shown when the capture
 // bar is not focused and empty.
 func CaptureBarPlaceholder() string {
-	return "ctrl+n to capture — j: journal · n: note · s: spend · t: task (default)"
+	return "ctrl+n to capture — b: budget · j: journal · n: note · s: spend · t: task (default)"
 }
 
 // unusedTime is a compile-time assertion that time is imported.

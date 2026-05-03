@@ -115,6 +115,12 @@ func builtinCommands() []Command {
 			Hint:        "?",
 			Execute:     nil, // placeholder for Phase 4
 		},
+		{
+			Name:        "log",
+			Description: "Show the debug log overlay",
+			Hint:        "",
+			Execute:     nil, // wired up in app.go
+		},
 	}
 }
 

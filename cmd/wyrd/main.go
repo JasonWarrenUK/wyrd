@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	clog "github.com/charmbracelet/log"
 	huh "charm.land/huh/v2"
 	"github.com/spf13/cobra"
 
@@ -18,6 +20,36 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
+
+// logger is the application-wide structured logger, initialised in
+// PersistentPreRunE. Nil until the root command runs.
+var appLogger *clog.Logger
+
+// logFilePath returns ~/.wyrd/wyrd.log.
+func logFilePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(".", "wyrd.log")
+	}
+	return filepath.Join(home, ".wyrd", "wyrd.log")
+}
+
+// parseLogLevel maps a string to a charmbracelet/log level.
+// Returns InfoLevel as the default.
+func parseLogLevel(s string) clog.Level {
+	switch strings.ToLower(s) {
+	case "debug":
+		return clog.DebugLevel
+	case "info":
+		return clog.InfoLevel
+	case "warn":
+		return clog.WarnLevel
+	case "error":
+		return clog.ErrorLevel
+	default:
+		return clog.InfoLevel
+	}
+}
 
 func main() {
 	if err := rootCmd().Execute(); err != nil {
@@ -42,39 +74,79 @@ func openStore(storePath string) (*store.Store, error) {
 			return nil, fmt.Errorf("initialising store: %w", err)
 		}
 	}
-	return store.New(storePath, types.RealClock{})
+	var opts []store.Option
+	if appLogger != nil {
+		opts = append(opts, store.WithLogger(appLogger))
+	}
+	return store.New(storePath, types.RealClock{}, opts...)
 }
 
 func rootCmd() *cobra.Command {
 	var storePath string
+	var logLevel string
 
 	root := &cobra.Command{
 		Use:   "wyrd",
 		Short: "Wyrd — a flat-file graph-based personal productivity tool",
 		Long: `Wyrd is a terminal-based personal productivity tool backed by a flat-file
 property graph. Run without arguments to launch the TUI.`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Resolve log level: flag > env var > default (info).
+			level := logLevel
+			if level == "" {
+				level = os.Getenv("WYRD_LOG_LEVEL")
+			}
+			if level == "" {
+				level = "info"
+			}
+
+			// Ensure ~/.wyrd/ exists.
+			logPath := logFilePath()
+			if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+				return fmt.Errorf("creating log directory: %w", err)
+			}
+
+			// Open the log file (append mode).
+			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+			if err != nil {
+				return fmt.Errorf("opening log file: %w", err)
+			}
+
+			appLogger = clog.New(f)
+			appLogger.SetLevel(parseLogLevel(level))
+			appLogger.SetReportTimestamp(true)
+
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStore(storePath)
 			if err != nil {
 				return err
 			}
 			defer s.Close()
+			var engineOpts []query.EngineOption
+			if appLogger != nil {
+				engineOpts = append(engineOpts, query.WithLogger(appLogger))
+			}
 			return tui.Run(tui.Config{
 				Store:       s,
 				StorePath:   storePath,
 				Index:       s.Index(),
-				QueryRunner: query.NewEngine(s.Index(), 0),
+				QueryRunner: query.NewEngine(s.Index(), 0, engineOpts...),
 				Clock:       types.RealClock{},
+				Logger:      appLogger,
 			})
 		},
 	}
 
 	root.PersistentFlags().StringVar(&storePath, "store", defaultStorePath(), "path to the Wyrd store directory")
+	root.PersistentFlags().StringVar(&logLevel, "log-level", "", "log level: debug, info, warn, error (default: info, env: WYRD_LOG_LEVEL)")
 
 	root.AddCommand(initCmd(&storePath))
 	root.AddCommand(addCmd(&storePath))
 	root.AddCommand(journalCmd(&storePath))
 	root.AddCommand(noteCmd(&storePath))
+	root.AddCommand(budgetCmd(&storePath))
 	root.AddCommand(spendCmd(&storePath))
 	root.AddCommand(syncCmd(&storePath))
 	root.AddCommand(queryCmd(&storePath))
@@ -271,6 +343,143 @@ func noteCmd(storePath *string) *cobra.Command {
 	return cmd
 }
 
+// budgetCmd implements `wyrd budget`.
+func budgetCmd(storePath *string) *cobra.Command {
+	budget := &cobra.Command{
+		Use:   "budget",
+		Short: "Manage budget envelopes",
+	}
+
+	budget.AddCommand(budgetCreateCmd(storePath))
+	return budget
+}
+
+// budgetCreateCmd implements `wyrd budget create`.
+func budgetCreateCmd(storePath *string) *cobra.Command {
+	var category string
+	var allocated float64
+	var period string
+	var warnAt float64
+	var linkID string
+
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a new budget envelope",
+		Long: `Create a new budget node with a category, allocation, period, and warning threshold.
+When flags are omitted, an interactive form prompts for missing values.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Interactive fallback: if category or allocated are not provided
+			// via flags, prompt for them.
+			needsInteractive := category == "" || allocated == 0
+
+			if needsInteractive {
+				catValue := category
+				allocStr := ""
+				if allocated > 0 {
+					allocStr = strconv.FormatFloat(allocated, 'f', 2, 64)
+				}
+				periodValue := period
+				if periodValue == "" {
+					periodValue = "monthly"
+				}
+				warnAtStr := "0.8"
+				if warnAt > 0 {
+					warnAtStr = strconv.FormatFloat(warnAt, 'f', 2, 64)
+				}
+
+				form := huh.NewForm(
+					huh.NewGroup(
+						huh.NewInput().
+							Title("Category").
+							Value(&catValue).
+							Placeholder("e.g. groceries, transport, entertainment").
+							Validate(func(s string) error {
+								if s == "" {
+									return errors.New("category is required")
+								}
+								return nil
+							}),
+
+						huh.NewInput().
+							Title("Allocated amount").
+							Value(&allocStr).
+							Placeholder("0.00").
+							Validate(func(s string) error {
+								if s == "" {
+									return errors.New("allocated amount is required")
+								}
+								v, err := strconv.ParseFloat(s, 64)
+								if err != nil {
+									return errors.New("must be a number")
+								}
+								if v <= 0 {
+									return errors.New("must be greater than zero")
+								}
+								return nil
+							}),
+
+						huh.NewSelect[string]().
+							Title("Period").
+							Options(
+								huh.NewOption("Weekly", "weekly"),
+								huh.NewOption("Monthly", "monthly"),
+								huh.NewOption("Quarterly", "quarterly"),
+								huh.NewOption("Yearly", "yearly"),
+							).
+							Value(&periodValue),
+
+						huh.NewInput().
+							Title("Warn at (fraction 0–1)").
+							Value(&warnAtStr).
+							Placeholder("0.8"),
+					),
+				).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
+
+				if err := form.Run(); err != nil {
+					if errors.Is(err, huh.ErrUserAborted) {
+						fmt.Fprintln(os.Stdout, "Cancelled.")
+						return nil
+					}
+					return err
+				}
+
+				category = catValue
+				if v, err := strconv.ParseFloat(allocStr, 64); err == nil {
+					allocated = v
+				}
+				period = periodValue
+				if v, err := strconv.ParseFloat(warnAtStr, 64); err == nil {
+					warnAt = v
+				}
+			}
+
+			s, err := openStore(*storePath)
+			if err != nil {
+				return err
+			}
+			id, err := cli.BudgetCreate(s, cli.BudgetCreateOptions{
+				Category:  category,
+				Allocated: allocated,
+				Period:    period,
+				WarnAt:    warnAt,
+				LinkID:    linkID,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "Created budget node %s\n", id)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&category, "category", "", "budget category name")
+	cmd.Flags().Float64Var(&allocated, "allocated", 0, "amount allocated for this period")
+	cmd.Flags().StringVar(&period, "period", "", "budget period (weekly, monthly, quarterly, yearly)")
+	cmd.Flags().Float64Var(&warnAt, "warn-at", 0, "fraction of allocation that triggers a warning (0–1)")
+	cmd.Flags().StringVar(&linkID, "link", "", "create a 'related' edge to this node ID")
+	return cmd
+}
+
 // spendCmd implements `wyrd spend`.
 func spendCmd(storePath *string) *cobra.Command {
 	return &cobra.Command{
@@ -327,7 +536,11 @@ func queryCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			engine := query.NewEngine(s.Index(), 0)
+			var engineOpts []query.EngineOption
+			if appLogger != nil {
+				engineOpts = append(engineOpts, query.WithLogger(appLogger))
+			}
+			engine := query.NewEngine(s.Index(), 0, engineOpts...)
 			return cli.RunQuery(engine, types.RealClock{}, cli.QueryOptions{QueryString: args[0]}, os.Stdout)
 		},
 	}
@@ -344,7 +557,11 @@ func viewCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			engine := query.NewEngine(s.Index(), 0)
+			var engineOpts []query.EngineOption
+			if appLogger != nil {
+				engineOpts = append(engineOpts, query.WithLogger(appLogger))
+			}
+			engine := query.NewEngine(s.Index(), 0, engineOpts...)
 			return cli.RunView(s, engine, types.RealClock{}, args[0], os.Stdout)
 		},
 	}
@@ -447,15 +664,44 @@ func pluginCmd(storePath *string) *cobra.Command {
 
 // compactCmd implements `wyrd compact`.
 func compactCmd(storePath *string) *cobra.Command {
-	return &cobra.Command{
+	var dryRun bool
+
+	cmd := &cobra.Command{
 		Use:   "compact",
-		Short: "Archive old nodes to reduce store size (coming soon)",
+		Short: "Move archived nodes and orphan edges to archive/",
+		Long:  "Compact scans for nodes with status \"archived\" and moves them (and any edges that touch them) to archive/nodes/ and archive/edges/. Use --dry-run to preview without making changes.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_ = storePath
-			fmt.Fprintln(os.Stdout, "Compact is not yet available — coming in a future release.")
+			s, err := openStore(*storePath)
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+
+			result, err := s.Compact(dryRun)
+			if err != nil {
+				return err
+			}
+
+			if result.ArchivedNodes == 0 && result.ArchivedEdges == 0 {
+				fmt.Fprintln(os.Stdout, "Nothing to compact.")
+				return nil
+			}
+
+			if dryRun {
+				fmt.Fprintf(os.Stdout, "Dry run — no files moved.\n\n")
+			}
+
+			for _, detail := range result.Details {
+				fmt.Fprintf(os.Stdout, "  %s\n", detail)
+			}
+			fmt.Fprintf(os.Stdout, "\n%d node(s) and %d edge(s) archived.\n",
+				result.ArchivedNodes, result.ArchivedEdges)
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview what would be moved without making changes")
+	return cmd
 }
 
 // Ensure Store satisfies both StoreFS and PluginStore at compile time.

@@ -119,3 +119,126 @@ func TestTimelineRenderer_UnknownDateHandled(t *testing.T) {
 		t.Errorf("expected 'Unknown date' for nil timestamp, got:\n%s", output)
 	}
 }
+
+func TestTimelineRenderer_TypeColouredOutputDiffersFromPlain(t *testing.T) {
+	ts := time.Date(2024, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	rows := []map[string]interface{}{
+		{"created": ts, "body": "Coloured entry", "types": []interface{}{"task"}},
+	}
+	qr := types.QueryResult{
+		Columns: []string{"created", "body", "types"},
+		Rows:    rows,
+	}
+
+	// Plain renderer (no TypeColour callback).
+	plain := NewTimelineRenderer()
+	plainOut := plain.Render(qr, 80)
+
+	// Coloured renderer.
+	coloured := NewTimelineRenderer()
+	coloured.TypeColour = func(typeName string) (bg, fg string) {
+		return "#794aff", "#f6f6f6"
+	}
+	colouredOut := coloured.Render(qr, 80)
+
+	if plainOut == colouredOut {
+		t.Error("expected type-coloured output to differ from plain output")
+	}
+}
+
+func TestTimelineRenderer_MissingTypesColumnGraceful(t *testing.T) {
+	ts := time.Date(2024, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	// Row has no "types" column at all.
+	rows := []map[string]interface{}{
+		{"created": ts, "body": "No types here"},
+	}
+	qr := types.QueryResult{
+		Columns: []string{"created", "body"},
+		Rows:    rows,
+	}
+
+	r := NewTimelineRenderer()
+	r.TypeColour = func(typeName string) (bg, fg string) {
+		return "#794aff", "#f6f6f6"
+	}
+
+	// Should not panic and should render normally.
+	output := r.Render(qr, 80)
+	if !strings.Contains(output, "No types here") {
+		t.Errorf("expected body content in output, got:\n%s", output)
+	}
+}
+
+func TestTimelineRenderer_TypeBadgeAppearsInOutput(t *testing.T) {
+	ts := time.Date(2024, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	rows := []map[string]interface{}{
+		{"created": ts, "body": "Task entry", "types": []interface{}{"task"}},
+	}
+	qr := types.QueryResult{
+		Columns: []string{"created", "body", "types"},
+		Rows:    rows,
+	}
+
+	r := NewTimelineRenderer()
+	r.TypeColour = func(typeName string) (bg, fg string) {
+		return "#794aff", "#f6f6f6"
+	}
+
+	output := r.Render(qr, 80)
+	if !strings.Contains(output, "task") {
+		t.Errorf("expected type badge text 'task' in output, got:\n%s", output)
+	}
+}
+
+func TestExtractTypes_SliceOfInterface(t *testing.T) {
+	row := map[string]interface{}{
+		"types": []interface{}{"task", "note"},
+	}
+	got := extractTypes(row, "types")
+	if len(got) != 2 || got[0] != "task" || got[1] != "note" {
+		t.Errorf("expected [task note], got %v", got)
+	}
+}
+
+func TestExtractTypes_StringSlice(t *testing.T) {
+	row := map[string]interface{}{
+		"types": []string{"journal"},
+	}
+	got := extractTypes(row, "types")
+	if len(got) != 1 || got[0] != "journal" {
+		t.Errorf("expected [journal], got %v", got)
+	}
+}
+
+func TestExtractTypes_SingleString(t *testing.T) {
+	row := map[string]interface{}{
+		"types": "budget",
+	}
+	got := extractTypes(row, "types")
+	if len(got) != 1 || got[0] != "budget" {
+		t.Errorf("expected [budget], got %v", got)
+	}
+}
+
+func TestExtractTypes_MissingColumn(t *testing.T) {
+	row := map[string]interface{}{
+		"body": "hello",
+	}
+	got := extractTypes(row, "types")
+	if got != nil {
+		t.Errorf("expected nil for missing column, got %v", got)
+	}
+}
+
+func TestExtractTypes_NilValue(t *testing.T) {
+	row := map[string]interface{}{
+		"types": nil,
+	}
+	got := extractTypes(row, "types")
+	if got != nil {
+		t.Errorf("expected nil for nil value, got %v", got)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	clog "github.com/charmbracelet/log"
 	wyrdSync "github.com/jasonwarrenuk/wyrd/internal/sync"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -12,6 +13,9 @@ import (
 type SyncOptions struct {
 	// StorePath is the path to the store directory containing the git repo.
 	StorePath string
+
+	// Logger is the structured logger. May be nil.
+	Logger *clog.Logger
 }
 
 // Sync runs the git sync cycle: stage all changes, commit, pull, push.
@@ -23,7 +27,7 @@ func Sync(store types.StoreFS, opts SyncOptions, out io.Writer) error {
 	}
 
 	fmt.Fprintln(out, "Syncing...")
-	if err := wyrdSync.Sync(storePath); err != nil {
+	if err := wyrdSync.Sync(storePath, opts.Logger); err != nil {
 		return err
 	}
 	fmt.Fprintln(out, "Sync complete.")

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"log/slog"
 	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
@@ -41,7 +40,7 @@ func (s *Store) startWatcher() error {
 				if !ok {
 					return
 				}
-				slog.Error("watcher error", "err", err)
+				s.logWarn("watcher error", "err", err)
 			}
 		}
 	}()
@@ -66,7 +65,7 @@ func (s *Store) handleWatchEvent(event fsnotify.Event) {
 		if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
 			node, err := s.ReadNode(id)
 			if err != nil {
-				slog.Warn("watcher: failed to read node", "id", id, "err", err)
+				s.logWarn("watcher: failed to read node", "id", id, "err", err)
 				return
 			}
 			s.index.upsertNode(node)
@@ -76,7 +75,7 @@ func (s *Store) handleWatchEvent(event fsnotify.Event) {
 		if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
 			edge, err := s.ReadEdge(id)
 			if err != nil {
-				slog.Warn("watcher: failed to read edge", "id", id, "err", err)
+				s.logWarn("watcher: failed to read edge", "id", id, "err", err)
 				return
 			}
 			s.index.upsertEdge(edge)

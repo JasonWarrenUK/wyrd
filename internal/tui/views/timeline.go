@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"image/color"
 	"sort"
 	"strings"
@@ -49,6 +50,12 @@ type TimelineRenderer struct {
 	DateColumn string
 	// BodyColumn is the column name used for body content. Defaults to "body".
 	BodyColumn string
+	// TypeColour is a callback that returns (bg, fg) hex colours for a given
+	// node type name. When nil, entries use the default Body colour.
+	TypeColour func(typeName string) (bg, fg string)
+	// TypesColumn identifies which result column contains node types.
+	// Defaults to "types" if empty.
+	TypesColumn string
 }
 
 // NewTimelineRenderer returns a renderer with default palette and column names.
@@ -62,8 +69,17 @@ func NewTimelineRenderer() *TimelineRenderer {
 
 // timelineEntry is a resolved, sortable entry extracted from a query row.
 type timelineEntry struct {
-	date time.Time
-	body string
+	date  time.Time
+	body  string
+	types []string
+}
+
+// typesColumn returns the effective types column name, defaulting to "types".
+func (r *TimelineRenderer) typesColumn() string {
+	if r.TypesColumn != "" {
+		return r.TypesColumn
+	}
+	return "types"
 }
 
 // Render produces a styled timeline string from result.
@@ -77,12 +93,14 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 
 	dateCol := r.DateColumn
 	bodyCol := r.BodyColumn
+	typesCol := r.typesColumn()
 
 	entries := make([]timelineEntry, 0, len(result.Rows))
 	for _, row := range result.Rows {
 		t := parseTimeValue(row[dateCol])
 		body := formatCellValue(row[bodyCol])
-		entries = append(entries, timelineEntry{date: t, body: body})
+		nodeTypes := extractTypes(row, typesCol)
+		entries = append(entries, timelineEntry{date: t, body: body, types: nodeTypes})
 	}
 
 	// Sort reverse-chronologically (newest first).
@@ -117,12 +135,72 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 			dateStr = entry.date.Format(timelineDateFormat)
 		}
 
-		sb.WriteString(dateStyle.Render(dateStr))
+		// Render the date header, optionally with a type badge pill.
+		dateRendered := dateStyle.Render(dateStr)
+		if r.TypeColour != nil && len(entry.types) > 0 {
+			typeName := entry.types[0]
+			bg, fg := r.TypeColour(typeName)
+			badge := lipgloss.NewStyle().
+				Background(lipgloss.Color(bg)).
+				Foreground(lipgloss.Color(fg)).
+				Padding(0, 1).
+				Render(typeName)
+			dateRendered = dateRendered + "  " + badge
+		}
+
+		sb.WriteString(dateRendered)
 		sb.WriteRune('\n')
-		sb.WriteString(bodyStyle.Render(entry.body))
+
+		// Tint body text with the first type's foreground colour when available.
+		entryBodyStyle := bodyStyle
+		if r.TypeColour != nil && len(entry.types) > 0 {
+			_, fg := r.TypeColour(entry.types[0])
+			entryBodyStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(fg))
+		}
+		sb.WriteString(entryBodyStyle.Render(entry.body))
 	}
 
 	return sb.String()
+}
+
+// extractTypes pulls a string slice of node types from a query result row.
+// The value at the given column key is expected to be []interface{} of strings
+// (as returned by the query engine). Returns nil if the column is missing or
+// the value cannot be interpreted as a string slice.
+func extractTypes(row map[string]interface{}, col string) []string {
+	v, ok := row[col]
+	if !ok || v == nil {
+		return nil
+	}
+
+	switch typed := v.(type) {
+	case []interface{}:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			} else {
+				result = append(result, fmt.Sprintf("%v", item))
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		return result
+	case []string:
+		if len(typed) == 0 {
+			return nil
+		}
+		return typed
+	case string:
+		if typed == "" {
+			return nil
+		}
+		return []string{typed}
+	}
+
+	return nil
 }
 
 // parseTimeValue attempts to extract a time.Time from a query result cell.
