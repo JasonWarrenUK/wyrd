@@ -111,6 +111,7 @@ func (s *Store) DeleteEdge(id string) error {
 		return fmt.Errorf("deleting edge %s: %w", id, err)
 	}
 	s.index.removeEdge(id)
+	s.logDebug("deleted edge", "id", id)
 	return nil
 }
 

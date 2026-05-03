@@ -9,9 +9,24 @@ import (
 	"sync"
 	"time"
 
+	clog "github.com/charmbracelet/log"
 	"github.com/fsnotify/fsnotify"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
+
+// Store is the top-level facade implementing StoreFS and PluginStore.
+// It manages nodes, edges, templates, views, rituals, themes, and config
+// on the local filesystem as JSONC files.
+// Option configures optional Store behaviour.
+type Option func(*Store)
+
+// WithLogger sets the structured logger for the store. When nil (the
+// default), log calls are silently discarded.
+func WithLogger(l *clog.Logger) Option {
+	return func(s *Store) {
+		s.logger = l
+	}
+}
 
 // Store is the top-level facade implementing StoreFS and PluginStore.
 // It manages nodes, edges, templates, views, rituals, themes, and config
@@ -23,17 +38,21 @@ type Store struct {
 	watcher    *fsnotify.Watcher
 	templates  map[string]*types.Template
 	templateMu sync.RWMutex
+	logger     *clog.Logger
 }
 
 // New creates a Store rooted at the given path using the provided clock.
 // It scans existing nodes and edges to build the initial in-memory index,
 // then starts a filesystem watcher for incremental updates.
-func New(path string, clock types.Clock) (*Store, error) {
+func New(path string, clock types.Clock, opts ...Option) (*Store, error) {
 	s := &Store{
 		path:      path,
 		clock:     clock,
 		index:     newMemIndex(),
 		templates: make(map[string]*types.Template),
+	}
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	if err := s.ensureDirs(); err != nil {
@@ -46,7 +65,7 @@ func New(path string, clock types.Clock) (*Store, error) {
 
 	if err := s.startWatcher(); err != nil {
 		// Watcher failure is non-fatal — log and continue without live updates.
-		fmt.Printf("warning: file watcher could not be started: %v\n", err)
+		s.logWarn("file watcher could not be started", "err", err)
 	}
 
 	return s, nil
@@ -384,4 +403,18 @@ func readdirNames(dir string) ([]string, error) {
 		names = append(names, e.Name())
 	}
 	return names, nil
+}
+
+// logDebug emits a debug-level log entry when a logger is configured.
+func (s *Store) logDebug(msg string, keyvals ...interface{}) {
+	if s.logger != nil {
+		s.logger.Debug(msg, keyvals...)
+	}
+}
+
+// logWarn emits a warn-level log entry when a logger is configured.
+func (s *Store) logWarn(msg string, keyvals ...interface{}) {
+	if s.logger != nil {
+		s.logger.Warn(msg, keyvals...)
+	}
 }
