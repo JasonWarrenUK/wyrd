@@ -647,6 +647,19 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, sp.form.Init()
 		}
 
+		// Budget form: dispatches to the budget creation form.
+		if nodeType == "budget" {
+			var selectedID string
+			if lp, ok := m.leftPane.(nodeListPane); ok {
+				selectedID = lp.SelectedNodeID()
+			}
+			fp := newBudgetFormPane(m.theme, m.store, m.clock, selectedID, body)
+			m.rightPane = fp
+			m.focus = FocusRight
+			m.syncKeyHints()
+			return m, fp.form.Init()
+		}
+
 		var selectedID string
 		if lp, ok := m.leftPane.(nodeListPane); ok {
 			selectedID = lp.SelectedNodeID()
@@ -743,11 +756,11 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 	var fp formPane
 	switch primaryType {
 	case "journal":
-		fp = newEditJournalFormPane(m.theme, m.store, m.clock, node)
+		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node)
 	case "note":
-		fp = newEditNoteFormPane(m.theme, m.store, m.clock, node)
+		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node)
 	default:
-		fp = newEditTaskFormPane(m.theme, m.store, m.clock, node)
+		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node)
 	}
 
 	m.rightPane = fp
