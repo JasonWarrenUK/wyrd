@@ -954,6 +954,24 @@ func (m Model) View() tea.View {
 				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
 			}
 		}
+
+		// If the ritual overlay is active, composite it on top using the same
+		// pattern as the palette. Unlike the palette and log overlay, the ritual
+		// overlay already holds its own width/height (set in Open), so View
+		// takes no size arguments.
+		if m.ritualOvl.IsActive() {
+			overlay := m.ritualOvl.View()
+			if overlay != "" {
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
+				}
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
+			}
+		}
 	}
 
 	v := tea.NewView(frame)
