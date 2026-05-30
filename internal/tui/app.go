@@ -647,6 +647,19 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, sp.form.Init()
 		}
 
+		// Budget form: dispatches to the budget creation form.
+		if nodeType == "budget" {
+			var selectedID string
+			if lp, ok := m.leftPane.(nodeListPane); ok {
+				selectedID = lp.SelectedNodeID()
+			}
+			fp := newBudgetFormPane(m.theme, m.store, m.clock, selectedID, body)
+			m.rightPane = fp
+			m.focus = FocusRight
+			m.syncKeyHints()
+			return m, fp.form.Init()
+		}
+
 		var selectedID string
 		if lp, ok := m.leftPane.(nodeListPane); ok {
 			selectedID = lp.SelectedNodeID()
@@ -743,11 +756,11 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 	var fp formPane
 	switch primaryType {
 	case "journal":
-		fp = newEditJournalFormPane(m.theme, m.store, m.clock, node)
+		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node)
 	case "note":
-		fp = newEditNoteFormPane(m.theme, m.store, m.clock, node)
+		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node)
 	default:
-		fp = newEditTaskFormPane(m.theme, m.store, m.clock, node)
+		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node)
 	}
 
 	m.rightPane = fp
@@ -930,6 +943,24 @@ func (m Model) View() tea.View {
 		// pattern as the palette.
 		if m.logOverlay.IsActive() {
 			overlay := m.logOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
+			if overlay != "" {
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
+				}
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
+			}
+		}
+
+		// If the ritual overlay is active, composite it on top using the same
+		// pattern as the palette. Unlike the palette and log overlay, the ritual
+		// overlay already holds its own width/height (set in Open), so View
+		// takes no size arguments.
+		if m.ritualOvl.IsActive() {
+			overlay := m.ritualOvl.View()
 			if overlay != "" {
 				overlayWidth := lipgloss.Width(overlay)
 				centreX := (m.layout.totalWidth - overlayWidth) / 2

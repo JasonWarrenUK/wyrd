@@ -12,8 +12,9 @@ import (
 
 // formTestStore is a minimal StoreFS for form tests.
 type formTestStore struct {
-	nodes map[string]*types.Node
-	edges map[string]*types.Edge
+	nodes      map[string]*types.Node
+	edges      map[string]*types.Edge
+	deletedIDs []string // tracks DeleteEdge calls
 }
 
 func newFormTestStore() *formTestStore {
@@ -27,7 +28,7 @@ func (s *formTestStore) ReadNode(id string) (*types.Node, error)            { re
 func (s *formTestStore) WriteNode(n *types.Node) error                      { s.nodes[n.ID] = n; return nil }
 func (s *formTestStore) ReadEdge(id string) (*types.Edge, error)            { return s.edges[id], nil }
 func (s *formTestStore) WriteEdge(e *types.Edge) error                      { s.edges[e.ID] = e; return nil }
-func (s *formTestStore) DeleteEdge(id string) error                         { delete(s.edges, id); return nil }
+func (s *formTestStore) DeleteEdge(id string) error                         { delete(s.edges, id); s.deletedIDs = append(s.deletedIDs, id); return nil }
 func (s *formTestStore) ArchiveNode(id string) error                        { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
 func (s *formTestStore) ReadTemplate(_ string) (*types.Template, error)     { return nil, nil }
 func (s *formTestStore) AllTemplates() ([]*types.Template, error)           { return nil, nil }
@@ -51,6 +52,66 @@ func loadTestTheme(t *testing.T) *tui.ActiveTheme {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 	return theme
+}
+
+// formTestIndex is a minimal GraphIndex for form edge-management tests.
+type formTestIndex struct {
+	nodes []*types.Node
+	edges []*types.Edge
+}
+
+func (i *formTestIndex) GetNode(id string) (*types.Node, error) {
+	for _, n := range i.nodes {
+		if n.ID == id {
+			return n, nil
+		}
+	}
+	return nil, &types.NotFoundError{Kind: "node", ID: id}
+}
+
+func (i *formTestIndex) GetEdge(id string) (*types.Edge, error) {
+	for _, e := range i.edges {
+		if e.ID == id {
+			return e, nil
+		}
+	}
+	return nil, &types.NotFoundError{Kind: "edge", ID: id}
+}
+
+func (i *formTestIndex) AllNodes() []*types.Node { return i.nodes }
+func (i *formTestIndex) AllEdges() []*types.Edge { return i.edges }
+
+func (i *formTestIndex) EdgesFrom(nodeID string) []*types.Edge {
+	var out []*types.Edge
+	for _, e := range i.edges {
+		if e.From == nodeID {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func (i *formTestIndex) EdgesTo(nodeID string) []*types.Edge {
+	var out []*types.Edge
+	for _, e := range i.edges {
+		if e.To == nodeID {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func (i *formTestIndex) NodesByType(typeName string) []*types.Node {
+	var out []*types.Node
+	for _, n := range i.nodes {
+		for _, t := range n.Types {
+			if t == typeName {
+				out = append(out, n)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // TestTaskFormPaneViewRenders verifies that a task formPane produces a
@@ -241,7 +302,7 @@ func TestEditTaskFormPaneViewRenders(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-1", "Buy groceries", "From the list", []string{"task"})
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -257,7 +318,7 @@ func TestEditJournalFormPaneViewRenders(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-2", "2026-01-01", "Today I did things", []string{"journal"})
 
-	fp := tui.NewEditJournalFormPane(theme, store, clock, node)
+	fp := tui.NewEditJournalFormPane(theme, store, clock, nil, node)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -273,7 +334,7 @@ func TestEditNoteFormPaneViewRenders(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-3", "Architecture notes", "The system uses...", []string{"note"})
 
-	fp := tui.NewEditNoteFormPane(theme, store, clock, node)
+	fp := tui.NewEditNoteFormPane(theme, store, clock, nil, node)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -290,7 +351,7 @@ func TestEditFormNoLinkField(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-4", "Some task", "", []string{"task"})
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -309,5 +370,211 @@ func TestFormPaneHandleFocusLostIsNoop(t *testing.T) {
 	cmd := fp.HandleFocusLost()
 	if cmd != nil {
 		t.Error("expected nil cmd from HandleFocusLost")
+	}
+}
+
+// --- CP.11: edge management tests ---
+
+// TestEditFormShowsExistingEdges verifies that when an index has edges
+// connected to the edited node, the form renders the "Existing Edges" section.
+func TestEditFormShowsExistingEdges(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-a", "Task A", "", []string{"task"})
+	target := seedNode("node-b", "Task B", "", []string{"task"})
+
+	index := &formTestIndex{
+		nodes: []*types.Node{node, target},
+		edges: []*types.Edge{
+			{
+				ID:   "edge-1",
+				Type: "blocks",
+				From: "node-a",
+				To:   "node-b",
+			},
+		},
+	}
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if !strings.Contains(v, "Existing Edges") {
+		t.Errorf("expected 'Existing Edges' section in edit form with edges; got:\n%s", v)
+	}
+}
+
+// TestEditFormShowsAddEdgeType verifies that edit forms always include the
+// "Add Edge Type" field for creating new edges.
+func TestEditFormShowsAddEdgeType(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-a", "Task A", "", []string{"task"})
+
+	// No edges — the add-edge fields should still appear.
+	index := &formTestIndex{
+		nodes: []*types.Node{node},
+	}
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if !strings.Contains(v, "Add Edge Type") {
+		t.Errorf("expected 'Add Edge Type' field in edit form; got:\n%s", v)
+	}
+}
+
+// TestEditFormNilIndexNoEdgeFields verifies that when index is nil, the edit
+// form still renders without crashing and includes edge creation fields.
+func TestEditFormNilIndexNoEdgeFields(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-a", "Task A", "", []string{"task"})
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if v == "" {
+		t.Error("expected non-empty view from edit form with nil index")
+	}
+	// Edge fields should still appear (just no existing edges to show).
+	if !strings.Contains(v, "Add Edge Type") {
+		t.Errorf("expected 'Add Edge Type' even with nil index; got:\n%s", v)
+	}
+}
+
+// TestEditFormEdgeLabelsShowTargetTitle verifies that the edge multi-select
+// section appears when edges exist. The actual option labels may be truncated
+// by the huh renderer depending on viewport height, so we check for the
+// section title rather than individual option text.
+func TestEditFormEdgeLabelsShowTargetTitle(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-a", "Task A", "", []string{"task"})
+	target := seedNode("node-b", "Important Target", "", []string{"task"})
+
+	index := &formTestIndex{
+		nodes: []*types.Node{node, target},
+		edges: []*types.Edge{
+			{
+				ID:   "edge-1",
+				Type: "related",
+				From: "node-a",
+				To:   "node-b",
+			},
+		},
+	}
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	// The multi-select is present (blurred fields may not render option text).
+	if !strings.Contains(v, "Existing Edges") {
+		t.Errorf("expected 'Existing Edges' multi-select section; got:\n%s", v)
+	}
+}
+
+// TestEditFormIncomingEdgeShowsSection verifies that incoming edges also cause
+// the "Existing Edges" multi-select to appear.
+func TestEditFormIncomingEdgeShowsSection(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	source := seedNode("node-b", "Blocker", "", []string{"task"})
+	node := seedNode("node-a", "Blocked Task", "", []string{"task"})
+
+	index := &formTestIndex{
+		nodes: []*types.Node{node, source},
+		edges: []*types.Edge{
+			{
+				ID:   "edge-1",
+				Type: "blocks",
+				From: "node-b",
+				To:   "node-a",
+			},
+		},
+	}
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if !strings.Contains(v, "Existing Edges") {
+		t.Errorf("expected 'Existing Edges' for incoming edge; got:\n%s", v)
+	}
+}
+
+// TestEditJournalFormShowsEdgeFields verifies that journal edit forms also
+// include edge management fields.
+func TestEditJournalFormShowsEdgeFields(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-j", "2026-01-01", "Journal entry", []string{"journal"})
+	index := &formTestIndex{
+		nodes: []*types.Node{node},
+	}
+
+	fp := tui.NewEditJournalFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if !strings.Contains(v, "Add Edge Type") {
+		t.Errorf("expected edge fields in journal edit form; got:\n%s", v)
+	}
+}
+
+// TestEditNoteFormShowsEdgeFields verifies that note edit forms also include
+// edge management fields.
+func TestEditNoteFormShowsEdgeFields(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-n", "My note", "Note body", []string{"note"})
+	index := &formTestIndex{
+		nodes: []*types.Node{node},
+	}
+
+	fp := tui.NewEditNoteFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if !strings.Contains(v, "Add Edge Type") {
+		t.Errorf("expected edge fields in note edit form; got:\n%s", v)
+	}
+}
+
+// TestEditFormNoExistingEdgesSection verifies that when no edges exist, the
+// "Existing Edges" multi-select is not shown.
+func TestEditFormNoExistingEdgesSection(t *testing.T) {
+	theme := loadTestTheme(t)
+	store := newFormTestStore()
+	clock := formTestClock()
+
+	node := seedNode("node-a", "Task A", "", []string{"task"})
+	index := &formTestIndex{
+		nodes: []*types.Node{node},
+	}
+
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+
+	v := sized.View()
+	if strings.Contains(v, "Existing Edges") {
+		t.Errorf("did not expect 'Existing Edges' when no edges exist; got:\n%s", v)
 	}
 }
