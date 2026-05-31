@@ -1,13 +1,13 @@
 # Wyrd Documentation Suite
 
-*v0.2 · March 2026*
+## v0.2 · March 2026
 
 ## Introductions
 
 | Doc | Audience | Purpose |
 |-----|----------|---------|
-| [01-intro-general](./01-intro-general.md) | Non-technical | What Wyrd does and why it exists |
-| [02-intro-technical](./02-intro-technical.md) | Developers | Architecture, stack, data model |
+| [01-general](./introductions/01-general.md) | Non-technical | What Wyrd does and why it exists |
+| [02-technical](./introductions/02-technical.md) | Developers | Architecture, stack, data model |
 
 ## Architecture Decision Records
 
@@ -31,14 +31,14 @@
 
 | Doc | Describes |
 |-----|-----------|
-| [Node schema](./formats/node-schema.md) | Base node fields and conditional type fields |
-| [Edge schema](./formats/edge-schema.md) | Edge structure and built-in types |
-| [Template format](./formats/template-format.md) | User-defined type templates |
-| [Plugin manifest](./formats/plugin-manifest.md) | Plugin discovery, capabilities, config schema |
-| [Theme format](./formats/theme-format.md) | Colour tiers, glyph definitions |
-| [Ritual format](./formats/ritual-format.md) | Ritual steps, schedules, friction levels |
-| [Saved view format](./formats/saved-view-format.md) | Cypher-based view definitions |
-| [Budget envelope format](./formats/budget-envelope-format.md) | Spending allocation and logging |
+| [Node schema](./schema/node.md) | Base node fields and conditional type fields |
+| [Edge schema](./schema/edge.md) | Edge structure and built-in types |
+| [Template format](./schema/template.md) | User-defined type templates |
+| [Plugin manifest](./schema/plugin-manifest.md) | Plugin discovery, capabilities, config schema |
+| [Theme format](./schema/theme.md) | Colour tiers, glyph definitions |
+| [Ritual format](./schema/ritual.md) | Ritual steps, schedules, friction levels |
+| [Saved view format](./schema/saved-view.md) | Cypher-based view definitions |
+| [Budget envelope format](./schema/budget-envelope.md) | Spending allocation and logging |
 
 ## Aesthetic Design
 

@@ -8,7 +8,7 @@ Build the saved view renderer (all four display modes) and the schedule view wit
 
 ## Required Reading
 
-- [Saved view format](../formats/saved-view.md)
+- [Saved view format](../schema/saved-view.md)
 - [Design language](../aesthetics/design-language.md) (time displacement section, energy indicators, edge display)
 - [Theme palettes](../aesthetics/theme-palettes.md)
 - [Node schema](../schema/node.md)
@@ -36,7 +36,7 @@ Single-node detail view, wiki-style. Shows the node's `body` as the main content
 
 Envelope progress bars with status glyphs. Each budget node renders as:
 
-```
+```text
 ● Records    ████████████████░░░░  £42/£50
 ```
 
@@ -46,7 +46,7 @@ Status determined by spend ratio to allocated amount. Glyphs: `●` OK, `◐` Ca
 
 The day's schedule, rendered as a column of time-blocked entries. Each entry shows the time, an energy-coloured fill bar, and the task name. Calendar events (from sync plugins) render with dashed lines (`┄`) to distinguish them from tasks.
 
-```
+```text
 08:00 ▓▓▓▓▓▓▓▓ EPA review
 09:30 ████████ Rhea sprint
 10:00 ┄┄┄┄┄┄ Stand-up
@@ -83,7 +83,7 @@ The schedule must recalculate displacement in real-time (on a tick, once per min
 
 ## Output Structure
 
-```
+```text
 internal/tui/views/
   loader.go         # View file loading + sidebar population
   list.go           # List display mode

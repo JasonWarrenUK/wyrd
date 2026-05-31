@@ -12,7 +12,7 @@ Before writing any code, read these documents in full:
 
 - [Node schema](../schema/node.md)
 - [Edge schema](../schema/edge.md)
-- [Template format](../formats/template.md)
+- [Template format](../schema/template.md)
 - [ADR-001: Graph as flat files](../adr/adr-001-graph-as-flat-files.md)
 - [ADR-006: Append-only nodes](../adr/adr-006-append-only-nodes.md)
 - [ADR-010: Starter templates](../adr/adr-010-starter-templates.md)
@@ -80,7 +80,7 @@ Use `fsnotify` to watch `/store/nodes/` and `/store/edges/`. On file change, upd
 
 ## Output Structure
 
-```
+```text
 internal/store/
   store.go          # Public interface
   index.go          # GraphIndex implementation

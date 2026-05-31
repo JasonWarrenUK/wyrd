@@ -8,7 +8,7 @@ Build the budget interaction layer (spending commands, budget status computation
 
 ## Required Reading
 
-- [Budget envelope format](../formats/budget-envelope.md)
+- [Budget envelope format](../schema/budget-envelope.md)
 - [Design language](../aesthetics/design-language.md) (budget status section, edge display section)
 - [ADR-008: Envelope budgeting](../adr/adr-008-envelope-budgeting.md)
 - [Node schema](../schema/node.md) (conditional fields, synced nodes)
@@ -51,7 +51,7 @@ The right pane of the TUI. Shows full detail for whatever node is selected in th
 
 **Edges section:** header `EDGES`, then a list of connected edges with directional arrows and type-specific rendering:
 
-```
+```text
 ← blocks: Portfolio site draft
 → parent: EPA preparation
 ⊘ waiting_on: Dan (feedback) · 12d
@@ -97,7 +97,7 @@ If the user navigates to an archived node (e.g. via a query that explicitly incl
 
 ## Output Structure
 
-```
+```text
 internal/tui/
   detail.go         # Node detail pane
   detail_test.go

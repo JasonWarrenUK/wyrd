@@ -9,9 +9,9 @@ Build a read-only Cypher subset query engine that evaluates queries against the 
 ## Required Reading
 
 - [ADR-003: Cypher subset](../adr/adr-003-cypher-subset.md)
-- [Saved view format](../formats/saved-view.md) (contains example queries)
-- [Ritual format](../formats/ritual.md) (contains example queries in steps)
-- [Budget envelope format](../formats/budget-envelope.md) (contains example queries)
+- [Saved view format](../schema/saved-view.md) (contains example queries)
+- [Ritual format](../schema/ritual.md) (contains example queries in steps)
+- [Budget envelope format](../schema/budget-envelope.md) (contains example queries)
 - [Node schema](../schema/node.md)
 - [Edge schema](../schema/edge.md)
 
@@ -28,6 +28,7 @@ Built-in variables: `$today` (current date), `$now` (current datetime), `$week_s
 ### Layer 2: Edge Traversal
 
 Named edge traversal in both directions:
+
 ```cypher
 MATCH (t:task)<-[:blocks]-(b)
 MATCH (p)-[:parent]->(child)
@@ -109,7 +110,7 @@ You depend on the `GraphIndex` interface from the store layer. The orchestrator 
 
 ## Output Structure
 
-```
+```text
 internal/query/
   parser.go         # participle grammar + parser
   ast.go            # AST types

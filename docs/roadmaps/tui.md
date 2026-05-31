@@ -37,6 +37,8 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 ---
 
+<a name="milestones"><h2>Milestone 1: Wire & Launch</h2></a>
+
 <a name="m1"><h3>Milestone 1: Wire & Launch</h3></a>
 
 > [!IMPORTANT]

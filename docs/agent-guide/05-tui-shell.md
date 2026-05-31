@@ -10,7 +10,7 @@ Build the Bubble Tea application skeleton: the split-pane layout, theme engine, 
 
 - [Design language](../aesthetics/design-language.md)
 - [Theme palettes](../aesthetics/theme-palettes.md)
-- [Theme format](../formats/theme.md)
+- [Theme format](../schema/theme.md)
 - [ADR-002: Stack selection](../adr/adr-002-stack-selection.md)
 - [ADR-007: Theme system](../adr/adr-007-theme-system.md)
 
@@ -26,7 +26,7 @@ The app model holds: the active theme, the current left-pane content, the curren
 
 Two main panes (left and right) with a status bar spanning the bottom. Use Lipgloss for box rendering, borders, and spacing. The layout from the design language doc:
 
-```
+```text
 ┌──────────────────────────┬─────────────────────────┐
 │   Left pane              │   Right pane             │
 │   (schedule/view/ritual) │   (detail/editor)        │
@@ -99,7 +99,7 @@ When a pane has no content, display a message in muted text rather than a blank 
 
 ## Output Structure
 
-```
+```text
 internal/tui/
   app.go            # Bubble Tea application root (Model, Update, View)
   theme.go          # Theme loading, tier detection, colour accessors

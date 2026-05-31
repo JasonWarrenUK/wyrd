@@ -8,7 +8,7 @@ Build the plugin discovery, lifecycle management, JSON-lines protocol handler, a
 
 ## Required Reading
 
-- [Plugin manifest format](../formats/plugin-manifest.md)
+- [Plugin manifest format](../schema/plugin-manifest.md)
 - [ADR-004: Unified plugin architecture](../adr/adr-004-unified-plugin-architecture.md)
 - [ADR-013: Plugin sync strategy](../adr/adr-013-plugin-sync-strategy.md)
 - [ADR-011: Obsidian integration](../adr/adr-011-obsidian-integration.md) (as a concrete plugin example)
@@ -39,7 +39,8 @@ For `executable_type: "script"`, use the appropriate interpreter (detect from sh
 Communication with plugins is JSON-lines (one JSON object per line) over stdin/stdout.
 
 **Sync flow:**
-```
+
+```text
 Wyrd → Plugin: {"op": "sync", "config": {...}}
 Plugin → Wyrd: {"op": "upsert_node", "node": {...}}
 Plugin → Wyrd: {"op": "upsert_edge", "edge": {...}}
@@ -47,7 +48,8 @@ Plugin → Wyrd: {"op": "done", "summary": {"created": N, "updated": N, "errors"
 ```
 
 **Action flow:**
-```
+
+```text
 Wyrd → Plugin: {"op": "action", "node": {...}, "config": {...}}
 Plugin → Wyrd: (optional) {"op": "upsert_node", ...}
 Plugin → Wyrd: {"op": "done", ...}
@@ -96,7 +98,7 @@ The shell executor is itself registered as a plugin with its own manifest; it ju
 
 ## Output Structure
 
-```
+```text
 internal/plugin/
   manager.go        # Discovery, registry, lifecycle
   protocol.go       # JSON-lines reader/writer

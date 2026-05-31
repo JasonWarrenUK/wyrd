@@ -8,7 +8,7 @@ Build the ritual runner (the step sequencer that drives structured interactions 
 
 ## Required Reading
 
-- [Ritual format](../formats/ritual.md)
+- [Ritual format](../schema/ritual.md)
 - [Design language](../aesthetics/design-language.md) (capture bar section, keyboard model)
 - [ADR-009: Ritual definitions](../adr/adr-009-ritual-definitions.md)
 - [ADR-012: First-class writing](../adr/adr-012-first-class-writing.md)
@@ -80,7 +80,7 @@ These edits go through the store layer and trigger an index update. The query li
 
 ## Output Structure
 
-```
+```text
 internal/tui/ritual/
   loader.go         # Ritual file loading + schedule checking
   runner.go         # Step sequencer state machine

@@ -8,12 +8,12 @@ Build the CLI command surface (`wyrd add`, `wyrd journal`, `wyrd sync`, etc.), t
 
 ## Required Reading
 
-- [02-intro-technical](../02-intro-technical.md) (full architecture overview)
-- [03-intro-practical](../03-intro-practical.md) (how everything fits together)
+- [02-intro-technical](../introductions/02-technical.md) (full architecture overview)
+- [03-intro-practical](../introductions/03-practical.md) (how everything fits together)
 - [ADR-012: First-class writing](../adr/adr-012-first-class-writing.md)
 - [ADR-011: Obsidian integration](../adr/adr-011-obsidian-integration.md) (for the push/pull commands)
-- [Budget envelope format](../formats/budget-envelope.md) (for the spend command)
-- [Plugin manifest format](../formats/plugin-manifest.md) (for plugin commands)
+- [Budget envelope format](../schema/budget-envelope.md) (for the spend command)
+- [Plugin manifest format](../schema/plugin-manifest.md) (for plugin commands)
 
 ## Deliverables
 
@@ -21,7 +21,7 @@ Build the CLI command surface (`wyrd add`, `wyrd journal`, `wyrd sync`, etc.), t
 
 Use a Go CLI library (cobra or kong; orchestrator's preference) for the command tree:
 
-```
+```text
 wyrd                          # launches TUI
 wyrd add "body text"          # quick-add task node
 wyrd add --type note "title"  # quick-add with type
@@ -101,7 +101,7 @@ Verify these complete workflows work:
 
 ## Output Structure
 
-```
+```text
 cmd/
   wyrd/
     main.go           # CLI entrypoint, command registration
