@@ -520,7 +520,7 @@ func syncCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return cli.Sync(s, cli.SyncOptions{}, os.Stdout)
+			return cli.Sync(s, cli.SyncOptions{Logger: appLogger}, os.Stdout)
 		},
 	}
 }
@@ -677,26 +677,7 @@ func compactCmd(storePath *string) *cobra.Command {
 			}
 			defer s.Close()
 
-			result, err := s.Compact(dryRun)
-			if err != nil {
-				return err
-			}
-
-			if result.ArchivedNodes == 0 && result.ArchivedEdges == 0 {
-				fmt.Fprintln(os.Stdout, "Nothing to compact.")
-				return nil
-			}
-
-			if dryRun {
-				fmt.Fprintf(os.Stdout, "Dry run — no files moved.\n\n")
-			}
-
-			for _, detail := range result.Details {
-				fmt.Fprintf(os.Stdout, "  %s\n", detail)
-			}
-			fmt.Fprintf(os.Stdout, "\n%d node(s) and %d edge(s) archived.\n",
-				result.ArchivedNodes, result.ArchivedEdges)
-			return nil
+			return cli.Compact(s, s.Index(), dryRun, os.Stdout)
 		},
 	}
 

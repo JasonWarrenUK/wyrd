@@ -151,6 +151,7 @@ func (s *Store) Close() error {
 
 // WriteNode persists a node to disk atomically.
 func (s *Store) WriteNode(node *types.Node) error {
+	s.logDebug("writing node", "id", node.ID, "types", node.Types)
 	createdStr := node.Created.UTC().Format("2006-01-02T15:04:05Z")
 	modifiedStr := node.Modified.UTC().Format("2006-01-02T15:04:05Z")
 
@@ -198,6 +199,7 @@ func (s *Store) WriteNode(node *types.Node) error {
 
 // WriteEdge persists an edge to disk atomically.
 func (s *Store) WriteEdge(edge *types.Edge) error {
+	s.logDebug("writing edge", "id", edge.ID, "type", edge.Type, "from", edge.From, "to", edge.To)
 	raw := map[string]interface{}{
 		"id":      edge.ID,
 		"type":    edge.Type,
