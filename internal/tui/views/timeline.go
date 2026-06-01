@@ -14,8 +14,20 @@ import (
 const (
 	// timelineDateFormat is the format used for timeline entry date headers.
 	timelineDateFormat = "Monday 2 January 2006"
+	// timelineDateFormatShort is the compact date label used in block mode.
+	timelineDateFormatShort = "2 Jan 06"
 	// timelineSeparator is the horizontal rule drawn between entries.
 	timelineSeparator = "─"
+	// timelineBlockAccentWidth is the width of the type-accent bar in block mode,
+	// matching fillBarWidth in schedule.go.
+	timelineBlockAccentWidth = 8
+	// timelineLabelWidth is the fixed width of the date label column in block mode.
+	timelineLabelWidth = 12
+	// timelineBlockAccentChar is the fill character for the accent bar when the
+	// entry has a known type with a colour.
+	timelineBlockAccentChar = "█"
+	// timelineBlockMutedChar is the fill character when no type colour is available.
+	timelineBlockMutedChar = "░"
 )
 
 // TimelinePalette holds the colours used by the timeline renderer.
@@ -26,8 +38,12 @@ type TimelinePalette struct {
 	Separator color.Color
 	// Body is the default body text colour.
 	Body color.Color
-	// Muted is used for empty-state messaging.
+	// Muted is used for empty-state messaging and untyped accent bars.
 	Muted color.Color
+	// Background is the pane background colour used by RenderBlocks for
+	// PadLines-style bleed prevention. Set to lipgloss.NoColor{} when no
+	// explicit background is in use.
+	Background color.Color
 }
 
 // DefaultTimelinePalette returns the default Cairn-themed timeline colours.
@@ -37,6 +53,7 @@ func DefaultTimelinePalette() TimelinePalette {
 		Separator:  lipgloss.Color("#3a3a4a"),
 		Body:       lipgloss.Color("#e0e0e0"),
 		Muted:      lipgloss.Color("#8b8b8b"),
+		Background: lipgloss.NoColor{},
 	}
 }
 
@@ -56,6 +73,9 @@ type TimelineRenderer struct {
 	// TypesColumn identifies which result column contains node types.
 	// Defaults to "types" if empty.
 	TypesColumn string
+	// BlockStyle controls which rendering method View() delegates to.
+	// When true, View() uses RenderBlocks; when false, it uses Render.
+	BlockStyle bool
 }
 
 // NewTimelineRenderer returns a renderer with default palette and column names.
@@ -80,6 +100,16 @@ func (r *TimelineRenderer) typesColumn() string {
 		return r.TypesColumn
 	}
 	return "types"
+}
+
+// View renders the timeline using RenderBlocks when BlockStyle is true, or
+// Render otherwise. width is the available terminal width. result is a pointer
+// so that the caller can supply nil to get an empty-state message.
+func (r *TimelineRenderer) View(result types.QueryResult, width int) string {
+	if r.BlockStyle {
+		return r.RenderBlocks(result, width)
+	}
+	return r.Render(result, width)
 }
 
 // Render produces a styled timeline string from result.
@@ -162,6 +192,160 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 	}
 
 	return sb.String()
+}
+
+// RenderBlocks produces a block-mode timeline where each entry is a horizontal
+// coloured row: a fixed-width date label, a type-coloured accent bar, and the
+// body text truncated to fit the remaining width. Blocks are separated by a
+// single blank line instead of full-width rules.
+//
+// Background-bleed rules are observed: every lipgloss.NewStyle() in a block
+// carries both .Background() and .Foreground(), and the completed block string
+// is padded to width using the palette background colour.
+func (r *TimelineRenderer) RenderBlocks(result types.QueryResult, width int) string {
+	bg := r.Palette.Background
+
+	if len(result.Rows) == 0 {
+		return lipgloss.NewStyle().
+			Foreground(r.Palette.Muted).
+			Background(bg).
+			Render("No entries.")
+	}
+
+	dateCol := r.DateColumn
+	bodyCol := r.BodyColumn
+	typesCol := r.typesColumn()
+
+	entries := make([]timelineEntry, 0, len(result.Rows))
+	for _, row := range result.Rows {
+		t := parseTimeValue(row[dateCol])
+		body := formatCellValue(row[bodyCol])
+		nodeTypes := extractTypes(row, typesCol)
+		entries = append(entries, timelineEntry{date: t, body: body, types: nodeTypes})
+	}
+
+	// Sort reverse-chronologically (newest first).
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].date.After(entries[j].date)
+	})
+
+	dateStyle := lipgloss.NewStyle().
+		Foreground(r.Palette.DateHeader).
+		Background(bg).
+		Bold(true)
+
+	var sb strings.Builder
+	for i, entry := range entries {
+		if i > 0 {
+			// Single blank line between blocks (no full-width rule).
+			sb.WriteRune('\n')
+			sb.WriteString(padLine("", width, bg))
+			sb.WriteRune('\n')
+		}
+
+		// ── Date header line ──────────────────────────────────────────────────
+		var dateStr string
+		if entry.date.IsZero() {
+			dateStr = "Unknown date"
+		} else {
+			dateStr = entry.date.Format(timelineDateFormat)
+		}
+		dateHeader := padLine(dateStyle.Render(dateStr), width, bg)
+		sb.WriteString(dateHeader)
+		sb.WriteRune('\n')
+
+		// ── Block row: [date label] [accent bar]  [body] ─────────────────────
+		blockRow := r.renderTimelineBlock(entry, width, bg)
+		sb.WriteString(blockRow)
+	}
+
+	return sb.String()
+}
+
+// renderTimelineBlock renders a single entry as a horizontal block row:
+//
+//	"2 Jan 06    " + "████████" + "  " + "body text..."
+//
+// The accent bar is coloured by node type; the body is truncated to fit.
+// Every style carries both Background and Foreground to prevent bleed.
+func (r *TimelineRenderer) renderTimelineBlock(entry timelineEntry, width int, bg color.Color) string {
+	// ── Date label column (fixed width, left-aligned) ─────────────────────
+	var shortDate string
+	if entry.date.IsZero() {
+		shortDate = "?"
+	} else {
+		shortDate = entry.date.Format(timelineDateFormatShort)
+	}
+	// Pad or truncate to labelWidth.
+	label := padOrTruncate(shortDate, timelineLabelWidth)
+	labelStr := lipgloss.NewStyle().
+		Foreground(r.Palette.DateHeader).
+		Background(bg).
+		Render(label)
+
+	// ── Accent bar column ─────────────────────────────────────────────────
+	accentChar := timelineBlockMutedChar
+	accentColour := r.Palette.Muted
+	if r.TypeColour != nil && len(entry.types) > 0 {
+		_, fg := r.TypeColour(entry.types[0])
+		accentColour = lipgloss.Color(fg)
+		accentChar = timelineBlockAccentChar
+	}
+	barStr := lipgloss.NewStyle().
+		Foreground(accentColour).
+		Background(bg).
+		Render(strings.Repeat(accentChar, timelineBlockAccentWidth))
+
+	// ── Body column (truncated to remaining width) ────────────────────────
+	// Layout: labelWidth + 1 (space) + accentWidth + 2 (double space) + body
+	const gap = 3 // 1 between label/bar + 2 between bar/body
+	bodyWidth := width - timelineLabelWidth - timelineBlockAccentWidth - gap
+	if bodyWidth < 1 {
+		bodyWidth = 1
+	}
+
+	bodyFg := r.Palette.Body
+	if r.TypeColour != nil && len(entry.types) > 0 {
+		_, fg := r.TypeColour(entry.types[0])
+		bodyFg = lipgloss.Color(fg)
+	}
+	truncated := truncateToWidth(entry.body, bodyWidth)
+	bodyStr := lipgloss.NewStyle().
+		Foreground(bodyFg).
+		Background(bg).
+		Render(truncated)
+
+	// Spacer between label and bar: single space with bg to prevent bleed.
+	spacer1 := lipgloss.NewStyle().Background(bg).Foreground(r.Palette.Body).Render(" ")
+	// Double space between bar and body.
+	spacer2 := lipgloss.NewStyle().Background(bg).Foreground(r.Palette.Body).Render("  ")
+
+	row := fmt.Sprintf("%s%s%s%s%s", labelStr, spacer1, barStr, spacer2, bodyStr)
+	return padLine(row, width, bg)
+}
+
+// padLine pads a single rendered line to exactly width characters wide using
+// bg as the background. This replicates the PadLines logic from tui/render.go
+// for use within the views package, which cannot import tui without a circular
+// dependency.
+func padLine(line string, width int, bg color.Color) string {
+	if width <= 0 {
+		return line
+	}
+	return lipgloss.NewStyle().Width(width).Background(bg).Render(line)
+}
+
+// truncateToWidth returns s truncated to at most n runes. It does not add an
+// ellipsis — the accent colour already signals the entry type. Newlines are
+// replaced with spaces so the block row stays single-line.
+func truncateToWidth(s string, n int) string {
+	// Flatten to a single line.
+	s = strings.ReplaceAll(s, "\n", " ")
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n])
 }
 
 // extractTypes pulls a string slice of node types from a query result row.
