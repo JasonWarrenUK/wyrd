@@ -739,8 +739,9 @@ func appendEdgeFields(f *formPane, index types.GraphIndex, node *types.Node, fie
 
 		fields = append(fields, huh.NewMultiSelect[string]().
 			Title("Existing Edges (uncheck to remove)").
+			Value(&f.keptEdgeIDs).
 			Options(opts...).
-			Value(&f.keptEdgeIDs),
+			Height(min(len(entries)+2, 8)),
 		)
 	}
 
