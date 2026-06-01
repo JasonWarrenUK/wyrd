@@ -4,18 +4,18 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 # Wyrd: TUI Roadmap
 
-|          | Status                        | Next Up                      | Blocked                        |
-| -------- | ----------------------------- | ---------------------------- | ------------------------------ |
-| **WL**   | All Wire & Launch tasks complete (WL.1–WL.9) | — | —  |
-| **NV**   | NV.1, NV.3–NV.17 done | — | — |
-| **CP**   | All done except CP.11 | CP.11 (edge mgmt), CP.13 (budget template) | CP.14 (needs CP.13) |
-| **CL**   | CL.1–CL.4 done | — | CL.5 (needs CP.13) |
-| **VS**   | VS.0–VS.3, VS.5–VS.11 done | VS.4 (unblocked) | — |
-| **LG**   | No structured logging         | charmbracelet/log setup      | —                              |
-| **RT**   | RT.1 done; runner built but not wired | RT.2 unblocked | RT.3–RT.8 (need RT.2) |
-| **DA**   | No screenshots/gifs           | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks)    |
-| **CO**   | No compaction yet | CO.1 (archive nodes) | CO.2 (needs CO.1) |
-| **QE**   | Cypher subset + UNION/UNION ALL (QE.1) done | — | — |
+|        | Status                                       | Next Up                             | Blocked |
+|--------|----------------------------------------------|-------------------------------------|---------|
+| **WL** | All Wire & Launch tasks complete (WL.1–WL.9) |                  —                  |    —    |
+| **NV** |            NV.1, NV.3–NV.17 done             |                  —                  |    —    |
+| **CP** |       All done including CP.11, CP.13        |          CP.14 (unblocked)          |    —    |
+| **CL** |                CL.1–CL.4 done                |          CL.5 (unblocked)           |    —    |
+| **VS** |             VS.0–VS.11 all done              |                  —                  |    —    |
+| **LG** |                LG.1–LG.6 done                |          LG.7 (unblocked)           |    —    |
+| **RT** |    RT.1 done; runner built but not wired     |           RT.2 unblocked            | RT.3–RT.8 (need RT.2) |
+| **DA** |             No screenshots/gifs              | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks) |
+| **CO** |                  CO.1 done                   |          CO.2 (unblocked)           |    —    |
+| **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |                  —                  |    —    |
 
 ---
 
@@ -46,15 +46,15 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m1-doing"><h4>In Progress (Milestone 1)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m1-done"><h4>Completed (Milestone 1)</h4></a>
 
@@ -77,15 +77,15 @@ _(none)_
 
 <a name="m2-doing"><h4>In Progress (Milestone 2)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -115,16 +115,15 @@ _(none)_
 
 <a name="m3-doing"><h4>In Progress (Milestone 3)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.11. Edge management in edit form — **no blockers**
-- [ ] CP.13. Add `budget.jsonc` starter template defining `category`, `allocated`, `warn_at`, `period`, `spend_log` fields with typed defaults — **no blockers**
+- [ ] CP.14. Budget creation form — `huh`-based form triggered by `b:` capture prefix; fields for category name, allocation amount, period select, warn threshold; creates a budget-type node — **depends on CP.13 (done)**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
 
-- [ ] CP.14. Budget creation form — `huh`-based form triggered by `b:` capture prefix; fields for category name, allocation amount, period select, warn threshold; creates a budget-type node — **depends on CP.13**
+## (none)
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -140,6 +139,8 @@ _(none yet)_
 - [x] CP.10. Edit existing node — `ctrl+o` opens a pre-populated huh form for the selected node; preserves original ID and Created timestamp; emits `editSubmitMsg` which refreshes dashboard and detail pane
 - [x] CP.12. Archive node — `ctrl+d` sets `status: "archived"` on the selected node, removes it from the dashboard, and shows a brief confirmation; no-op when a form is open or no node is selected
 - [x] CP.7. Build `huh`-based spend entry form (`wyrd spend` equivalent in TUI) — triggered by `s:` capture prefix; Category select from budget nodes, Amount input with validation, optional Note; delegates to `budget.RecordSpend`
+- [x] CP.11. Edge management in edit form — **no blockers**
+- [x] CP.13. Add `budget.jsonc` starter template defining `category`, `allocated`, `warn_at`, `period`, `spend_log` fields with typed defaults — **no blockers**
 
 ---
 
@@ -150,15 +151,15 @@ _(none yet)_
 
 <a name="m4-doing"><h4>In Progress (Milestone 4)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m4-todo"><h4>To Do (Milestone 4)</h4></a>
 
-- [ ] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1 (done)**
+## (none)
 
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
@@ -172,6 +173,7 @@ _(none)_
 - [x] VS.10. Ship all four themes (Cairn, Peat, Kiln, Fell) as JSONC files in the embedded starter; verify all colour accessors and glyphs are non-zero via tests — **depends on VS.1 (done)**
 - [x] VS.11. Replace line-replacement hack in `app.go` with lipgloss v2 `Compositor` (`NewLayer`/`NewCompositor`) for palette overlay — **depends on VS.0 (done)**
 - [x] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1 (done)**
+- [x] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1 (done)**
 - [x] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1 (done)**
 
 ---
@@ -183,24 +185,24 @@ _(none)_
 
 <a name="m5-doing"><h4>In Progress (Milestone 5)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 <a name="m5-todo"><h4>To Do (Milestone 5)</h4></a>
 
-- [ ] LG.1. Add `github.com/charmbracelet/log` dependency
-- [ ] LG.2. Initialise logger in `main.go`; write to `~/.wyrd/wyrd.log` by default (not stdout, which Bubble Tea owns) — **depends on LG.1**
-- [ ] LG.3. Add `--log-level` flag (`debug`, `info`, `warn`, `error`) and `WYRD_LOG_LEVEL` env var — **depends on LG.2**
-- [ ] LG.4. Thread logger through store operations: log node/edge writes at `debug` level — **depends on LG.2**
-- [ ] LG.5. Thread logger through sync: log each git command at `debug`, outcomes at `info`, errors at `error` — **depends on LG.2**
-- [ ] LG.6. Thread logger through query engine: log query text and row count at `debug` — **depends on LG.2**
+- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2 (done)**
 
 <a name="m5-blocked"><h4>Blocked (Milestone 5)</h4></a>
 
-- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2**
+## (none)
 
 <a name="m5-done"><h4>Completed (Milestone 5)</h4></a>
 
-_(none yet)_
+- [x] LG.1. Add `github.com/charmbracelet/log` dependency
+- [x] LG.2. Initialise logger in `main.go`; write to `~/.wyrd/wyrd.log` by default (not stdout, which Bubble Tea owns) — **depends on LG.1**
+- [x] LG.3. Add `--log-level` flag (`debug`, `info`, `warn`, `error`) and `WYRD_LOG_LEVEL` env var — **depends on LG.2**
+- [x] LG.4. Thread logger through store operations: log node/edge writes at `debug` level — **depends on LG.2**
+- [x] LG.5. Thread logger through sync: log each git command at `debug`, outcomes at `info`, errors at `error` — **depends on LG.2**
+- [x] LG.6. Thread logger through query engine: log query text and row count at `debug` — **depends on LG.2**
 
 ---
 
@@ -211,7 +213,7 @@ _(none yet)_
 
 <a name="m6-doing"><h4>In Progress (Milestone 6)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
@@ -239,7 +241,7 @@ _(none yet)_
 
 <a name="m7-doing"><h4>In Progress (Milestone 7)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
@@ -258,7 +260,7 @@ _(none yet)_
 
 <a name="m7-done"><h4>Completed (Milestone 7)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 ---
 
@@ -269,19 +271,19 @@ _(none yet)_
 
 <a name="m8-doing"><h4>In Progress (Milestone 8)</h4></a>
 
-_(none yet)_
+## (none yet)
 
 <a name="m8-todo"><h4>To Do (Milestone 8)</h4></a>
 
-- [ ] CO.1. `wyrd compact` — move archived nodes to `archive/` directory with `--dry-run` flag
+- [ ] CO.2. `wyrd compact` — orphan edge handling: detach or archive edges linked to archived nodes — **depends on CO.1 (done)**
 
 <a name="m8-blocked"><h4>Blocked (Milestone 8)</h4></a>
 
-- [ ] CO.2. `wyrd compact` — orphan edge handling: detach or archive edges linked to archived nodes — **depends on CO.1**
+## (none)
 
 <a name="m8-done"><h4>Completed (Milestone 8)</h4></a>
 
-_(none yet)_
+- [x] CO.1. `wyrd compact` — move archived nodes to `archive/` directory with `--dry-run` flag
 
 ---
 
@@ -292,11 +294,11 @@ _(none yet)_
 
 <a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
 
-_(none)_
+- [ ] CL.5. `wyrd budget create <category>` — CLI command to create a budget node with `--allocated`, `--period`, `--warn-at` flags; uses native huh form when flags omitted — **depends on CP.13 (done)**
 
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
 
-- [ ] CL.5. `wyrd budget create <category>` — CLI command to create a budget node with `--allocated`, `--period`, `--warn-at` flags; uses native huh form when flags omitted — **depends on CP.13**
+## (none)
 
 <a name="cli-done"><h4>Completed (CLI Input)</h4></a>
 
@@ -314,10 +316,9 @@ _(none)_
 
 <a name="qe-todo"><h4>To Do (Query Engine)</h4></a>
 
-
 <a name="qe-blocked"><h4>Blocked (Query Engine)</h4></a>
 
-_(none)_
+## (none)
 
 <a name="qe-done"><h4>Completed (Query Engine)</h4></a>
 
@@ -350,22 +351,22 @@ NV16["`*NV.16*<br/>**Navigation**<br/>Unified search backend`"]:::done
 NV17["`*NV.17*<br/>**Navigation**<br/>Fuzzy overlay UI`"]:::done
 
 CP7["`*CP.7*<br/>**Capture**<br/>Spend form`"]:::done
-CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::open
-CP13["`*CP.13*<br/>**Capture**<br/>Budget template`"]:::open
-CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::blocked
+CP11["`*CP.11*<br/>**Capture**<br/>Edge management`"]:::done
+CP13["`*CP.13*<br/>**Capture**<br/>Budget template`"]:::done
+CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::open
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::done
-CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::blocked
+CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::open
 
-VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::open
+VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::done
 
-LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::open
-LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::blocked
-LG3["`*LG.3*<br/>**Logging**<br/>Log level flag`"]:::blocked
-LG4["`*LG.4*<br/>**Logging**<br/>Store logging`"]:::blocked
-LG5["`*LG.5*<br/>**Logging**<br/>Sync logging`"]:::blocked
-LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::blocked
-LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::blocked
+LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::done
+LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::done
+LG3["`*LG.3*<br/>**Logging**<br/>Log level flag`"]:::done
+LG4["`*LG.4*<br/>**Logging**<br/>Store logging`"]:::done
+LG5["`*LG.5*<br/>**Logging**<br/>Sync logging`"]:::done
+LG6["`*LG.6*<br/>**Logging**<br/>Query logging`"]:::done
+LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::open
 
 RT1["`*RT.1*<br/>**Rituals**<br/>Scheduler startup`"]:::done
 RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
@@ -386,8 +387,8 @@ DA7["`*DA.7*<br/>**Docs**<br/>Sync vhs`"]:::blocked
 DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
-CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::open
-CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::blocked
+CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::done
+CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
