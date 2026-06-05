@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
 	clog "github.com/charmbracelet/log"
+	"github.com/jasonwarrenuk/wyrd/internal/cli"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -24,6 +26,15 @@ type switchThemeMsg struct {
 
 // openLogOverlayMsg is emitted when the :log command is invoked.
 type openLogOverlayMsg struct{}
+
+// openHelpOverlayMsg is emitted when the :help command is invoked.
+type openHelpOverlayMsg struct{}
+
+// syncResultMsg carries the outcome of a background sync operation.
+type syncResultMsg struct {
+	err    error
+	output string
+}
 
 // captureSubmitMsg is emitted after a successful node creation (from form or
 // capture bar) so the dashboard can refresh and the status bar can confirm.
@@ -112,6 +123,9 @@ type Model struct {
 
 	// logOverlay is the debug log viewer overlay.
 	logOverlay logOverlay
+
+	// helpOverlay is the key-bindings help overlay.
+	helpOverlay helpOverlay
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -282,6 +296,27 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
+	// Wire up the "sync" command. The Execute emits a trigger message; the
+	// actual sync runs asynchronously in Update so it has access to m.store.
+	palette.Register(Command{
+		Name:        "sync",
+		Description: "Sync with remote (stage, commit, pull, push)",
+		Execute: func(args []string) tea.Cmd {
+			return func() tea.Msg { return syncResultMsg{output: "__trigger__"} }
+		},
+	})
+
+	// Wire up the "help" command.
+	palette.Register(Command{
+		Name:        "help",
+		Description: "Show key bindings",
+		Execute: func(args []string) tea.Cmd {
+			return func() tea.Msg {
+				return openHelpOverlayMsg{}
+			}
+		},
+	})
+
 	m := Model{
 		theme:          theme,
 		storePath:      storePath,
@@ -302,6 +337,7 @@ func New(cfg Config) (Model, error) {
 		rituals:        rituals,
 		logger:         cfg.Logger,
 		logOverlay:     newLogOverlay(theme),
+		helpOverlay:    newHelpOverlay(theme),
 		ready:          false,
 	}
 
@@ -382,6 +418,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// When the help overlay is active, route input to it.
+	if m.helpOverlay.IsActive() {
+		cmd, consumed := m.helpOverlay.Update(msg)
+		if consumed {
+			return m, cmd
+		}
+	}
+
 	// When the node list is actively filtering, key input goes exclusively to
 	// it — same pattern as the capture bar. ctrl+c is checked first so the
 	// user can always quit, even mid-filter.
@@ -400,6 +444,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case openLogOverlayMsg:
 		m.logOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
+
+	case openHelpOverlayMsg:
+		m.helpOverlay.Open(m.layout.totalWidth, m.layout.totalHeight, m.keyMap.AllBindings())
+		return m, nil
+
+	case syncResultMsg:
+		if msg.output == "__trigger__" {
+			// Kick off the actual sync in a background goroutine.
+			store := m.store
+			logger := m.logger
+			return m, func() tea.Msg {
+				if store == nil {
+					return syncResultMsg{err: fmt.Errorf("no store available")}
+				}
+				var buf bytes.Buffer
+				err := cli.Sync(store, cli.SyncOptions{Logger: logger}, &buf)
+				return syncResultMsg{output: strings.TrimSpace(buf.String()), err: err}
+			}
+		}
+		if msg.err != nil {
+			m.statusBar.SetCaptureText("Sync failed: " + msg.err.Error())
+		} else {
+			m.statusBar.SetCaptureText("Sync complete")
+		}
+		return m, nil
+
 	case captureSubmitMsg:
 		return m.handleCaptureSubmit(msg)
 	case captureConfirmClearMsg:
@@ -960,10 +1030,25 @@ func (m Model) View() tea.View {
 			}
 		}
 
-    // If the log overlay is active, composite it on top using the same
+		// If the log overlay is active, composite it on top using the same
 		// pattern as the palette.
 		if m.logOverlay.IsActive() {
 			overlay := m.logOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
+			if overlay != "" {
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
+				}
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
+			}
+		}
+
+		// If the help overlay is active, composite it on top.
+		if m.helpOverlay.IsActive() {
+			overlay := m.helpOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
 			if overlay != "" {
 				overlayWidth := lipgloss.Width(overlay)
 				centreX := (m.layout.totalWidth - overlayWidth) / 2
