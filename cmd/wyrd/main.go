@@ -363,11 +363,18 @@ func budgetCreateCmd(storePath *string) *cobra.Command {
 	var linkID string
 
 	cmd := &cobra.Command{
-		Use:   "create",
+		Use:   "create [category]",
 		Short: "Create a new budget envelope",
 		Long: `Create a new budget node with a category, allocation, period, and warning threshold.
-When flags are omitted, an interactive form prompts for missing values.`,
+The category may be supplied as a positional argument or via --category.
+When required values are omitted, an interactive form prompts for them.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Positional argument overrides --category when both are absent as flag.
+			if len(args) == 1 && category == "" {
+				category = args[0]
+			}
+
 			// Interactive fallback: if category or allocated are not provided
 			// via flags, prompt for them.
 			needsInteractive := category == "" || allocated == 0
@@ -387,52 +394,56 @@ When flags are omitted, an interactive form prompts for missing values.`,
 					warnAtStr = strconv.FormatFloat(warnAt, 'f', 2, 64)
 				}
 
+				// Build form fields; skip category input when already supplied.
+				var fields []huh.Field
+				if catValue == "" {
+					fields = append(fields, huh.NewInput().
+						Title("Category").
+						Value(&catValue).
+						Placeholder("e.g. groceries, transport, entertainment").
+						Validate(func(s string) error {
+							if s == "" {
+								return errors.New("category is required")
+							}
+							return nil
+						}),
+					)
+				}
+				fields = append(fields,
+					huh.NewInput().
+						Title("Allocated amount").
+						Value(&allocStr).
+						Placeholder("0.00").
+						Validate(func(s string) error {
+							if s == "" {
+								return errors.New("allocated amount is required")
+							}
+							v, err := strconv.ParseFloat(s, 64)
+							if err != nil {
+								return errors.New("must be a number")
+							}
+							if v <= 0 {
+								return errors.New("must be greater than zero")
+							}
+							return nil
+						}),
+					huh.NewSelect[string]().
+						Title("Period").
+						Options(
+							huh.NewOption("Weekly", "week"),
+							huh.NewOption("Monthly", "month"),
+							huh.NewOption("Quarterly", "quarter"),
+							huh.NewOption("Yearly", "year"),
+						).
+						Value(&periodValue),
+					huh.NewInput().
+						Title("Warn at (fraction 0–1)").
+						Value(&warnAtStr).
+						Placeholder("0.8"),
+				)
+
 				form := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title("Category").
-							Value(&catValue).
-							Placeholder("e.g. groceries, transport, entertainment").
-							Validate(func(s string) error {
-								if s == "" {
-									return errors.New("category is required")
-								}
-								return nil
-							}),
-
-						huh.NewInput().
-							Title("Allocated amount").
-							Value(&allocStr).
-							Placeholder("0.00").
-							Validate(func(s string) error {
-								if s == "" {
-									return errors.New("allocated amount is required")
-								}
-								v, err := strconv.ParseFloat(s, 64)
-								if err != nil {
-									return errors.New("must be a number")
-								}
-								if v <= 0 {
-									return errors.New("must be greater than zero")
-								}
-								return nil
-							}),
-
-						huh.NewSelect[string]().
-							Title("Period").
-							Options(
-								huh.NewOption("Weekly", "week"),
-								huh.NewOption("Monthly", "month"),
-								huh.NewOption("Quarterly", "quarter"),
-								huh.NewOption("Yearly", "year"),
-							).
-							Value(&periodValue),
-
-						huh.NewInput().
-							Title("Warn at (fraction 0–1)").
-							Value(&warnAtStr).
-							Placeholder("0.8"),
-					),
+					huh.NewGroup(fields...),
 				).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
 
 				if err := form.Run(); err != nil {

@@ -9,7 +9,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **WL** | All Wire & Launch tasks complete (WL.1–WL.9) |                  —                  |    —    |
 | **NV** |            NV.1, NV.3–NV.17 done             |                  —                  |    —    |
 | **CP** |       All done including CP.11, CP.13        |          CP.14 (unblocked)          |    —    |
-| **CL** |                CL.1–CL.4 done                |          CL.5 (unblocked)           |    —    |
+| **CL** |             CL.1–CL.5 all done               |                  —                  |    —    |
 | **VS** |             VS.0–VS.11 all done              |                  —                  |    —    |
 | **LG** |                LG.1–LG.6 done                |          LG.7 (unblocked)           |    —    |
 | **RT** |    RT.1 done; runner built but not wired     |           RT.2 unblocked            | RT.3–RT.8 (need RT.2) |
@@ -294,7 +294,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
 
-- [ ] CL.5. `wyrd budget create <category>` — CLI command to create a budget node with `--allocated`, `--period`, `--warn-at` flags; uses native huh form when flags omitted — **depends on CP.13 (done)**
+## (none)
 
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
 
@@ -306,6 +306,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 - [x] CL.1. `wyrd journal` uses native huh form (title defaulting to today's date + multiline body); replaces `$EDITOR` — **depends on CP.1 (done)**
 - [x] CL.2. `wyrd note` uses native huh form for body input; title from positional arg; replaces `$EDITOR` — **depends on CP.1 (done)**
 - [x] CL.4. When `wyrd spend <category>` fails with "budget category not found", list all available budget categories from the store — **no blockers**
+- [x] CL.5. `wyrd budget create <category>` — CLI command to create a budget node with `--allocated`, `--period`, `--warn-at` flags; uses native huh form when flags omitted; category may also be supplied as a positional argument — **depends on CP.13 (done)**
 
 ---
 
@@ -356,7 +357,7 @@ CP13["`*CP.13*<br/>**Capture**<br/>Budget template`"]:::done
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::open
 
 CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::done
-CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::open
+CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::done
 
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::done
 
