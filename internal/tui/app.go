@@ -547,6 +547,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
+		// When a form is active in the right pane, esc and ctrl+c abort the form
+		// rather than quitting the app. All other keys still flow to the pane.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			if msg.String() == "esc" || msg.String() == "ctrl+c" {
+				return m, func() tea.Msg { return formCancelMsg{} }
+			}
+		}
+
 		switch {
 		case key.Matches(msg, m.keyMap.Quit):
 			m.quitting = true

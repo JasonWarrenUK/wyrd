@@ -932,7 +932,7 @@ func (f formPane) KeyBindings() []KeyBinding {
 		{Key: "enter", Description: "Next field (submit on last)"},
 		{Key: "alt+enter", Description: "New line in text field"},
 		{Key: "ctrl+e", Description: "Open external editor"},
-		{Key: "ctrl+c", Description: "Cancel form"},
+		{Key: "esc / ctrl+c", Description: "Cancel form"},
 	}
 }
 
