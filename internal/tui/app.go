@@ -559,6 +559,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Quit):
 			m.quitting = true
 			return m, tea.Quit
+		case key.Matches(msg, m.keyMap.FocusRight):
+			// Tab: move focus to the right pane if not already there; otherwise
+			// forward to the focused pane (e.g. tab inside a list filter).
+			if m.focus != FocusRight {
+				return m.handleSwitchPane()
+			}
+			return m.updateFocusedPane(msg)
+		case key.Matches(msg, m.keyMap.FocusLeft):
+			// Shift+tab: move focus to the left pane if not already there.
+			if m.focus != FocusLeft {
+				return m.handleSwitchPane()
+			}
+			return m.updateFocusedPane(msg)
 		case key.Matches(msg, m.keyMap.SwitchPane):
 			return m.handleSwitchPane()
 		case key.Matches(msg, m.keyMap.CommandPalette):
