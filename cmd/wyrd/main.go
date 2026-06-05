@@ -380,7 +380,7 @@ When flags are omitted, an interactive form prompts for missing values.`,
 				}
 				periodValue := period
 				if periodValue == "" {
-					periodValue = "monthly"
+					periodValue = "month"
 				}
 				warnAtStr := "0.8"
 				if warnAt > 0 {
@@ -421,10 +421,10 @@ When flags are omitted, an interactive form prompts for missing values.`,
 						huh.NewSelect[string]().
 							Title("Period").
 							Options(
-								huh.NewOption("Weekly", "weekly"),
-								huh.NewOption("Monthly", "monthly"),
-								huh.NewOption("Quarterly", "quarterly"),
-								huh.NewOption("Yearly", "yearly"),
+								huh.NewOption("Weekly", "week"),
+								huh.NewOption("Monthly", "month"),
+								huh.NewOption("Quarterly", "quarter"),
+								huh.NewOption("Yearly", "year"),
 							).
 							Value(&periodValue),
 
@@ -474,7 +474,7 @@ When flags are omitted, an interactive form prompts for missing values.`,
 
 	cmd.Flags().StringVar(&category, "category", "", "budget category name")
 	cmd.Flags().Float64Var(&allocated, "allocated", 0, "amount allocated for this period")
-	cmd.Flags().StringVar(&period, "period", "", "budget period (weekly, monthly, quarterly, yearly)")
+	cmd.Flags().StringVar(&period, "period", "", "budget period (week, month, quarter, year)")
 	cmd.Flags().Float64Var(&warnAt, "warn-at", 0, "fraction of allocation that triggers a warning (0–1)")
 	cmd.Flags().StringVar(&linkID, "link", "", "create a 'related' edge to this node ID")
 	return cmd

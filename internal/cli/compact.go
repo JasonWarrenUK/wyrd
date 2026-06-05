@@ -12,7 +12,17 @@ import (
 // Compact moves archived nodes and any edges that touch them to the archive/
 // subdirectory of the store. When dryRun is true, it prints what would be
 // moved without touching any files.
+//
+// As a side-effect, Compact also runs MigrateBudgetPeriods to normalise any
+// legacy long-form period values (monthly → month, etc.) in budget nodes.
 func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Writer) error {
+	// Migrate legacy budget period strings first (safe to run before archival).
+	if n, err := MigrateBudgetPeriods(store, index, dryRun, out); err != nil {
+		return fmt.Errorf("migrating budget periods: %w", err)
+	} else if n > 0 && dryRun {
+		fmt.Fprintln(out, "")
+	}
+
 	storePath := store.StorePath()
 
 	// Collect all nodes whose status is "archived".

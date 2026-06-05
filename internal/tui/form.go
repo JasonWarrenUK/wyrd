@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
+	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -336,7 +337,7 @@ func newBudgetFormPane(
 		category:       prefillCategory,
 		allocated:      "",
 		warnAt:         "0.8",
-		period:         "monthly",
+		period:         "month",
 		linkToSelected: true,
 	}
 
@@ -360,10 +361,10 @@ func newBudgetFormPane(
 		huh.NewSelect[string]().
 			Title("Period").
 			Options(
-				huh.NewOption("Weekly", "weekly"),
-				huh.NewOption("Monthly", "monthly"),
-				huh.NewOption("Quarterly", "quarterly"),
-				huh.NewOption("Yearly", "yearly"),
+				huh.NewOption("Weekly", "week"),
+				huh.NewOption("Monthly", "month"),
+				huh.NewOption("Quarterly", "quarter"),
+				huh.NewOption("Yearly", "year"),
 			).
 			Value(&f.period),
 	}
@@ -609,9 +610,9 @@ func newEditBudgetFormPane(
 		warnAt = strconv.FormatFloat(v, 'f', -1, 64)
 	}
 
-	period := "monthly"
+	period := "month"
 	if v, ok := node.Properties["period"].(string); ok && v != "" {
-		period = v
+		period = budget.NormalisePeriod(v)
 	}
 
 	f := formPane{
@@ -648,10 +649,10 @@ func newEditBudgetFormPane(
 		huh.NewSelect[string]().
 			Title("Period").
 			Options(
-				huh.NewOption("Weekly", "weekly"),
-				huh.NewOption("Monthly", "monthly"),
-				huh.NewOption("Quarterly", "quarterly"),
-				huh.NewOption("Yearly", "yearly"),
+				huh.NewOption("Weekly", "week"),
+				huh.NewOption("Monthly", "month"),
+				huh.NewOption("Quarterly", "quarter"),
+				huh.NewOption("Yearly", "year"),
 			).
 			Value(&f.period),
 	}

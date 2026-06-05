@@ -16,8 +16,8 @@ type BudgetCreateOptions struct {
 	// Allocated is the amount allocated for the period. Required, must be > 0.
 	Allocated float64
 
-	// Period is the budget period (weekly, monthly, quarterly, yearly).
-	// Defaults to "monthly" when empty.
+	// Period is the budget period (week, month, quarter, year).
+	// Defaults to "month" when empty.
 	Period string
 
 	// WarnAt is the fraction of allocation that triggers a warning (0–1).
@@ -30,10 +30,10 @@ type BudgetCreateOptions struct {
 
 // validPeriods lists the accepted budget period values.
 var validPeriods = map[string]bool{
-	"weekly":    true,
-	"monthly":   true,
-	"quarterly": true,
-	"yearly":    true,
+	"week":    true,
+	"month":   true,
+	"quarter": true,
+	"year":    true,
 }
 
 // BudgetCreate creates a budget node from the given options.
@@ -48,12 +48,12 @@ func BudgetCreate(store types.StoreFS, opts BudgetCreateOptions) (string, error)
 
 	// Default period.
 	if opts.Period == "" {
-		opts.Period = "monthly"
+		opts.Period = "month"
 	}
 	if !validPeriods[opts.Period] {
 		return "", &types.ValidationError{
 			Field:   "period",
-			Message: fmt.Sprintf("invalid period %q: must be weekly, monthly, quarterly, or yearly", opts.Period),
+			Message: fmt.Sprintf("invalid period %q: must be week, month, quarter, or year", opts.Period),
 		}
 	}
 
