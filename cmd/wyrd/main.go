@@ -541,6 +541,8 @@ func queryCmd(storePath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "query <cypher>",
 		Short: "Run a Cypher query and print results",
+		Example: `  wyrd query "MATCH (n) WHERE 'task' IN n.types AND n.status IN ['inbox', 'active'] RETURN n"
+  wyrd query "MATCH (n:task) RETURN n.title, n.date.due ORDER BY n.date.due"`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStore(*storePath)
