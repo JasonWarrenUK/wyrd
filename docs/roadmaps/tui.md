@@ -4,19 +4,19 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 # Wyrd: TUI Roadmap
 
-|        | Status                                       | Next Up                             | Blocked |
-|--------|----------------------------------------------|-------------------------------------|---------|
-| **WL** | All Wire & Launch tasks complete (WL.1–WL.9) |                  —                  |    —    |
-| **NV** |            NV.1, NV.3–NV.17 done             |                  —                  |    —    |
-| **CP** |       All done including CP.11, CP.13        |          CP.14 (unblocked)          |    —    |
-| **CL** |             CL.1–CL.5 all done               |                  —                  |    —    |
-| **VS** |             VS.0–VS.12 all done              |                  —                  |    —    |
-| **LG** |                LG.1–LG.6 done                |          LG.7 (unblocked)           |    —    |
-| **RT** |    RT.1 done; runner built but not wired     |           RT.2 unblocked            | RT.3–RT.8 (need RT.2) |
-| **DA** |             No screenshots/gifs              | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks) |
-| **CO** |                  CO.1 done                   |          CO.2 (unblocked)           |    —    |
-| **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |                  —                  |    —    |
-| **SP** |           SP.1, SP.3 done                     |       SP.2 (unblocked)              |    —    |
+|        | Status                                       | Next Up | Blocked |
+|--------|----------------------------------------------|---------|---------|
+| **WL** | All Wire & Launch tasks complete (WL.1–WL.9) |    —    |    —    |
+| **NV** |            NV.1, NV.3–NV.17 done             |    —    |    —    |
+| **CP** |       All done including CP.11, CP.13        |  CP.14  |    —    |
+| **CL** |              CL.1–CL.5 all done              |    —    |    —    |
+| **VS** |             VS.0–VS.12 all done              |    —    |    —    |
+| **LG** |                LG.1–LG.6 done                |  LG.7   |    —    |
+| **RT** |    RT.1 done; runner built but not wired     |  RT.2   | RT.3–RT.8 (need RT.2) |
+| **DA** |             No screenshots/gifs              |  DA.1   | DA.2–DA.9 (need DA.1 or other VS tasks) |
+| **CO** |                  CO.1 done                   |  CO.2   |    —    |
+| **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |    —    |    —    |
+| **SP** |               SP.1, SP.3 done                |  SP.2   |    —    |
 
 ---
 
