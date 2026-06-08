@@ -247,7 +247,9 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 		var zero uint = 0
 		style.Document.Margin = &zero
 		style.Document.BackgroundColor = nil
+		style.Document.Color = nil       // let pane theme foreground govern body text
 		style.H1.BackgroundColor = nil
+		style.Code.BackgroundColor = nil // inline code inherits pane background
 		style.CodeBlock.BackgroundColor = nil
 
 		renderer, err := glamour.NewTermRenderer(
@@ -432,8 +434,10 @@ func (r *DetailRenderer) renderEdgeLine(
 		otherID = edge.From
 	}
 	otherLabel := otherID
+	var otherTypes []string
 	if other, ok := nodesByID[otherID]; ok {
 		otherLabel = nodeTitle(other)
+		otherTypes = other.Types
 	}
 
 	glyph := edgeGlyph(edge.Type, outgoing)
@@ -443,8 +447,13 @@ func (r *DetailRenderer) renderEdgeLine(
 
 	sp := Spacer(1, bg)
 	line := glyphStyle.Render(glyph) + sp +
-		typeStyle.Render(edge.Type+":") + sp +
-		labelStyle.Render(otherLabel)
+		typeStyle.Render(edge.Type+":") + sp
+
+	if len(otherTypes) > 0 {
+		line += typeStyle.Render("["+strings.Join(otherTypes, ", ")+"]") + sp
+	}
+
+	line += labelStyle.Render(otherLabel)
 
 	// Append age suffix for waiting_on edges.
 	if edge.Type == string(types.EdgeWaitingOn) {
