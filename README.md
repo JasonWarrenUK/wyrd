@@ -32,7 +32,7 @@ On first run, `wyrd` initialises `~/wyrd/store` with starter templates, a defaul
 
 ## Usage
 
-```
+```text
 wyrd                          launch TUI
 wyrd add "body text"          quick-add a task node
 wyrd add --type note "title"  quick-add with type override
@@ -54,7 +54,7 @@ Inside the TUI, navigation follows vim conventions: `hjkl` for movement, `gg`/`G
 
 Two entity types: **nodes** and **edges**, each stored as individual `.jsonc` files.
 
-```
+```text
 ~/wyrd/store/
   nodes/{uuid}.jsonc
   edges/{uuid}.jsonc
@@ -103,7 +103,7 @@ Supported: `MATCH`, `WHERE`, `RETURN`, `ORDER BY`, `LIMIT`, `AS`; property filte
 
 The schedule view renders today's time blocks as a column of energy-coloured entries:
 
-```
+```text
 08:00 ▓▓▓▓▓▓▓▓ EPA AM2 revision      deep work
 09:30 ████████ Rhea sprint            medium
 10:00 ┄┄┄┄┄┄┄┄ Stand-up             [calendar]
@@ -113,11 +113,11 @@ The schedule view renders today's time blocks as a column of energy-coloured ent
 
 Energy levels use paired colour and fill-character signals so they read correctly under colour blindness and 16-colour terminals:
 
-| Level | Fill | Colour (Cairn) |
-|-------|------|----------------|
-| Deep | `▓▓▓▓▓▓▓▓` | violet `#794aff` |
+| Level  | Fill       | Colour (Cairn) |
+|--------|------------|----------------|
+|  Deep  | `▓▓▓▓▓▓▓▓` | violet `#794aff` |
 | Medium | `████████` | amber `#b98300` |
-| Low | `░░░░░░░░` | grey `#6f6f6f` |
+|  Low   | `░░░░░░░░` | grey `#6f6f6f` |
 
 When the active task overruns its allocation, subsequent tasks compress proportionally. The status bar shows the overrun: `◆ 47m on EPA (45m planned)`. Tasks that no longer fit are greyed and displaced, with a summary beneath the schedule: `◆ 2h15m unscheduled · 3 tasks displaced to tomorrow`. No alert, no interruption; the cost is just visible.
 
@@ -129,7 +129,7 @@ Calendar events (from sync plugins) render with dashed lines and cannot be moved
 
 Budget nodes track spending against a period allocation. Three states:
 
-```
+```text
 ● EPA time   ████████████████░░░░░  9.5/12h     OK: within allocation
 ◐ Records    ████████████████████░  £42/£50     Caution: approaching limit
 ○ Baby prep  ██████████████████████ £580/£500   Over: allocation exceeded
@@ -189,12 +189,12 @@ wyrd plugin install ./calendar-sync.wyrdplugin
 
 Four themes ship with the app, all built from [Reasonable Colors](https://www.reasonable.work/colors/) (LCH colour space, WCAG AA contrast guarantees). Each degrades gracefully to 16 colours using glyphs as the primary differentiating signal.
 
-| Theme | Character |
-|-------|-----------|
+| Theme     | Character |
+|-----------|-----------|
 | **Cairn** | Dark; violet structure with amber warmth. Stacked stone at dusk. |
-| **Peat** | Dark; boggy greens and teal. Earthy, damp, quiet. |
-| **Kiln** | Light; terracotta. Orange and cinnamon earth tones. |
-| **Fell** | Light; cartographic. Cream paper, contour-line greens. |
+| **Peat**  | Dark; boggy greens and teal. Earthy, damp, quiet. |
+| **Kiln**  | Light; terracotta. Orange and cinnamon earth tones. |
+| **Fell**  | Light; cartographic. Cream paper, contour-line greens. |
 
 Switch at runtime via the command palette: `:theme fell`.
 
@@ -202,7 +202,7 @@ Switch at runtime via the command palette: `:theme fell`.
 
 ## Architecture
 
-```
+```text
 internal/
   types/      core types and interfaces
   store/      flat-file graph store; in-memory index; fsnotify watcher
