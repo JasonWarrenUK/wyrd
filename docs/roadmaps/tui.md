@@ -16,7 +16,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **DA** |             No screenshots/gifs              | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks) |
 | **CO** |                  CO.1 done                   |          CO.2 (unblocked)           |    —    |
 | **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |                  —                  |    —    |
-| **SP** |                  —                           |       SP.1 (unblocked)              | SP.2, SP.3 (need SP.1) |
+| **SP** |           SP.1, SP.3 done                     |       SP.2 (unblocked)              |    —    |
 
 ---
 
@@ -337,16 +337,21 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
 
-- [ ] SP.1. Dated spend entries — `SpendEntry` already has a `Date` string field; surface it as an optional input: add `Date` to `SpendOptions`, accept `--date` flag in `wyrd spend`, add an optional date field to the TUI spend form (`spend_form.go`). Default to today when omitted. Update `RecordSpend` to use the caller-supplied date rather than hardcoding `now.Format(...)`. **No blockers.**
+- [x] SP.1. Dated spend entries — `SpendEntry` already has a `Date` string field; surface it as an optional input: add `Date` to `SpendOptions`, accept `--date` flag in `wyrd spend`, add an optional date field to the TUI spend form (`spend_form.go`). Default to today when omitted. Update `RecordSpend` to use the caller-supplied date rather than hardcoding `now.Format(...)`. **No blockers.**
 
 <a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
 
-- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1.**
-- [ ] SP.3. Spend events in budget detail pane — when a budget is selected in the list, render its individual `spend_log` entries in the detail pane (date, amount, note, running total). **Depends on SP.1** (dated entries give each row a meaningful date column).
+## (none)
+
+<a name="sp-todo-extra"><h4>To Do (Spend Depth)</h4></a>
+
+- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1 (done).**
+- [x] SP.3. Spend events in budget detail pane — when a budget is selected in the list, render its individual `spend_log` entries in the detail pane (date, amount, note, running total). **Depends on SP.1 (done)**.
 
 <a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
 
-## (none yet)
+- [x] SP.1. Dated spend entries — `SpendEntry.Date` surfaced as optional input across `RecordSpend`, `SpendOptions`, `--date` CLI flag, and TUI spend form. Defaults to today when omitted.
+- [x] SP.3. Spend events in budget detail pane — selecting a budget node shows a SPEND LOG section: all entries sorted by date ascending, each with date, amount, note, and cumulative running total.
 
 ---
 
@@ -416,9 +421,9 @@ DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::done
 CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 
-SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::open
-SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::blocked
-SP3["`*SP.3*<br/>**Spend**<br/>Spend events detail pane`"]:::blocked
+SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::done
+SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
+SP3["`*SP.3*<br/>**Spend**<br/>Spend events detail pane`"]:::done
 
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
