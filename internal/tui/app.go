@@ -614,6 +614,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m = m.applyTheme(newTheme)
+		if m.store != nil {
+			if appCfg, err := m.store.ReadConfig(); err == nil {
+				appCfg.Theme = msg.name
+				_ = m.store.WriteConfig(appCfg)
+			}
+		}
 		return m, nil
 
 	case tea.KeyPressMsg:
