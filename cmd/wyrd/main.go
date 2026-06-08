@@ -363,11 +363,18 @@ func budgetCreateCmd(storePath *string) *cobra.Command {
 	var linkID string
 
 	cmd := &cobra.Command{
-		Use:   "create",
+		Use:   "create [category]",
 		Short: "Create a new budget envelope",
 		Long: `Create a new budget node with a category, allocation, period, and warning threshold.
-When flags are omitted, an interactive form prompts for missing values.`,
+The category may be supplied as a positional argument or via --category.
+When required values are omitted, an interactive form prompts for them.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Positional argument overrides --category when both are absent as flag.
+			if len(args) == 1 && category == "" {
+				category = args[0]
+			}
+
 			// Interactive fallback: if category or allocated are not provided
 			// via flags, prompt for them.
 			needsInteractive := category == "" || allocated == 0
@@ -380,59 +387,63 @@ When flags are omitted, an interactive form prompts for missing values.`,
 				}
 				periodValue := period
 				if periodValue == "" {
-					periodValue = "monthly"
+					periodValue = "month"
 				}
 				warnAtStr := "0.8"
 				if warnAt > 0 {
 					warnAtStr = strconv.FormatFloat(warnAt, 'f', 2, 64)
 				}
 
+				// Build form fields; skip category input when already supplied.
+				var fields []huh.Field
+				if catValue == "" {
+					fields = append(fields, huh.NewInput().
+						Title("Category").
+						Value(&catValue).
+						Placeholder("e.g. groceries, transport, entertainment").
+						Validate(func(s string) error {
+							if s == "" {
+								return errors.New("category is required")
+							}
+							return nil
+						}),
+					)
+				}
+				fields = append(fields,
+					huh.NewInput().
+						Title("Allocated amount").
+						Value(&allocStr).
+						Placeholder("0.00").
+						Validate(func(s string) error {
+							if s == "" {
+								return errors.New("allocated amount is required")
+							}
+							v, err := strconv.ParseFloat(s, 64)
+							if err != nil {
+								return errors.New("must be a number")
+							}
+							if v <= 0 {
+								return errors.New("must be greater than zero")
+							}
+							return nil
+						}),
+					huh.NewSelect[string]().
+						Title("Period").
+						Options(
+							huh.NewOption("Weekly", "week"),
+							huh.NewOption("Monthly", "month"),
+							huh.NewOption("Quarterly", "quarter"),
+							huh.NewOption("Yearly", "year"),
+						).
+						Value(&periodValue),
+					huh.NewInput().
+						Title("Warn at (fraction 0–1)").
+						Value(&warnAtStr).
+						Placeholder("0.8"),
+				)
+
 				form := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title("Category").
-							Value(&catValue).
-							Placeholder("e.g. groceries, transport, entertainment").
-							Validate(func(s string) error {
-								if s == "" {
-									return errors.New("category is required")
-								}
-								return nil
-							}),
-
-						huh.NewInput().
-							Title("Allocated amount").
-							Value(&allocStr).
-							Placeholder("0.00").
-							Validate(func(s string) error {
-								if s == "" {
-									return errors.New("allocated amount is required")
-								}
-								v, err := strconv.ParseFloat(s, 64)
-								if err != nil {
-									return errors.New("must be a number")
-								}
-								if v <= 0 {
-									return errors.New("must be greater than zero")
-								}
-								return nil
-							}),
-
-						huh.NewSelect[string]().
-							Title("Period").
-							Options(
-								huh.NewOption("Weekly", "weekly"),
-								huh.NewOption("Monthly", "monthly"),
-								huh.NewOption("Quarterly", "quarterly"),
-								huh.NewOption("Yearly", "yearly"),
-							).
-							Value(&periodValue),
-
-						huh.NewInput().
-							Title("Warn at (fraction 0–1)").
-							Value(&warnAtStr).
-							Placeholder("0.8"),
-					),
+					huh.NewGroup(fields...),
 				).WithTheme(huh.ThemeFunc(huh.ThemeCharm)).WithShowHelp(true)
 
 				if err := form.Run(); err != nil {
@@ -474,7 +485,7 @@ When flags are omitted, an interactive form prompts for missing values.`,
 
 	cmd.Flags().StringVar(&category, "category", "", "budget category name")
 	cmd.Flags().Float64Var(&allocated, "allocated", 0, "amount allocated for this period")
-	cmd.Flags().StringVar(&period, "period", "", "budget period (weekly, monthly, quarterly, yearly)")
+	cmd.Flags().StringVar(&period, "period", "", "budget period (week, month, quarter, year)")
 	cmd.Flags().Float64Var(&warnAt, "warn-at", 0, "fraction of allocation that triggers a warning (0–1)")
 	cmd.Flags().StringVar(&linkID, "link", "", "create a 'related' edge to this node ID")
 	return cmd
@@ -520,7 +531,7 @@ func syncCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return cli.Sync(s, cli.SyncOptions{}, os.Stdout)
+			return cli.Sync(s, cli.SyncOptions{Logger: appLogger}, os.Stdout)
 		},
 	}
 }
@@ -530,6 +541,8 @@ func queryCmd(storePath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "query <cypher>",
 		Short: "Run a Cypher query and print results",
+		Example: `  wyrd query "MATCH (n) WHERE 'task' IN n.types AND n.status IN ['inbox', 'active'] RETURN n"
+  wyrd query "MATCH (n:task) RETURN n.title, n.date.due ORDER BY n.date.due"`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := openStore(*storePath)
@@ -677,26 +690,7 @@ func compactCmd(storePath *string) *cobra.Command {
 			}
 			defer s.Close()
 
-			result, err := s.Compact(dryRun)
-			if err != nil {
-				return err
-			}
-
-			if result.ArchivedNodes == 0 && result.ArchivedEdges == 0 {
-				fmt.Fprintln(os.Stdout, "Nothing to compact.")
-				return nil
-			}
-
-			if dryRun {
-				fmt.Fprintf(os.Stdout, "Dry run — no files moved.\n\n")
-			}
-
-			for _, detail := range result.Details {
-				fmt.Fprintf(os.Stdout, "  %s\n", detail)
-			}
-			fmt.Fprintf(os.Stdout, "\n%d node(s) and %d edge(s) archived.\n",
-				result.ArchivedNodes, result.ArchivedEdges)
-			return nil
+			return cli.Compact(s, s.Index(), dryRun, os.Stdout)
 		},
 	}
 

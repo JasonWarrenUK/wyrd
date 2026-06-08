@@ -233,15 +233,11 @@ func TestFormKeyBindingsAccurate(t *testing.T) {
 		keySet[b.Key] = b.Description
 	}
 
-	required := []string{"alt+enter", "ctrl+e", "ctrl+c"}
+	required := []string{"alt+enter", "ctrl+e", "esc / ctrl+c"}
 	for _, k := range required {
 		if _, ok := keySet[k]; !ok {
 			t.Errorf("expected keybinding %q to be present", k)
 		}
-	}
-
-	if _, ok := keySet["esc"]; ok {
-		t.Error("keybinding \"esc\" should not be present — huh uses ctrl+c to abort")
 	}
 }
 

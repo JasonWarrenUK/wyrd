@@ -159,6 +159,9 @@ type nodeListPane struct {
 	width    int
 	height   int
 	theme    *ActiveTheme
+	// result is stored so applyTheme can rebuild the pane with a new theme
+	// without re-running the dashboard query.
+	result types.QueryResult
 }
 
 // newNodeListPane constructs a pane from a QueryResult, wiring the theme
@@ -214,8 +217,10 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	l.KeyMap.AcceptWhileFiltering.SetKeys("enter", "tab", "shift+tab", "up", "down")
 	l.KeyMap.ShowFullHelp.SetEnabled(false)
 	l.KeyMap.CloseFullHelp.SetEnabled(false)
-	l.KeyMap.Quit.SetEnabled(false)
-	l.KeyMap.ForceQuit.SetEnabled(false)
+	// Clear the key bindings entirely (not just disabled) so q/esc are not
+	// consumed by the list and can propagate to the root model's Quit handler.
+	l.KeyMap.Quit.SetKeys()
+	l.KeyMap.ForceQuit.SetKeys()
 
 	// Style the filter text input with theme colours.
 	filterStyles := textinput.DefaultStyles(true)
@@ -243,6 +248,7 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 		width:     initialWidth,
 		height:    22,
 		theme:     theme,
+		result:    result,
 	}
 }
 
@@ -448,6 +454,7 @@ var groupLabelMap = map[string]string{
 	"task":    "Tasks",
 	"note":    "Notes",
 	"journal": "Journals",
+	"budget":  "Budgets",
 }
 
 func toGroupLabel(raw string) string {

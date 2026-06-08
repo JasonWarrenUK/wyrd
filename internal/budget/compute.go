@@ -37,6 +37,25 @@ type BudgetSummary struct {
 	Remaining float64
 }
 
+// NormalisePeriod maps legacy long-form period values (weekly, monthly,
+// quarterly, yearly) to the canonical short form (week, month, quarter, year).
+// Already-canonical values are returned unchanged. Unknown values pass through
+// so callers can handle them consistently.
+func NormalisePeriod(p string) string {
+	switch p {
+	case "weekly":
+		return "week"
+	case "monthly":
+		return "month"
+	case "quarterly":
+		return "quarter"
+	case "yearly":
+		return "year"
+	default:
+		return p
+	}
+}
+
 // Compute derives the current BudgetSummary from a budget node's properties.
 //
 // It reads the following fields from node.Properties:
@@ -46,10 +65,11 @@ type BudgetSummary struct {
 //   - "period"     — string: "week", "month", "quarter", or "year"
 //
 // Entries outside the current period (relative to now) are excluded from the sum.
+// Legacy long-form period values (e.g. "monthly") are normalised automatically.
 func Compute(node *types.Node, now time.Time) BudgetSummary {
 	allocated := floatProperty(node, "allocated")
 	warnAt := floatProperty(node, "warn_at")
-	period := stringProperty(node, "period")
+	period := NormalisePeriod(stringProperty(node, "period"))
 
 	entries := spendLog(node)
 	spent := sumCurrentPeriod(entries, period, now)

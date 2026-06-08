@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
+	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -336,7 +337,7 @@ func newBudgetFormPane(
 		category:       prefillCategory,
 		allocated:      "",
 		warnAt:         "0.8",
-		period:         "monthly",
+		period:         "month",
 		linkToSelected: true,
 	}
 
@@ -360,10 +361,10 @@ func newBudgetFormPane(
 		huh.NewSelect[string]().
 			Title("Period").
 			Options(
-				huh.NewOption("Weekly", "weekly"),
-				huh.NewOption("Monthly", "monthly"),
-				huh.NewOption("Quarterly", "quarterly"),
-				huh.NewOption("Yearly", "yearly"),
+				huh.NewOption("Weekly", "week"),
+				huh.NewOption("Monthly", "month"),
+				huh.NewOption("Quarterly", "quarter"),
+				huh.NewOption("Yearly", "year"),
 			).
 			Value(&f.period),
 	}
@@ -574,6 +575,97 @@ func newEditNoteFormPane(
 	return f
 }
 
+// NewEditBudgetFormPane builds a formPane for editing an existing budget node.
+// All fields are pre-filled from the node. Exported for use in tests.
+func NewEditBudgetFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	index types.GraphIndex,
+	node *types.Node,
+) PaneModel {
+	return newEditBudgetFormPane(theme, store, clock, index, node)
+}
+
+// newEditBudgetFormPane is the internal constructor.
+func newEditBudgetFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	clock types.Clock,
+	index types.GraphIndex,
+	node *types.Node,
+) formPane {
+	category := node.Title
+	if v, ok := node.Properties["category"].(string); ok && v != "" {
+		category = v
+	}
+
+	allocated := ""
+	if v, ok := node.Properties["allocated"].(float64); ok {
+		allocated = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+
+	warnAt := "0.8"
+	if v, ok := node.Properties["warn_at"].(float64); ok {
+		warnAt = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+
+	period := "month"
+	if v, ok := node.Properties["period"].(string); ok && v != "" {
+		period = budget.NormalisePeriod(v)
+	}
+
+	f := formPane{
+		kind:           formBudget,
+		store:          store,
+		index:          index,
+		clock:          clock,
+		theme:          theme,
+		category:       category,
+		allocated:      allocated,
+		warnAt:         warnAt,
+		period:         period,
+		editingNodeID:  node.ID,
+		editingCreated: node.Created,
+	}
+
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Category").
+			Value(&f.category).
+			Validate(notEmpty("category")),
+
+		huh.NewInput().
+			Title("Allocated").
+			Value(&f.allocated).
+			Placeholder("0.00").
+			Validate(validatePositiveNumber("allocated")),
+
+		huh.NewInput().
+			Title("Warn at (fraction 0–1)").
+			Value(&f.warnAt).
+			Placeholder("0.8"),
+
+		huh.NewSelect[string]().
+			Title("Period").
+			Options(
+				huh.NewOption("Weekly", "week"),
+				huh.NewOption("Monthly", "month"),
+				huh.NewOption("Quarterly", "quarter"),
+				huh.NewOption("Yearly", "year"),
+			).
+			Value(&f.period),
+	}
+
+	fields = appendEdgeFields(&f, index, node, fields)
+
+	f.form = huh.NewForm(
+		huh.NewGroup(fields...),
+	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
+
+	return f
+}
+
 // buildEdgeEntries queries the index for all edges connected to nodeID and
 // returns them as edgeEntry values with human-readable labels.
 func buildEdgeEntries(index types.GraphIndex, nodeID string) []edgeEntry {
@@ -648,8 +740,9 @@ func appendEdgeFields(f *formPane, index types.GraphIndex, node *types.Node, fie
 
 		fields = append(fields, huh.NewMultiSelect[string]().
 			Title("Existing Edges (uncheck to remove)").
+			Value(&f.keptEdgeIDs).
 			Options(opts...).
-			Value(&f.keptEdgeIDs),
+			Height(min(len(entries)+2, 8)),
 		)
 	}
 
@@ -671,10 +764,42 @@ func appendEdgeFields(f *formPane, index types.GraphIndex, node *types.Node, fie
 		huh.NewInput().
 			Title("New Edge Target (node ID)").
 			Value(&f.newEdgeTarget).
-			Placeholder("Paste a node UUID to create a new edge"),
+			Placeholder("Paste a node UUID to create a new edge").
+			Validate(validateEdgeTarget(f, index)),
 	)
 
 	return fields
+}
+
+// validateEdgeTarget returns a validation function for the new-edge target
+// input. It accepts an empty string (no new edge) or a valid UUID v4 that
+// resolves to a node in the index. The newEdgeType on f is read at validation
+// time so the check is skipped when type is "(none)".
+func validateEdgeTarget(f *formPane, index types.GraphIndex) func(string) error {
+	return func(s string) error {
+		s = strings.TrimSpace(s)
+		// No target — fine as long as edge type is also "(none)".
+		if s == "" {
+			if f.newEdgeType != "(none)" {
+				return errors.New("a target node ID is required when an edge type is selected")
+			}
+			return nil
+		}
+
+		// Must be a valid UUID.
+		if _, err := uuid.Parse(s); err != nil {
+			return errors.New("must be a valid UUID (e.g. 550e8400-e29b-41d4-a716-446655440000)")
+		}
+
+		// Must refer to an existing node in the index.
+		if index != nil {
+			if _, err := index.GetNode(s); err != nil {
+				return fmt.Errorf("node %s…%s not found in index", s[:4], s[len(s)-4:])
+			}
+		}
+
+		return nil
+	}
 }
 
 // Update forwards messages to the huh form and detects completion/abort.
@@ -743,7 +868,9 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 }
 
 // applyEdgeChanges deletes unchecked existing edges and creates a new edge
-// if the user filled in both the type and target fields.
+// if the user filled in both the type and target fields. The target UUID is
+// validated as an existing node before the write; invalid targets are silently
+// skipped (huh validation should have caught them already, but defensive here).
 func (f formPane) applyEdgeChanges() {
 	// Build a set of kept edge IDs for fast lookup.
 	kept := make(map[string]bool, len(f.keptEdgeIDs))
@@ -760,17 +887,32 @@ func (f formPane) applyEdgeChanges() {
 
 	// Create a new edge if both type and target are specified.
 	target := strings.TrimSpace(f.newEdgeTarget)
-	if f.newEdgeType != "(none)" && target != "" {
-		now := f.clock.Now()
-		edge := &types.Edge{
-			ID:      uuid.New().String(),
-			Type:    f.newEdgeType,
-			From:    f.editingNodeID,
-			To:      target,
-			Created: now,
-		}
-		_ = f.store.WriteEdge(edge) // non-fatal
+	if f.newEdgeType == "(none)" || target == "" {
+		return
 	}
+
+	// Validate the target UUID is well-formed before writing.
+	if _, err := uuid.Parse(target); err != nil {
+		return
+	}
+
+	// Confirm the target node exists in the index (defence-in-depth; the huh
+	// validator should have already caught this).
+	if f.index != nil {
+		if _, err := f.index.GetNode(target); err != nil {
+			return
+		}
+	}
+
+	now := f.clock.Now()
+	edge := &types.Edge{
+		ID:      uuid.New().String(),
+		Type:    f.newEdgeType,
+		From:    f.editingNodeID,
+		To:      target,
+		Created: now,
+	}
+	_ = f.store.WriteEdge(edge) // non-fatal
 }
 
 // View renders the huh form, padded to fill the pane.
@@ -790,7 +932,7 @@ func (f formPane) KeyBindings() []KeyBinding {
 		{Key: "enter", Description: "Next field (submit on last)"},
 		{Key: "alt+enter", Description: "New line in text field"},
 		{Key: "ctrl+e", Description: "Open external editor"},
-		{Key: "ctrl+c", Description: "Cancel form"},
+		{Key: "esc / ctrl+c", Description: "Cancel form"},
 	}
 }
 

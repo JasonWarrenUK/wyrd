@@ -217,9 +217,11 @@ func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
 			return ps, nil, false
 
 		case "enter":
-			cmd := ps.confirm()
-			ps.Close()
-			return ps, cmd, false
+			cmd, reopen := ps.confirm()
+			if !reopen {
+				ps.Close()
+			}
+			return ps, cmd, reopen
 
 		case "up", "ctrl+p":
 			if ps.cursor > 0 {
@@ -261,51 +263,86 @@ func (ps PaletteState) Update(msg tea.Msg) (PaletteState, tea.Cmd, bool) {
 }
 
 // confirm attempts to execute the selected or typed command.
-func (ps *PaletteState) confirm() tea.Cmd {
+// Returns (cmd, reopen): reopen=true means the palette should stay open
+// (used when a command needs arguments that the user must type).
+func (ps *PaletteState) confirm() (tea.Cmd, bool) {
 	raw := strings.TrimSpace(ps.input.Value())
 
 	if ps.mode == PaletteModeFuzzy {
 		// Fuzzy mode — dispatch based on the result kind.
 		if ps.cursor >= len(ps.results) {
-			return nil
+			return nil, false
 		}
 		r := ps.results[ps.cursor]
 		switch r.Kind {
 		case SearchResultCommand:
 			if r.Command != nil && r.Command.Execute != nil {
-				return r.Command.Execute(nil)
+				cmd := r.Command.Execute(nil)
+				if cmd != nil {
+					return cmd, false
+				}
+				// Command needs args — switch to CLI mode with name pre-filled.
+				ps.mode = PaletteModeCLI
+				ps.input.Prompt = ": "
+				ps.input.Placeholder = ""
+				ps.input.SetValue(r.Command.Name + " ")
+				ps.input.CursorEnd()
+				ps.filter(r.Command.Name)
+				ps.cursor = 0
+				return nil, true
 			}
 		case SearchResultNode:
 			if r.NodeID != "" {
 				nodeID := r.NodeID
-				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }
+				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }, false
 			}
 		case SearchResultEdge:
-			// Navigate to the From node of the edge.
 			if r.NodeID != "" {
 				nodeID := r.NodeID
-				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }
+				return func() tea.Msg { return nodeSelectedMsg{nodeID: nodeID} }, false
 			}
 		}
-		return nil
+		return nil, false
 	}
 
-	// CLI mode — parse "name arg1 arg2 …"
+	// CLI mode: if the input is empty, dispatch the cursor-highlighted command.
+	// If that command's Execute returns nil (needs args), switch to CLI mode with
+	// the command name pre-filled so the user can type arguments.
+	if raw == "" && len(ps.filtered) > 0 && ps.cursor < len(ps.filtered) {
+		highlighted := ps.filtered[ps.cursor]
+		if highlighted.Execute != nil {
+			cmd := highlighted.Execute(nil)
+			if cmd != nil {
+				// Command ran successfully with no args.
+				return cmd, false
+			}
+			// Command needs args — pre-fill the input and keep the palette open.
+			ps.mode = PaletteModeCLI
+			ps.input.Prompt = ": "
+			ps.input.SetValue(highlighted.Name + " ")
+			ps.input.CursorEnd()
+			ps.filter(highlighted.Name)
+			return nil, true
+		}
+		return nil, false
+	}
+
+	// CLI mode — parse "name arg1 arg2 …" from typed input.
 	tokens := strings.Fields(raw)
 	if len(tokens) == 0 {
-		return nil
+		return nil, false
 	}
 	name := tokens[0]
 	args := tokens[1:]
 	for _, c := range ps.commands {
 		if c.Name == name {
 			if c.Execute != nil {
-				return c.Execute(args)
+				return c.Execute(args), false
 			}
-			return nil
+			return nil, false
 		}
 	}
-	return nil
+	return nil, false
 }
 
 // View renders the palette overlay as a centred modal box.

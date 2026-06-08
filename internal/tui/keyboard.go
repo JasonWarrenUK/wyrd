@@ -6,12 +6,10 @@ import "charm.land/bubbles/v2/key"
 // Navigation (up/down/page/jump) is intentionally absent — those are handled
 // by the child components (bubbles/list, bubbles/viewport) via their own
 // KeyMap configuration. Only truly app-level concerns live here.
-//
-// All bindings use modifier keys so that unmodified printable characters
-// (which terminals may emit as fragments of protocol responses) never trigger
-// application actions.
 type AppKeyMap struct {
 	SwitchPane     key.Binding
+	FocusRight     key.Binding
+	FocusLeft      key.Binding
 	Quit           key.Binding
 	CommandPalette key.Binding
 	FuzzyPalette   key.Binding
@@ -27,9 +25,17 @@ func DefaultAppKeyMap() AppKeyMap {
 			key.WithKeys("ctrl+w"),
 			key.WithHelp("ctrl+w", "switch pane"),
 		),
+		FocusRight: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "focus right pane"),
+		),
+		FocusLeft: key.NewBinding(
+			key.WithKeys("shift+tab"),
+			key.WithHelp("shift+tab", "focus left pane"),
+		),
 		Quit: key.NewBinding(
-			key.WithKeys("ctrl+c"),
-			key.WithHelp("ctrl+c", "quit"),
+			key.WithKeys("ctrl+c", "q"),
+			key.WithHelp("ctrl+c / q", "quit"),
 		),
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),
@@ -59,6 +65,8 @@ func DefaultAppKeyMap() AppKeyMap {
 func (km AppKeyMap) AllBindings() []KeyBinding {
 	bindings := []key.Binding{
 		km.SwitchPane,
+		km.FocusRight,
+		km.FocusLeft,
 		km.Quit,
 		km.CommandPalette,
 		km.FuzzyPalette,

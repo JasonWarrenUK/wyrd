@@ -99,8 +99,8 @@ func TestBudgetCreate_Valid(t *testing.T) {
 	if alloc, ok := node.Properties["allocated"].(float64); !ok || alloc != 300 {
 		t.Errorf("allocated = %v, want 300", node.Properties["allocated"])
 	}
-	if period, ok := node.Properties["period"].(string); !ok || period != "monthly" {
-		t.Errorf("period = %v, want monthly", node.Properties["period"])
+	if period, ok := node.Properties["period"].(string); !ok || period != "month" {
+		t.Errorf("period = %v, want month", node.Properties["period"])
 	}
 	if warnAt, ok := node.Properties["warn_at"].(float64); !ok || warnAt != 0.8 {
 		t.Errorf("warn_at = %v, want 0.8", node.Properties["warn_at"])
@@ -117,7 +117,7 @@ func TestBudgetCreate_CustomPeriodAndWarnAt(t *testing.T) {
 	id, err := cli.BudgetCreate(s, cli.BudgetCreateOptions{
 		Category:  "entertainment",
 		Allocated: 150,
-		Period:    "weekly",
+		Period:    "week",
 		WarnAt:    0.5,
 	})
 	if err != nil {
@@ -129,8 +129,8 @@ func TestBudgetCreate_CustomPeriodAndWarnAt(t *testing.T) {
 		t.Fatalf("ReadNode: %v", err)
 	}
 
-	if period, ok := node.Properties["period"].(string); !ok || period != "weekly" {
-		t.Errorf("period = %v, want weekly", node.Properties["period"])
+	if period, ok := node.Properties["period"].(string); !ok || period != "week" {
+		t.Errorf("period = %v, want week", node.Properties["period"])
 	}
 	if warnAt, ok := node.Properties["warn_at"].(float64); !ok || warnAt != 0.5 {
 		t.Errorf("warn_at = %v, want 0.5", node.Properties["warn_at"])
