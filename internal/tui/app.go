@@ -990,13 +990,28 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	m.layout.SetTheme(t)
 	m.statusBar.SetTheme(t)
 	m.palette.theme = t
-	// Re-create empty panes with the new theme so their muted text re-renders.
-	if _, ok := m.leftPane.(emptyPane); ok {
+	m.logOverlay.theme = t
+	m.helpOverlay.theme = t
+
+	// Rebuild the node list pane so the delegate's baked-in Lipgloss styles
+	// (section headers, row colours) repaint with the new theme.
+	if lp, ok := m.leftPane.(nodeListPane); ok {
+		m.leftPane = newNodeListPane(lp.result, t)
+	} else if _, ok := m.leftPane.(emptyPane); ok {
 		m.leftPane = NewEmptyPane(t)
+	}
+
+	// Re-render the detail pane so the right pane content repaints immediately.
+	if lp, ok := m.leftPane.(nodeListPane); ok {
+		if id := lp.SelectedNodeID(); id != "" {
+			m.rightPane = m.renderDetail(id)
+		}
 	}
 	if _, ok := m.rightPane.(emptyPane); ok {
 		m.rightPane = NewEmptyPane(t)
 	}
+
+	m.syncKeyHints()
 	return m
 }
 

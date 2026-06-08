@@ -159,6 +159,9 @@ type nodeListPane struct {
 	width    int
 	height   int
 	theme    *ActiveTheme
+	// result is stored so applyTheme can rebuild the pane with a new theme
+	// without re-running the dashboard query.
+	result types.QueryResult
 }
 
 // newNodeListPane constructs a pane from a QueryResult, wiring the theme
@@ -243,6 +246,7 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 		width:     initialWidth,
 		height:    22,
 		theme:     theme,
+		result:    result,
 	}
 }
 
