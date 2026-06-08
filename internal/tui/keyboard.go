@@ -34,8 +34,8 @@ func DefaultAppKeyMap() AppKeyMap {
 			key.WithHelp("shift+tab", "focus left pane"),
 		),
 		Quit: key.NewBinding(
-			key.WithKeys("ctrl+c"),
-			key.WithHelp("ctrl+c", "quit"),
+			key.WithKeys("ctrl+c", "q"),
+			key.WithHelp("ctrl+c / q", "quit"),
 		),
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),

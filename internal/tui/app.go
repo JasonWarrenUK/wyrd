@@ -617,10 +617,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		// When a form is active in the right pane, esc and ctrl+c abort the form
-		// rather than quitting the app. All other keys still flow to the pane.
+		// When a form is active in the right pane, esc / ctrl+c / q abort the
+		// form rather than quitting the app. All other keys still flow to the pane.
 		if _, isForm := m.rightPane.(formActivePane); isForm {
-			if msg.String() == "esc" || msg.String() == "ctrl+c" {
+			if key.Matches(msg, m.keyMap.Quit) || msg.String() == "esc" {
 				return m, func() tea.Msg { return formCancelMsg{} }
 			}
 		}
@@ -1001,13 +1001,17 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 		m.leftPane = NewEmptyPane(t)
 	}
 
-	// Re-render the detail pane so the right pane content repaints immediately.
+	// Always replace the right pane — never leave a stale viewportPane (old
+	// theme bg baked in) or a stale formActivePane (traps ctrl+c as cancel).
+	// Re-render the detail for the selected node; fall back to empty pane.
+	rerendered := false
 	if lp, ok := m.leftPane.(nodeListPane); ok {
 		if id := lp.SelectedNodeID(); id != "" {
 			m.rightPane = m.renderDetail(id)
+			rerendered = true
 		}
 	}
-	if _, ok := m.rightPane.(emptyPane); ok {
+	if !rerendered {
 		m.rightPane = NewEmptyPane(t)
 	}
 
