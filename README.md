@@ -1,6 +1,6 @@
-<img src="docs/wyrd-preview.svg" alt="Wyrd TUI preview" width="684"/>
-
 # wyrd
+
+<img src="docs/wyrd-preview.svg" alt="Wyrd TUI preview" width="684"/>
 
 A terminal-based personal productivity system backed by a flat-file property graph. Tasks, notes, commitments, habits, and budgets: all connected, all in one place, all running on your machine.
 
