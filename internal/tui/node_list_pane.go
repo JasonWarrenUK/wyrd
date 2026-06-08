@@ -217,8 +217,10 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	l.KeyMap.AcceptWhileFiltering.SetKeys("enter", "tab", "shift+tab", "up", "down")
 	l.KeyMap.ShowFullHelp.SetEnabled(false)
 	l.KeyMap.CloseFullHelp.SetEnabled(false)
-	l.KeyMap.Quit.SetEnabled(false)
-	l.KeyMap.ForceQuit.SetEnabled(false)
+	// Clear the key bindings entirely (not just disabled) so q/esc are not
+	// consumed by the list and can propagate to the root model's Quit handler.
+	l.KeyMap.Quit.SetKeys()
+	l.KeyMap.ForceQuit.SetKeys()
 
 	// Style the filter text input with theme colours.
 	filterStyles := textinput.DefaultStyles(true)

@@ -52,11 +52,10 @@ type DetailRenderer struct {
 	Colours Colours
 
 	// glamRenderer caches the Glamour terminal renderer so it is only created
-	// once (or recreated when Width changes). glamour.NewTermRenderer() is
-	// expensive — it probes terminal capabilities and builds a full goldmark
-	// pipeline — so we must avoid calling it on every node selection.
+	// once (or recreated when Width or theme light/dark character changes).
 	glamRenderer *glamour.TermRenderer
 	glamWidth    int
+	glamDark     bool // tracks whether the last renderer was built for a dark theme
 }
 
 // NewDetailRenderer creates a DetailRenderer with default colours and a sensible width.
@@ -208,12 +207,16 @@ func (r *DetailRenderer) bg() color.Color {
 // Trailing newlines from Glamour output are trimmed so the caller controls
 // surrounding spacing.
 func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) string {
-	if r.glamRenderer == nil || r.glamWidth != r.Width {
-		// Build a dark style with no background colours and no document margin.
-		// Glamour's default dark style sets Document.Margin = 2 and H1.BackgroundColor,
-		// which bleed through the pane background. Clearing them keeps the terminal
-		// background intact and avoids the highlight/dim artefact on body text.
+	dark := isColourDark(r.Colours.BgPrimary)
+	if r.glamRenderer == nil || r.glamWidth != r.Width || r.glamDark != dark {
+		// Pick the glamour base style to match the active theme's background.
+		// Glamour's default configs set Document.Margin and various BackgroundColor
+		// fields that bleed through the pane; clear them so the terminal background
+		// colour is always inherited from the pane rather than overridden.
 		style := glamourStyles.DarkStyleConfig
+		if !dark {
+			style = glamourStyles.LightStyleConfig
+		}
 		var zero uint = 0
 		style.Document.Margin = &zero
 		style.Document.BackgroundColor = nil
@@ -229,12 +232,26 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 		}
 		r.glamRenderer = renderer
 		r.glamWidth = r.Width
+		r.glamDark = dark
 	}
 	out, err := r.glamRenderer.Render(body)
 	if err != nil {
 		return plainStyle.Render(body)
 	}
 	return strings.TrimRight(out, "\n")
+}
+
+// isColourDark returns true when c is a dark colour (perceived luminance < 0.5).
+// Falls back to true (dark) for nil or transparent colours.
+func isColourDark(c color.Color) bool {
+	if c == nil {
+		return true
+	}
+	// color.Color.RGBA() returns 16-bit channels (0–65535).
+	r16, g16, b16, _ := c.RGBA()
+	// Relative luminance approximation (ITU-R BT.709 coefficients).
+	lum := (0.2126*float64(r16) + 0.7152*float64(g16) + 0.0722*float64(b16)) / 65535.0
+	return lum < 0.5
 }
 
 // ---- Internal helpers ----
