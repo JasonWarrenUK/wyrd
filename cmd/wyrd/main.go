@@ -493,11 +493,13 @@ When required values are omitted, an interactive form prompts for them.`,
 
 // spendCmd implements `wyrd spend`.
 func spendCmd(storePath *string) *cobra.Command {
-	return &cobra.Command{
+	var dateFlag string
+	cmd := &cobra.Command{
 		Use:   "spend <category> <amount> <note>",
 		Short: "Log a spend entry",
 		Long: `Record a spending event under a budget category.
-Amount must be a positive decimal number.`,
+Amount must be a positive decimal number.
+Use --date YYYY-MM-DD to back-date or future-date the entry; defaults to today.`,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			amount, err := strconv.ParseFloat(args[1], 64)
@@ -512,6 +514,7 @@ Amount must be a positive decimal number.`,
 				Category: args[0],
 				Amount:   amount,
 				Note:     args[2],
+				Date:     dateFlag,
 			}); err != nil {
 				return err
 			}
@@ -519,6 +522,8 @@ Amount must be a positive decimal number.`,
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&dateFlag, "date", "", "Entry date (YYYY-MM-DD); defaults to today")
+	return cmd
 }
 
 // syncCmd implements `wyrd sync`.

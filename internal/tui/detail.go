@@ -4,6 +4,7 @@ package tui
 import (
 	"fmt"
 	"image/color"
+	"sort"
 	"strings"
 	"time"
 
@@ -188,6 +189,32 @@ func (r *DetailRenderer) Render(
 		sb.WriteString("\n")
 	}
 
+	// --- SPEND LOG section (budget nodes only) ---
+	// Shows all spend entries sorted by date ascending with a cumulative running
+	// total. This is full-history semantics: the total does not filter by period
+	// and will not match the budget bar's period-scoped Spent figure.
+	if nodeHasType(node, "budget") {
+		entries := budget.SpendLog(node)
+		if len(entries) > 0 {
+			// Copy before sorting to avoid mutating the stored slice.
+			sorted := make([]types.SpendEntry, len(entries))
+			copy(sorted, entries)
+			sort.SliceStable(sorted, func(i, j int) bool {
+				return sorted[i].Date < sorted[j].Date
+			})
+
+			sb.WriteString(sectionHeaderStyle.Render("SPEND LOG"))
+			sb.WriteString("\n")
+			var running float64
+			for _, e := range sorted {
+				running += e.Amount
+				sb.WriteString(r.renderSpendLogLine(e, running))
+				sb.WriteString("\n")
+			}
+			sb.WriteString("\n")
+		}
+	}
+
 	return strings.TrimRight(sb.String(), "\n")
 }
 
@@ -220,7 +247,9 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 		var zero uint = 0
 		style.Document.Margin = &zero
 		style.Document.BackgroundColor = nil
+		style.Document.Color = nil       // let pane theme foreground govern body text
 		style.H1.BackgroundColor = nil
+		style.Code.BackgroundColor = nil // inline code inherits pane background
 		style.CodeBlock.BackgroundColor = nil
 
 		renderer, err := glamour.NewTermRenderer(
@@ -405,8 +434,10 @@ func (r *DetailRenderer) renderEdgeLine(
 		otherID = edge.From
 	}
 	otherLabel := otherID
+	var otherTypes []string
 	if other, ok := nodesByID[otherID]; ok {
 		otherLabel = nodeTitle(other)
+		otherTypes = other.Types
 	}
 
 	glyph := edgeGlyph(edge.Type, outgoing)
@@ -416,8 +447,13 @@ func (r *DetailRenderer) renderEdgeLine(
 
 	sp := Spacer(1, bg)
 	line := glyphStyle.Render(glyph) + sp +
-		typeStyle.Render(edge.Type+":") + sp +
-		labelStyle.Render(otherLabel)
+		typeStyle.Render(edge.Type+":") + sp
+
+	if len(otherTypes) > 0 {
+		line += typeStyle.Render("["+strings.Join(otherTypes, ", ")+"]") + sp
+	}
+
+	line += labelStyle.Render(otherLabel)
 
 	// Append age suffix for waiting_on edges.
 	if edge.Type == string(types.EdgeWaitingOn) {
@@ -490,6 +526,39 @@ func (r *DetailRenderer) renderBudgetLine(node *types.Node, now time.Time) strin
 		mutedStyle.Render(bar) + sp +
 		primaryStyle.Render(fmt.Sprintf("£%.2f", summary.Spent)) +
 		mutedStyle.Render(fmt.Sprintf("/£%.2f", summary.Allocated))
+}
+
+// nodeHasType reports whether node.Types contains the given type string.
+func nodeHasType(node *types.Node, typeName string) bool {
+	for _, t := range node.Types {
+		if t == typeName {
+			return true
+		}
+	}
+	return false
+}
+
+// renderSpendLogLine produces a single spend-log entry line:
+//
+//	date  £amount  note  £running-total
+//
+// The running total is the cumulative sum of all entries up to and including
+// this one, sorted by date. Every style carries Background(bg) to prevent
+// terminal background bleed at ANSI reset boundaries.
+func (r *DetailRenderer) renderSpendLogLine(e types.SpendEntry, running float64) string {
+	c := r.Colours
+	bg := r.bg()
+	mutedStyle := lipgloss.NewStyle().Foreground(c.FGMuted).Background(bg)
+	primaryStyle := lipgloss.NewStyle().Foreground(c.FGPrimary).Background(bg)
+	sp := Spacer(1, bg)
+
+	line := mutedStyle.Render(e.Date) +
+		sp + primaryStyle.Render(fmt.Sprintf("£%.2f", e.Amount))
+	if e.Note != "" {
+		line += sp + mutedStyle.Render(e.Note)
+	}
+	line += sp + mutedStyle.Render(fmt.Sprintf("(£%.2f)", running))
+	return line
 }
 
 // buildProgressBar returns a fixed-width ASCII progress bar string.

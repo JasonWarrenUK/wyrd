@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	huh "charm.land/huh/v2"
 	tea "charm.land/bubbletea/v2"
@@ -31,6 +32,7 @@ type spendFormPane struct {
 	category string // selected budget category
 	amount   string // monetary amount (string input, parsed on submit)
 	note     string // optional description
+	date     string // optional explicit date (YYYY-MM-DD); empty means today
 
 	width  int
 	height int
@@ -116,6 +118,12 @@ func newSpendFormPane(
 		huh.NewInput().
 			Title("Note (optional)").
 			Value(&f.note),
+
+		huh.NewInput().
+			Title("Date (optional)").
+			Value(&f.date).
+			Placeholder("YYYY-MM-DD — leave blank for today").
+			Validate(validateDate),
 	}
 
 	f.form = huh.NewForm(
@@ -123,6 +131,17 @@ func newSpendFormPane(
 	).WithTheme(wyrdHuhTheme(theme)).WithShowHelp(true)
 
 	return f, nil
+}
+
+// validateDate accepts an empty string (meaning "use today") or a valid YYYY-MM-DD date.
+func validateDate(s string) error {
+	if s == "" {
+		return nil
+	}
+	if _, err := time.Parse("2006-01-02", s); err != nil {
+		return fmt.Errorf("date must be YYYY-MM-DD (e.g. 2026-01-15)")
+	}
+	return nil
 }
 
 // validateAmount rejects empty, non-numeric, zero, and negative values.
@@ -166,7 +185,7 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			// as a safe fallback.
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
-		if err := budget.RecordSpend(f.store, f.index, f.category, amount, f.note, f.clock.Now()); err != nil {
+		if err := budget.RecordSpend(f.store, f.index, f.category, amount, f.note, f.date, f.clock.Now()); err != nil {
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
 		return f, tea.Batch(cmd, func() tea.Msg {

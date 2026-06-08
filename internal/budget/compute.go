@@ -71,7 +71,7 @@ func Compute(node *types.Node, now time.Time) BudgetSummary {
 	warnAt := floatProperty(node, "warn_at")
 	period := NormalisePeriod(stringProperty(node, "period"))
 
-	entries := spendLog(node)
+	entries := SpendLog(node)
 	spent := sumCurrentPeriod(entries, period, now)
 
 	var status BudgetStatus
@@ -146,7 +146,10 @@ func sumCurrentPeriod(entries []types.SpendEntry, period string, now time.Time) 
 // spendLog extracts the spend_log slice from node properties.
 // It handles both []types.SpendEntry and the raw []interface{} form that
 // arrives when properties are deserialised from JSON without type information.
-func spendLog(node *types.Node) []types.SpendEntry {
+// SpendLog extracts the spend_log entries from a budget node's Properties.
+// It handles both in-memory ([]types.SpendEntry) and on-disk ([]interface{})
+// storage shapes. Returns nil when the node has no spend_log.
+func SpendLog(node *types.Node) []types.SpendEntry {
 	if node.Properties == nil {
 		return nil
 	}

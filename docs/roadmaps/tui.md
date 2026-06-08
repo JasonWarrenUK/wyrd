@@ -4,19 +4,19 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 # Wyrd: TUI Roadmap
 
-|        | Status                                       | Next Up                             | Blocked |
-|--------|----------------------------------------------|-------------------------------------|---------|
-| **WL** | All Wire & Launch tasks complete (WL.1–WL.9) |                  —                  |    —    |
-| **NV** |            NV.1, NV.3–NV.17 done             |                  —                  |    —    |
-| **CP** |       All done including CP.11, CP.13        |          CP.14 (unblocked)          |    —    |
-| **CL** |             CL.1–CL.5 all done               |                  —                  |    —    |
-| **VS** |             VS.0–VS.12 all done              |                  —                  |    —    |
-| **LG** |                LG.1–LG.6 done                |          LG.7 (unblocked)           |    —    |
-| **RT** |    RT.1 done; runner built but not wired     |           RT.2 unblocked            | RT.3–RT.8 (need RT.2) |
-| **DA** |             No screenshots/gifs              | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks) |
-| **CO** |                  CO.1 done                   |          CO.2 (unblocked)           |    —    |
-| **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |                  —                  |    —    |
-| **SP** |                  —                           |       SP.1 (unblocked)              | SP.2, SP.3 (need SP.1) |
+|        | Status                                       | Next Up | Blocked |
+|--------|----------------------------------------------|---------|---------|
+| **WL** | All Wire & Launch tasks complete (WL.1–WL.9) |    —    |    —    |
+| **NV** |            NV.1, NV.3–NV.17 done             |    —    |    —    |
+| **CP** |       All done including CP.11, CP.13        |  CP.14  |    —    |
+| **CL** |              CL.1–CL.5 all done              |    —    |    —    |
+| **VS** |             VS.0–VS.12 all done              |    —    |    —    |
+| **LG** |                LG.1–LG.6 done                |  LG.7   |    —    |
+| **RT** |    RT.1 done; runner built but not wired     |  RT.2   | RT.3–RT.8 (need RT.2) |
+| **DA** |             No screenshots/gifs              |  DA.1   | DA.2–DA.9 (need DA.1 or other VS tasks) |
+| **CO** |                  CO.1 done                   |  CO.2   |    —    |
+| **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |    —    |    —    |
+| **SP** |               SP.1, SP.3 done                |  SP.2   |    —    |
 
 ---
 
@@ -48,15 +48,9 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m1-doing"><h4>In Progress (Milestone 1)</h4></a>
 
-## (none)
-
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
-## (none)
-
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
-
-## (none)
 
 <a name="m1-done"><h4>Completed (Milestone 1)</h4></a>
 
@@ -79,15 +73,9 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m2-doing"><h4>In Progress (Milestone 2)</h4></a>
 
-## (none yet)
-
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-## (none)
-
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
-
-## (none)
 
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
@@ -117,15 +105,11 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m3-doing"><h4>In Progress (Milestone 3)</h4></a>
 
-## (none yet)
-
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.14. Budget creation form — `huh`-based form triggered by `b:` capture prefix; fields for category name, allocation amount, period select, warn threshold; creates a budget-type node — **depends on CP.13 (done)**
 
 <a name="m3-blocked"><h4>Blocked (Milestone 3)</h4></a>
-
-## (none)
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -153,15 +137,9 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m4-doing"><h4>In Progress (Milestone 4)</h4></a>
 
-## (none)
-
 <a name="m4-todo"><h4>To Do (Milestone 4)</h4></a>
 
-## (none)
-
 <a name="m4-blocked"><h4>Blocked (Milestone 4)</h4></a>
-
-## (none)
 
 <a name="m4-done"><h4>Completed (Milestone 4)</h4></a>
 
@@ -188,15 +166,11 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m5-doing"><h4>In Progress (Milestone 5)</h4></a>
 
-## (none yet)
-
 <a name="m5-todo"><h4>To Do (Milestone 5)</h4></a>
 
 - [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2 (done)**
 
 <a name="m5-blocked"><h4>Blocked (Milestone 5)</h4></a>
-
-## (none)
 
 <a name="m5-done"><h4>Completed (Milestone 5)</h4></a>
 
@@ -215,8 +189,6 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 > **Goal:** The ritual runner is wired into the TUI. Scheduled rituals trigger on startup. Step sequencing, gate prompts (via huh), and deferral UX (`Esc Esc d`) are all interactive and fluid.
 
 <a name="m6-doing"><h4>In Progress (Milestone 6)</h4></a>
-
-## (none yet)
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
@@ -243,8 +215,6 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 > **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action. VHS tapes are checked into the repo for reproducibility.
 
 <a name="m7-doing"><h4>In Progress (Milestone 7)</h4></a>
-
-## (none yet)
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
@@ -274,15 +244,11 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="m8-doing"><h4>In Progress (Milestone 8)</h4></a>
 
-## (none yet)
-
 <a name="m8-todo"><h4>To Do (Milestone 8)</h4></a>
 
 - [ ] CO.2. `wyrd compact` — orphan edge handling: detach or archive edges linked to archived nodes — **depends on CO.1 (done)**
 
 <a name="m8-blocked"><h4>Blocked (Milestone 8)</h4></a>
-
-## (none)
 
 <a name="m8-done"><h4>Completed (Milestone 8)</h4></a>
 
@@ -297,11 +263,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="cli-todo"><h4>To Do (CLI Input)</h4></a>
 
-## (none)
-
 <a name="cli-blocked"><h4>Blocked (CLI Input)</h4></a>
-
-## (none)
 
 <a name="cli-done"><h4>Completed (CLI Input)</h4></a>
 
@@ -322,8 +284,6 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="qe-blocked"><h4>Blocked (Query Engine)</h4></a>
 
-## (none)
-
 <a name="qe-done"><h4>Completed (Query Engine)</h4></a>
 
 - [x] QE.1. Implement `UNION` / `UNION ALL` — compound query AST, per-sub-query evaluation, deduplication for UNION, compound ORDER BY / LIMIT — **no blockers**
@@ -337,16 +297,14 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
 
-- [ ] SP.1. Dated spend entries — `SpendEntry` already has a `Date` string field; surface it as an optional input: add `Date` to `SpendOptions`, accept `--date` flag in `wyrd spend`, add an optional date field to the TUI spend form (`spend_form.go`). Default to today when omitted. Update `RecordSpend` to use the caller-supplied date rather than hardcoding `now.Format(...)`. **No blockers.**
+- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1 (done).**
 
 <a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
 
-- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1.**
-- [ ] SP.3. Spend events in budget detail pane — when a budget is selected in the list, render its individual `spend_log` entries in the detail pane (date, amount, note, running total). **Depends on SP.1** (dated entries give each row a meaningful date column).
-
 <a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
 
-## (none yet)
+- [x] SP.1. Dated spend entries — `SpendEntry.Date` surfaced as optional input across `RecordSpend`, `SpendOptions`, `--date` CLI flag, and TUI spend form. Defaults to today when omitted.
+- [x] SP.3. Spend events in budget detail pane — selecting a budget node shows a SPEND LOG section: all entries sorted by date ascending, each with date, amount, note, and cumulative running total.
 
 ---
 
@@ -416,9 +374,9 @@ DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::done
 CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 
-SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::open
-SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::blocked
-SP3["`*SP.3*<br/>**Spend**<br/>Spend events detail pane`"]:::blocked
+SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::done
+SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
+SP3["`*SP.3*<br/>**Spend**<br/>Spend events detail pane`"]:::done
 
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7

@@ -458,3 +458,121 @@ func TestBuildProgressBar_Over(t *testing.T) {
 		t.Errorf("expected fully filled bar for over-budget, got %q", bar)
 	}
 }
+
+// --- SPEND LOG section tests ---
+
+func newBudgetNodeWithSpend(id string, entries []types.SpendEntry) *types.Node {
+	props := map[string]interface{}{
+		"category":  "groceries",
+		"allocated": float64(200),
+		"warn_at":   0.8,
+		"period":    "month",
+	}
+	if len(entries) > 0 {
+		props["spend_log"] = entries
+	}
+	return &types.Node{
+		ID:         id,
+		Body:       "Groceries budget",
+		Types:      []string{"budget"},
+		Properties: props,
+		Created:    testNow,
+		Modified:   testNow,
+	}
+}
+
+func TestRender_SpendLog_ShowsSection(t *testing.T) {
+	entries := []types.SpendEntry{
+		{Date: "2026-03-10", Amount: 42.50, Note: "weekly shop"},
+		{Date: "2026-03-12", Amount: 15.00, Note: "top-up"},
+	}
+	node := newBudgetNodeWithSpend("b1", entries)
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if !strings.Contains(output, "SPEND LOG") {
+		t.Errorf("expected 'SPEND LOG' section header, got:\n%s", output)
+	}
+	if !strings.Contains(output, "2026-03-10") {
+		t.Errorf("expected first entry date in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "weekly shop") {
+		t.Errorf("expected first entry note in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "42.50") {
+		t.Errorf("expected first entry amount in output, got:\n%s", output)
+	}
+}
+
+func TestRender_SpendLog_RunningTotal(t *testing.T) {
+	entries := []types.SpendEntry{
+		{Date: "2026-03-10", Amount: 42.50, Note: "weekly shop"},
+		{Date: "2026-03-12", Amount: 15.00, Note: "top-up"},
+	}
+	node := newBudgetNodeWithSpend("b2", entries)
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	// Running total after both entries should be 57.50.
+	if !strings.Contains(output, "57.50") {
+		t.Errorf("expected running total 57.50 in output, got:\n%s", output)
+	}
+}
+
+func TestRender_SpendLog_SortedByDate(t *testing.T) {
+	// Entries stored out of date order — should appear sorted ascending.
+	entries := []types.SpendEntry{
+		{Date: "2026-03-15", Amount: 20.00, Note: "last"},
+		{Date: "2026-01-05", Amount: 10.00, Note: "first"},
+		{Date: "2026-02-20", Amount: 5.00, Note: "middle"},
+	}
+	node := newBudgetNodeWithSpend("b3", entries)
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	firstIdx := strings.Index(output, "2026-01-05")
+	middleIdx := strings.Index(output, "2026-02-20")
+	lastIdx := strings.Index(output, "2026-03-15")
+
+	if firstIdx < 0 || middleIdx < 0 || lastIdx < 0 {
+		t.Fatalf("one or more date entries missing from output:\n%s", output)
+	}
+	if !(firstIdx < middleIdx && middleIdx < lastIdx) {
+		t.Errorf("entries not in ascending date order: first=%d middle=%d last=%d\noutput:\n%s",
+			firstIdx, middleIdx, lastIdx, output)
+	}
+}
+
+func TestRender_SpendLog_EmptyLog_NoSection(t *testing.T) {
+	node := newBudgetNodeWithSpend("b4", nil) // no entries
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if strings.Contains(output, "SPEND LOG") {
+		t.Errorf("expected no 'SPEND LOG' section for empty spend_log, got:\n%s", output)
+	}
+}
+
+func TestRender_SpendLog_NonBudgetNode_NoSection(t *testing.T) {
+	node := simpleNode("n-task", "A regular task", []string{"task"})
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if strings.Contains(output, "SPEND LOG") {
+		t.Errorf("expected no 'SPEND LOG' section for non-budget node, got:\n%s", output)
+	}
+}
+
+func TestRender_SpendLog_NoteOptional(t *testing.T) {
+	entries := []types.SpendEntry{
+		{Date: "2026-06-01", Amount: 9.99, Note: ""},
+	}
+	node := newBudgetNodeWithSpend("b5", entries)
+	r := newRenderer()
+	// Should not panic and should render the amount.
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if !strings.Contains(output, "9.99") {
+		t.Errorf("expected amount 9.99 in output, got:\n%s", output)
+	}
+}

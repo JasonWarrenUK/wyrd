@@ -17,6 +17,9 @@ type SpendOptions struct {
 
 	// Note is a human-readable description of the spend.
 	Note string
+
+	// Date is an optional explicit date string (YYYY-MM-DD). Empty defaults to today.
+	Date string
 }
 
 // Spend logs a spend entry by delegating to budget.RecordSpend.
@@ -28,5 +31,5 @@ func Spend(store types.StoreFS, index types.GraphIndex, opts SpendOptions) error
 		return &types.ValidationError{Field: "amount", Message: "spend amount must be greater than zero"}
 	}
 
-	return budget.RecordSpend(store, index, opts.Category, opts.Amount, opts.Note, time.Now())
+	return budget.RecordSpend(store, index, opts.Category, opts.Amount, opts.Note, opts.Date, time.Now())
 }
