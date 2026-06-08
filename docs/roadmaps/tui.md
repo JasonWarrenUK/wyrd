@@ -16,6 +16,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **DA** |             No screenshots/gifs              | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks) |
 | **CO** |                  CO.1 done                   |          CO.2 (unblocked)           |    —    |
 | **QE** | Cypher subset + UNION/UNION ALL (QE.1) done  |                  —                  |    —    |
+| **SP** |                  —                           |       SP.1 (unblocked)              | SP.2, SP.3 (need SP.1) |
 
 ---
 
@@ -32,6 +33,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
   - [Milestone 8: Compaction](#m8)
   - [CLI Input](#cli)
   - [Query Engine Enhancements](#qe)
+  - [Spend Depth](#sp)
 - [Progress Map](#map)
 - [Beyond v1](#post-v1)
 
@@ -327,6 +329,26 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 ---
 
+<a name="sp"><h3>Spend Depth</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** Spend entries carry an explicit date, enabling back-dated corrections and future-scheduled spend. This unlocks bottom-up budgeting (total expected spend defines the envelope) and richer per-budget detail views.
+
+<a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
+
+- [ ] SP.1. Dated spend entries — `SpendEntry` already has a `Date` string field; surface it as an optional input: add `Date` to `SpendOptions`, accept `--date` flag in `wyrd spend`, add an optional date field to the TUI spend form (`spend_form.go`). Default to today when omitted. Update `RecordSpend` to use the caller-supplied date rather than hardcoding `now.Format(...)`. **No blockers.**
+
+<a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
+
+- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1.**
+- [ ] SP.3. Spend events in budget detail pane — when a budget is selected in the list, render its individual `spend_log` entries in the detail pane (date, amount, note, running total). **Depends on SP.1** (dated entries give each row a meaningful date column).
+
+<a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
+
+## (none yet)
+
+---
+
 <a name="map"><h2>Progress Map</h2></a>
 
 ```mermaid
@@ -344,6 +366,7 @@ m7["`**Milestone 7**<br/>Docs Assets`"]:::mile
 m8["`**Milestone 8**<br/>Compaction`"]:::mile
 mcli["`**CLI Input**`"]:::mile
 mqe["`**Query Engine**`"]:::mile
+msp["`**Spend Depth**`"]:::mile
 
 QE1["`*QE.1*<br/>**Query Engine**<br/>UNION support`"]:::done
 
@@ -391,6 +414,10 @@ DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 CO1["`*CO.1*<br/>**Compaction**<br/>Archive nodes`"]:::done
 CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 
+SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::open
+SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::blocked
+SP3["`*SP.3*<br/>**Spend**<br/>Spend events detail pane`"]:::blocked
+
 LG1 --> LG2
 LG2 --> LG3 & LG4 & LG5 & LG6 & LG7
 
@@ -408,6 +435,8 @@ CP13 --> CP14 & CL5
 
 CO1 --> CO2
 
+SP1 --> SP2 & SP3
+
 NV12 -.->|needs| QE1
 
 m2 --> NV12 & NV16 & NV17
@@ -419,6 +448,7 @@ m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 m8 --> CO1 & CO2
 mcli --> CL4 & CL5
 mqe --> QE1
+msp --> SP1 & SP2 & SP3
 
 
 classDef default fill:#fff7fb,stroke:#ccc;
