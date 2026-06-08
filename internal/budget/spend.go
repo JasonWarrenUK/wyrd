@@ -14,21 +14,36 @@ import (
 // Steps:
 //  1. Find the budget node whose Properties["category"] equals category via the index.
 //  2. Validate that amount is positive.
-//  3. Warn (but do not fail) if an entry with the same date and note already exists.
-//  4. Append a new SpendEntry to the spend_log and update Modified.
-//  5. Persist the node via store.WriteNode.
+//  3. Resolve the entry date: use date when non-empty (must be YYYY-MM-DD), otherwise today.
+//  4. Warn (but do not fail) if an entry with the same date and note already exists.
+//  5. Append a new SpendEntry to the spend_log and update Modified.
+//  6. Persist the node via store.WriteNode.
+//
+// date is an optional explicit date string (YYYY-MM-DD). Pass empty to default to now.
 func RecordSpend(
 	store types.StoreFS,
 	index types.GraphIndex,
 	category string,
 	amount float64,
 	note string,
+	date string,
 	now time.Time,
 ) error {
 	if amount <= 0 {
 		return &types.ValidationError{
 			Field:   "amount",
 			Message: fmt.Sprintf("amount must be positive, got %g", amount),
+		}
+	}
+
+	// Resolve the effective date.
+	dateStr := date
+	if dateStr == "" {
+		dateStr = now.Format("2006-01-02")
+	} else if _, err := time.Parse("2006-01-02", dateStr); err != nil {
+		return &types.ValidationError{
+			Field:   "date",
+			Message: fmt.Sprintf("date must be YYYY-MM-DD, got %q", dateStr),
 		}
 	}
 
@@ -43,10 +58,9 @@ func RecordSpend(
 		node.Properties = make(map[string]interface{})
 	}
 
-	entries := spendLog(node)
+	entries := SpendLog(node)
 
 	// Warn on duplicate date+note (non-fatal — caller receives nil but duplicate is logged).
-	dateStr := now.Format("2006-01-02")
 	for _, e := range entries {
 		if e.Date == dateStr && e.Note == note {
 			// Duplicate detected — emit a warning to stderr but continue.
