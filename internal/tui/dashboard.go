@@ -13,25 +13,22 @@ import (
 // future selection/navigation but not shown in the list.
 var dashboardColumns = []string{"category", "title", "date"}
 
-// DashboardQuery holds the three Cypher queries that together produce the
-// default startup view. Each field can be replaced independently so that
-// WL.7 (user-configurable dashboard via saved view) can override them.
-//
-// When WL.7 is implemented, a saved view named "dashboard" in the store
-// should take precedence over these defaults.
+// DashboardQuery holds the Cypher queries that together produce the default
+// startup view. Each field can be replaced independently so that a saved view
+// named "dashboard" in the store can override individual categories.
 type DashboardQuery struct {
 	// Tasks selects active tasks due today or earlier, plus undated tasks.
-	// Uses n.due (matching the task template), with IS NULL fallback so tasks
-	// without a due date are included. Expected columns: id, body, date, category.
 	Tasks string
 
-	// Notes selects the 10 most recent notes. Notes have no date field, so no
-	// date filter is applied. Expected columns: id, body, date, category.
+	// Notes selects the 10 most recent notes.
 	Notes string
 
 	// Journals selects the most recent journals.
-	// Expected columns: id, body, date, category.
 	Journals string
+
+	// Budgets selects all non-archived budget envelopes.
+	// When empty, the budget section is omitted from the dashboard.
+	Budgets string
 }
 
 // DefaultDashboardQuery returns the hardcoded default queries used when no
@@ -63,6 +60,10 @@ WHERE n.status <> "archived"
 RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category
 ORDER BY n.date.created DESC
 LIMIT 5`,
+
+		Budgets: `MATCH (n:budget)
+WHERE n.status <> "archived"
+RETURN n.id AS id, n.title AS title, null AS date, "budget" AS category`,
 	}
 }
 
@@ -82,6 +83,10 @@ func DashboardQueryFromView(view *types.SavedView) DashboardQuery {
 	}
 	if q, ok := view.Queries["journals"]; ok && q != "" {
 		dq.Journals = q
+	}
+	if q, ok := view.Queries["budgets"]; ok {
+		// Explicit empty string means "omit budgets"; non-empty overrides the query.
+		dq.Budgets = q
 	}
 	return dq
 }
@@ -117,6 +122,11 @@ func RunDashboard(runner types.QueryRunner, clock types.Clock, cfg DashboardQuer
 		return types.QueryResult{}, fmt.Errorf("dashboard journals query: %w", err)
 	}
 
+	budgets, err := runCategory(runner, clock, cfg.Budgets)
+	if err != nil {
+		return types.QueryResult{}, fmt.Errorf("dashboard budgets query: %w", err)
+	}
+
 	// Sort tasks and notes by date ascending.
 	sortByDate(tasks)
 	sortByDate(notes)
@@ -124,10 +134,11 @@ func RunDashboard(runner types.QueryRunner, clock types.Clock, cfg DashboardQuer
 	// display so the grouping reads chronologically within the list.
 	reverseRows(journals)
 
-	merged := make([]map[string]interface{}, 0, len(tasks)+len(notes)+len(journals))
+	merged := make([]map[string]interface{}, 0, len(tasks)+len(notes)+len(journals)+len(budgets))
 	merged = append(merged, tasks...)
 	merged = append(merged, notes...)
 	merged = append(merged, journals...)
+	merged = append(merged, budgets...)
 
 	return types.QueryResult{
 		Columns: columns,

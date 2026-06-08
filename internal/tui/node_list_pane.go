@@ -448,6 +448,7 @@ var groupLabelMap = map[string]string{
 	"task":    "Tasks",
 	"note":    "Notes",
 	"journal": "Journals",
+	"budget":  "Budgets",
 }
 
 func toGroupLabel(raw string) string {
