@@ -10,7 +10,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 | **NV** |            NV.1, NV.3–NV.17 done             |                  —                  |    —    |
 | **CP** |       All done including CP.11, CP.13        |          CP.14 (unblocked)          |    —    |
 | **CL** |             CL.1–CL.5 all done               |                  —                  |    —    |
-| **VS** |             VS.0–VS.11 all done              |                  —                  |    —    |
+| **VS** |             VS.0–VS.12 all done              |                  —                  |    —    |
 | **LG** |                LG.1–LG.6 done                |          LG.7 (unblocked)           |    —    |
 | **RT** |    RT.1 done; runner built but not wired     |           RT.2 unblocked            | RT.3–RT.8 (need RT.2) |
 | **DA** |             No screenshots/gifs              | DA.1 (freeze + vhs setup) unblocked | DA.2–DA.9 (need DA.1 or other VS tasks) |
@@ -177,6 +177,7 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 - [x] VS.3. Style budget progress bars with Lipgloss: colour-banded (OK/Caution/Over) with percentage label — **depends on VS.1 (done)**
 - [x] VS.4. Style timeline view: horizontal event blocks with Lipgloss padding and colour coding by node type — **depends on VS.1 (done)**
 - [x] VS.5. Style schedule view: time blocks with energy-level colour gradient (green → amber → red) — **depends on VS.1 (done)**
+- [x] VS.12. Runtime theme switching — `theme <name>` palette command loads a new theme and triggers a full repaint (node list, detail pane, overlays, borders); selection persists to `config.jsonc` and is restored on next launch — **depends on VS.10 (done)**
 
 ---
 
@@ -383,6 +384,7 @@ CL4["`*CL.4*<br/>**CLI Input**<br/>spend categories`"]:::done
 CL5["`*CL.5*<br/>**CLI Input**<br/>Budget create cmd`"]:::done
 
 VS4["`*VS.4*<br/>**Visual**<br/>Timeline blocks`"]:::done
+VS12["`*VS.12*<br/>**Visual**<br/>Runtime theme switch`"]:::done
 
 LG1["`*LG.1*<br/>**Logging**<br/>Add log dep`"]:::done
 LG2["`*LG.2*<br/>**Logging**<br/>Init logger`"]:::done
@@ -441,7 +443,7 @@ NV12 -.->|needs| QE1
 
 m2 --> NV12 & NV16 & NV17
 m3 --> CP7 & CP11 & CP13 & CP14
-m4 --> VS4
+m4 --> VS4 & VS12
 m5 --> LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7
 m6 --> RT1 & RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 m7 --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
