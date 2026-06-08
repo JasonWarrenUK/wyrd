@@ -383,7 +383,7 @@ func TestPaletteConfirmCommand(t *testing.T) {
 	ps.mode = PaletteModeFuzzy
 	ps.cursor = 0
 
-	cmd := ps.confirm()
+	cmd, _ := ps.confirm()
 	if cmd != nil {
 		cmd() // execute the returned tea.Cmd to trigger Execute
 	}
@@ -400,7 +400,7 @@ func TestPaletteConfirmNode(t *testing.T) {
 	ps.mode = PaletteModeFuzzy
 	ps.cursor = 0
 
-	cmd := ps.confirm()
+	cmd, _ := ps.confirm()
 	if cmd == nil {
 		t.Fatal("expected a tea.Cmd, got nil")
 	}
@@ -423,7 +423,7 @@ func TestPaletteConfirmEdge(t *testing.T) {
 	ps.mode = PaletteModeFuzzy
 	ps.cursor = 0
 
-	cmd := ps.confirm()
+	cmd, _ := ps.confirm()
 	if cmd == nil {
 		t.Fatal("expected a tea.Cmd, got nil")
 	}
