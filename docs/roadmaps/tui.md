@@ -297,14 +297,9 @@ description: TUI implementation roadmap — wire the existing shell, add Charm e
 
 <a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
 
-- [x] SP.1. Dated spend entries — `SpendEntry` already has a `Date` string field; surface it as an optional input: add `Date` to `SpendOptions`, accept `--date` flag in `wyrd spend`, add an optional date field to the TUI spend form (`spend_form.go`). Default to today when omitted. Update `RecordSpend` to use the caller-supplied date rather than hardcoding `now.Format(...)`. **No blockers.**
+- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1 (done).**
 
 <a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
-
-<a name="sp-todo-extra"><h4>To Do (Spend Depth)</h4></a>
-
-- [ ] SP.2. Bottom-up budgets — a category envelope's effective allocation = sum of all expected (future-dated) spend entries rather than a manually entered target. Requires SP.1 to produce dated entries that can be distinguished as scheduled vs. historical. **Depends on SP.1 (done).**
-- [x] SP.3. Spend events in budget detail pane — when a budget is selected in the list, render its individual `spend_log` entries in the detail pane (date, amount, note, running total). **Depends on SP.1 (done)**.
 
 <a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
 
