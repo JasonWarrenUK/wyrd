@@ -451,10 +451,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case syncResultMsg:
 		if msg.output == "__trigger__" {
-			// Kick off the actual sync in a background goroutine.
+			// Kick off the actual sync in a background goroutine, with a
+			// status bar spinner running until the result arrives.
 			store := m.store
 			logger := m.logger
-			return m, func() tea.Msg {
+			spinCmd := m.statusBar.StartSpinner("Syncing…")
+			syncCmd := func() tea.Msg {
 				if store == nil {
 					return syncResultMsg{err: fmt.Errorf("no store available")}
 				}
@@ -462,7 +464,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				err := cli.Sync(store, cli.SyncOptions{Logger: logger}, &buf)
 				return syncResultMsg{output: strings.TrimSpace(buf.String()), err: err}
 			}
+			return m, tea.Batch(spinCmd, syncCmd)
 		}
+		m.statusBar.StopSpinner()
 		if msg.err != nil {
 			m.statusBar.SetCaptureText("Sync failed: " + msg.err.Error())
 		} else {
