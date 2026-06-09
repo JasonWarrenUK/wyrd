@@ -2,6 +2,9 @@
 description: TUI implementation roadmap — wire the existing shell, add Charm ecosystem components, polish visuals, and document with screenshots and gifs.
 ---
 
+> [!WARNING]
+> **Archived.** This roadmap is superseded by [`docs/roadmaps/wyrd.md`](../wyrd.md), which carries forward all incomplete tasks and adds new milestones. Do not use this file to choose or track work.
+
 # Wyrd: TUI Roadmap
 
 |        | Status                                       | Next Up | Blocked |
