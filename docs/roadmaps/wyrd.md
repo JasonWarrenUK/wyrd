@@ -15,8 +15,8 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | —       |
 | **SP** | SP.1, SP.3 done                     | SP.2         | —       |
-| **SL** | SL.1 done                           | SL.2, SL.8   | SL.3–SL.7 (need SL.2+) |
-| **NW** | Not started                         | NW.1         | NW.2 (needs SL.8, NW.1) |
+| **SL** | SL.1, SL.8 done                     | SL.2, SL.8b  | SL.3–SL.7 (need SL.2+) |
+| **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.3         | DL.1–DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 
@@ -183,7 +183,7 @@ None yet.
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
 - [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1 (done)**
-- [ ] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties; update index; add to NV.12 grouping logic — **depends on SL.1 (done)**
+- [ ] SL.8b. TUI grouping for kind/stage — wire `n.kind` and `n.stage` into `detectGroupCol` and `groupLabelMap` (`internal/tui/node_list_pane.go`) so query results grouped by kind or stage render grouped headers in the node list — **depends on SL.8 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 - [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2**
@@ -194,6 +194,7 @@ None yet.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties in WHERE, RETURN, and ORDER BY; the index needed no changes (it stores whole nodes). Pre-lattice nodes return `""` for both, so `WHERE n.kind = ""` finds untriaged nodes. NV.12 grouping split out as SL.8b — **depends on SL.1 (done)**
 - [x] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading defaults them to empty (back-compat, no migration step); empty fields are omitted on write so legacy files are unchanged on rewrite — **no blockers**
 
 ---
@@ -209,7 +210,7 @@ None yet.
 
 <a name="mb-blocked"><h4>Blocked (Milestone B)</h4></a>
 
-- [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8, NW.1**
+- [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8 (done), NW.1**
 
 <a name="mb-done"><h4>Completed (Milestone B)</h4></a>
 
@@ -228,9 +229,9 @@ None yet.
 
 <a name="mc-blocked"><h4>Blocked (Milestone C)</h4></a>
 
-- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model — **depends on SL.2, SL.8**
+- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model — **depends on SL.2, SL.8 (done)**
 - [ ] DL.2. TUI: blocked badge on list items where `n.isBlocked` is true; detail pane shows BLOCKED BY section listing blocking nodes — **depends on DL.1**
-- [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages — **depends on DL.3, SL.8**
+- [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages — **depends on DL.3, SL.8 (done)**
 - [ ] DL.5. Dashboard calmness threshold — when active-stage node count drops below configurable N, dashboard automatically appends backlog triage results as a separate section; N and M configurable in `config.jsonc` — **depends on DL.4**
 
 <a name="mc-done"><h4>Completed (Milestone C)</h4></a>
@@ -313,7 +314,8 @@ SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::blocked
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::blocked
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
-SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::open
+SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
+SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::open
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
@@ -344,6 +346,7 @@ SL4 --> SL5 & SL6
 SL5 & SL6 --> SL7
 SL6 --> DA2
 SL7 --> DA5
+SL8 --> SL8b
 SL2 & SL8 --> DL1
 SL8 --> NW2
 NW1 --> NW2
@@ -362,7 +365,7 @@ mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mCO --> CO2
 mSP --> SP2
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
