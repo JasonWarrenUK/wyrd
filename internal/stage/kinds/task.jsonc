@@ -1,0 +1,7 @@
+{
+	// Task — an actionable item worked through to completion via task-flow.
+	"name": "Task",
+	"stage_group": "task-flow",
+	"glyph": "◆",
+	"colour": "#9b70ff"
+}

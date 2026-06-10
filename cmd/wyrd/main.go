@@ -16,6 +16,7 @@ import (
 
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
 	"github.com/jasonwarrenuk/wyrd/internal/query"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/store"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -124,6 +125,24 @@ property graph. Run without arguments to launch the TUI.`,
 				return err
 			}
 			defer s.Close()
+
+			// Build the merged kind registry: baked-in defaults shadowed by the
+			// user's kinds.jsonc. A parse failure in the baked-in defaults is a
+			// build bug, not a user error — treat it as fatal.
+			kindDefaults, err := stage.DefaultKinds()
+			if err != nil {
+				return fmt.Errorf("loading built-in kind defaults: %w", err)
+			}
+			userKindReg, err := s.ReadKinds()
+			if err != nil {
+				// Non-fatal: log and continue without user kinds.
+				if appLogger != nil {
+					appLogger.Warn("could not load kinds.jsonc; using defaults only", "err", err)
+				}
+				userKindReg = types.NewKindRegistry(nil)
+			}
+			kinds := stage.MergeKinds(kindDefaults, userKindReg.All())
+
 			var engineOpts []query.EngineOption
 			if appLogger != nil {
 				engineOpts = append(engineOpts, query.WithLogger(appLogger))
@@ -134,6 +153,7 @@ property graph. Run without arguments to launch the TUI.`,
 				Index:       s.Index(),
 				QueryRunner: query.NewEngine(s.Index(), 0, engineOpts...),
 				Clock:       types.RealClock{},
+				Kinds:       kinds,
 				Logger:      appLogger,
 			})
 		},

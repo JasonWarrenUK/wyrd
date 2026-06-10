@@ -1,0 +1,6 @@
+{
+	// Project lifecycle — moves from initial planning through active work to a terminal Done.
+	"name": "project-flow",
+	"stages": ["Planning", "Active", "Done"],
+	"cycle": "terminate"
+}

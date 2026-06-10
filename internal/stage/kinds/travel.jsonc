@@ -1,0 +1,7 @@
+{
+	// Travel — a trip or journey, scheduled and then completed like an event.
+	"name": "Travel",
+	"stage_group": "event-flow",
+	"glyph": "▲",
+	"colour": "#b98300"
+}

@@ -54,6 +54,7 @@ func (m *mockStore) ReadConfig() (*types.Config, error) {
 	return &types.Config{MaxTraversalDepth: 5}, nil
 }
 func (m *mockStore) WriteConfig(_ *types.Config) error { return nil }
+func (m *mockStore) ReadKinds() (*types.KindRegistry, error) { return types.NewKindRegistry(nil), nil }
 func (m *mockStore) StorePath() string                 { return "/tmp/mock-store" }
 
 // ---------------------------------------------------------------------------

@@ -13,12 +13,14 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
-| **CO** | CO.1 done                           | CO.2         | —       |
-| **SP** | SP.1, SP.3 done                     | SP.2         | —       |
-| **SL** | Not started                         | SL.1         | SL.2–SL.8 (need SL.1+) |
-| **NW** | Not started                         | NW.1         | NW.2 (needs SL.8, NW.1) |
-| **DL** | Not started                         | DL.3         | DL.1–DL.2, DL.4–DL.5 |
+| **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
+| **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
+| **SL** | SL.1, SL.2, SL.3, SL.4, SL.5, SL.8, SL.8b done | SL.6     | SL.7, SL.9–SL.14 (need SL.5+) |
+| **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
+| **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
+| **TD** | Not started                         | TD.1         | TD.2 (needs SL.3) |
+| **VP** | Not started                         | VP.1–VP.5, VP.7, VP.8 | VP.6 (needs VP.4) |
 
 ---
 
@@ -36,6 +38,8 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
   - [Milestone B: Node Types Expansion](#mb)
   - [Milestone C: Backlog](#mc)
   - [Milestone D: Skeins](#md)
+  - [Milestone E: Tech Debt](#me)
+  - [Milestone F: Visual Polish](#mf)
 - [Progress Map](#map)
 
 ---
@@ -127,7 +131,7 @@ None.
 
 <a name="m7-blocked"><h4>Blocked (Milestone 7)</h4></a>
 
-- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, SL.6**
+- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, SL.6, VP.1**
 - [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1**
 - [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1**
 - [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, SL.7**
@@ -151,6 +155,10 @@ None yet.
 
 - [ ] CO.2. `wyrd compact` — orphan edge handling: detach or archive edges linked to archived nodes — **depends on CO.1 (done)**
 
+<a name="m8-blocked"><h4>Blocked (Milestone 8)</h4></a>
+
+- [ ] CO.3. TUI compaction — `:compact` palette command; shows dry-run preview in an overlay, confirm executes, reports moved/detached counts — **depends on CO.2**
+
 <a name="m8-done"><h4>Completed (Milestone 8)</h4></a>
 
 - [x] CO.1. `wyrd compact` — move archived nodes to `archive/` directory with `--dry-run` flag
@@ -165,6 +173,10 @@ None yet.
 <a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
 
 - [ ] SP.2. Bottom-up budgets — effective allocation = sum of all expected (future-dated) spend entries — **depends on SP.1 (done)**
+
+<a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
+
+- [ ] SP.4. Surface bottom-up allocation in TUI — budget detail pane and progress bars use the effective allocation; derived allocations visually distinguished from explicitly set ones — **depends on SP.2, SP.3 (done)**
 
 <a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
 
@@ -182,21 +194,27 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading must default them (back-compat, no migration step) — **no blockers**
+- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1**
-- [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2**
-- [ ] SL.4. Add `kinds.jsonc` config file — user-defined kind registry; each kind has name, stage-group reference, display glyph and colour — **depends on SL.2, SL.3**
-- [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group; clarify which kind each starter template implies; add a Bookmark kind once NW.1 lands — **depends on SL.4**
-- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4**
-- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5, SL.6**
-- [ ] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties; update index; add to NV.12 grouping logic — **depends on SL.1**
+- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5 (done), SL.6**
+- [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.4 (done)**
+- [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
+- [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
+- [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
+- [ ] SL.13. User stage-group registry — `stages.jsonc` holds user-defined stage groups, loaded at startup and merged with the baked-in defaults; stage groups exist independently of kinds so multiple kinds can reference one group; kind stage-group references resolve against the merged set — **depends on SL.3 (done)**
+- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via the SL.6 stage-write path emitting `nodeUpdatedMsg`; until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.4 (done), SL.6, SL.10, SL.13**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
-None yet.
+- [x] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group (Task/Goblin/Talk → task-flow; Event/Travel → event-flow; Habit → habit-flow; Project → project-flow); two new baked-in stage groups added (habit-flow: loop, project-flow: terminate); `stage.DefaultKinds()` and `stage.MergeKinds()` in `internal/stage/kinds.go`; starter template kind implications recorded as JSONC comments; merged registry threaded through `tui.Config.Kinds` at startup; Bookmark kind deferred to NW.1 — **depends on SL.4 (done)**
+- [x] SL.4. Add `kinds.jsonc` config file — `types.Kind` struct (name, stage-group ref, glyph, colour) in `internal/types/kind.go`; `KindRegistry` with `Lookup`/`All`/`Names` and last-wins-by-name merge seam for SL.5; `(*Store).ReadKinds()` in `internal/store/` reads `~/wyrd/kinds.jsonc` (store parent, sibling of `config.jsonc`); missing file yields empty registry; individual invalid entries skipped (lenient); `StoreFS` interface extended; 6 test-mock stubs updated — **depends on SL.2 (done), SL.3 (done)**
+- [x] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2 (done)**
+- [x] SL.2. Define stage group data model — `StageGroup` struct (`Name`, ordered `Stages`, `Cycle`, `LoopTarget`) and `CycleBehaviour` type with three constants: `loop` (wrap to first), `terminate` (stay at end, idempotent), `loop-to-stage` (wrap to a named stage, falling back to first if the target is missing). `Next`/`Prev` advance and retreat honouring cycle behaviour at both boundaries — `Prev` wraps to the last stage for both looping modes (the symmetric inverse of advancing off the end). `(stage, ok)` return: `ok == false` means an unknown stage so callers leave the node untouched. `IsTerminal` reports the no-advance-possible stage for DL.1's blocking check. Pure data model in `internal/types/stage.go`; no I/O — **depends on SL.1 (done)**
+- [x] SL.8b. TUI grouping for kind/stage — `detectGroupCol` recognises `kind` and `stage` columns alongside `category` (alias-triggered, e.g. `RETURN n.kind AS kind`); `toGroupLabel` is column-aware, pluralising kind values like categories and title-casing stage values without a plural (`now` → `Now`). The grouping/render machinery was already generic. No live view drives kind/stage grouping yet — that lands with SL.6/SL.7 — **depends on SL.8 (done)**
+- [x] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties in WHERE, RETURN, and ORDER BY; the index needed no changes (it stores whole nodes). Pre-lattice nodes return `""` for both, so `WHERE n.kind = ""` finds untriaged nodes. NV.12 grouping split out as SL.8b — **depends on SL.1 (done)**
+- [x] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading defaults them to empty (back-compat, no migration step); empty fields are omitted on write so legacy files are unchanged on rewrite — **no blockers**
 
 ---
 
@@ -211,7 +229,7 @@ None yet.
 
 <a name="mb-blocked"><h4>Blocked (Milestone B)</h4></a>
 
-- [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8, NW.1**
+- [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8 (done), NW.1**
 
 <a name="mb-done"><h4>Completed (Milestone B)</h4></a>
 
@@ -226,13 +244,13 @@ None yet.
 
 <a name="mc-todo"><h4>To Do (Milestone C)</h4></a>
 
+- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model (`StageGroup.IsTerminal`, SL.2) — **depends on SL.2 (done), SL.8 (done)**
 - [ ] DL.3. Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness needs nothing from the status lattice — **no blockers**
 
 <a name="mc-blocked"><h4>Blocked (Milestone C)</h4></a>
 
-- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model — **depends on SL.2, SL.8**
 - [ ] DL.2. TUI: blocked badge on list items where `n.isBlocked` is true; detail pane shows BLOCKED BY section listing blocking nodes — **depends on DL.1**
-- [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages — **depends on DL.3, SL.8**
+- [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages — **depends on DL.3, SL.8 (done)**
 - [ ] DL.5. Dashboard calmness threshold — when active-stage node count drops below configurable N, dashboard automatically appends backlog triage results as a separate section; N and M configurable in `config.jsonc` — **depends on DL.4**
 
 <a name="mc-done"><h4>Completed (Milestone C)</h4></a>
@@ -262,6 +280,50 @@ None yet.
 
 ---
 
+<a name="me"><h3>Milestone E: Tech Debt</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** Internal infrastructure cleaned up: JSONC parsing consolidated into a single shared package; default-asset lifecycle documented and consistent across the codebase.
+
+<a name="me-todo"><h4>To Do (Milestone E)</h4></a>
+
+- [ ] TD.1. Consolidate JSONC parsing — four duplicated `stripComments` scanners exist across `internal/store/jsonc.go`, `internal/tui/theme.go`, `internal/tui/views/loader.go`, and `internal/tui/ritual/loader.go` (SL.3 adds a fourth in `internal/stage/`); only the store variant strips trailing commas; extract into a shared `internal/jsonc` package, repoint all consumers, add a trailing-comma test — **no blockers**
+
+<a name="me-blocked"><h4>Blocked (Milestone E)</h4></a>
+
+- [ ] TD.2. ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` — **depends on SL.3**
+
+<a name="me-done"><h4>Completed (Milestone E)</h4></a>
+
+None yet.
+
+---
+
+<a name="mf"><h3>Milestone F: Visual Polish</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** The TUI looks and feels coherent — in-app branding, theme-consistent forms and markdown, considered focus affordances, and honest progress feedback. Visual polish only; no data-model changes. Task ideas VP.2–VP.8 are drawn from a survey of the Charm stack (bubbletea, bubbles, lipgloss, huh, harmonica, glamour). Soft-serve was assessed for `wyrd sync` and deliberately excluded: sync is already a generic git client, so a soft-serve remote needs zero code and adds no UX gain — at most a future docs how-to, not a polish task.
+
+<a name="mf-todo"><h4>To Do (Milestone F)</h4></a>
+
+- [ ] VP.1. Logo/title pane atop the detail column — split the right column vertically into a fixed-height logo/title pane (top) and the existing detail pane (below). Add a `wyrd` wordmark asset (none exists today); rework `layout.go` `Render` to stack the logo box and detail box with `JoinVertical`, add a height calc reserving the logo's rows, and wire a `logoPane` alongside `rightPane` in `app.go`. Must honour the background-bleed rules (`PadLines`, both fg+bg on every style) — **no blockers**
+- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI) — **no blockers**
+- [ ] VP.3. Theme-derived glamour stylesheet — build a glamour `ansi.StyleConfig` from theme colours (headings → accent, code → muted bg, links → accent-secondary) so rendered markdown in the detail pane is visually continuous with its container — **no blockers**
+- [ ] VP.4. Gradient focus border — replace the flat accent border on the focused pane with a subtle `BorderForegroundBlend` gradient (accent → accent-secondary, both already in theme) so focus is unmistakable — **no blockers**
+- [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place` — **no blockers**
+- [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view — **no blockers**
+- [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync` — **no blockers**
+
+<a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
+
+- [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
+
+<a name="mf-done"><h4>Completed (Milestone F)</h4></a>
+
+None yet.
+
+---
+
 <a name="map"><h2>Progress Map</h2></a>
 
 ```mermaid
@@ -280,6 +342,8 @@ mSL["`**Milestone A**<br/>Status Lattice`"]:::mile
 mNW["`**Milestone B**<br/>Node Types`"]:::mile
 mDL["`**Milestone C**<br/>Backlog`"]:::mile
 mSK["`**Milestone D**<br/>Skeins`"]:::mile
+mTE["`**Milestone E**<br/>Tech Debt`"]:::mile
+mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
@@ -305,22 +369,34 @@ DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
 CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
+CO3["`*CO.3*<br/>**Compaction**<br/>TUI :compact`"]:::blocked
 
 SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
+SP4["`*SP.4*<br/>**Spend**<br/>Bottom-up in TUI`"]:::blocked
 
-SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::open
-SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::blocked
-SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::blocked
-SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::blocked
-SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::blocked
-SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
+SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
+SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
+SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
+SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
+SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
+SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::open
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
-SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::blocked
+SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
+SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
+SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::blocked
+SL10["`*SL.10*<br/>**Lattice**<br/>Create kinds in TUI`"]:::blocked
+SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
+SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::blocked
+SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
+SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]
+
+TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
+TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
 
-DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::blocked
+DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::open
 DL2["`*DL.2*<br/>**Backlog**<br/>Blocked badge`"]:::blocked
 DL3["`*DL.3*<br/>**Backlog**<br/>Staleness indicator`"]:::open
 DL4["`*DL.4*<br/>**Backlog**<br/>Triage query`"]:::blocked
@@ -330,6 +406,15 @@ SK1["`*SK.1*<br/>**Skeins**<br/>Data model`"]:::open
 SK2["`*SK.2*<br/>**Skeins**<br/>Store R/W`"]:::blocked
 SK3["`*SK.3*<br/>**Skeins**<br/>Query resolution`"]:::blocked
 SK4["`*SK.4*<br/>**Skeins**<br/>Palette commands`"]:::blocked
+
+VP1["`*VP.1*<br/>**Visual Polish**<br/>Logo pane`"]:::open
+VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::open
+VP3["`*VP.3*<br/>**Visual Polish**<br/>Glamour stylesheet`"]:::open
+VP4["`*VP.4*<br/>**Visual Polish**<br/>Gradient focus border`"]:::open
+VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::open
+VP6["`*VP.6*<br/>**Visual Polish**<br/>Focus animation`"]:::blocked
+VP7["`*VP.7*<br/>**Visual Polish**<br/>Key-hint footer`"]:::open
+VP8["`*VP.8*<br/>**Visual Polish**<br/>Sync progress bar`"]:::open
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6
@@ -342,13 +427,21 @@ DA5 & DA6 & DA7 --> DA9
 SL1 --> SL2 & SL8
 SL2 --> SL3
 SL2 & SL3 --> SL4
-SL4 --> SL5 & SL6
+SL3 --> SL12 & SL13
+SL4 --> SL5 & SL6 & SL9 & SL10
+SL13 --> SL11
+SL4 & SL6 & SL10 & SL13 --> SL14
+SL3 --> TD2
 SL5 & SL6 --> SL7
 SL6 --> DA2
 SL7 --> DA5
+SL8 --> SL8b
 SL2 & SL8 --> DL1
 SL8 --> NW2
 NW1 --> NW2
+
+CO2 --> CO3
+SP2 --> SP4
 
 DL1 --> DL2
 DL3 & SL8 --> DL4
@@ -358,16 +451,21 @@ SK1 --> SK2
 SK2 --> SK3
 SK3 --> SK4
 
+VP1 --> DA2
+VP4 --> VP6
+
 mCP --> CP14 & CP15
 mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
-mCO --> CO2
-mSP --> SP2
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8
+mCO --> CO2 & CO3
+mSP --> SP2 & SP4
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
+mTE --> TD1 & TD2
+mVP --> VP1 & VP2 & VP3 & VP4 & VP5 & VP6 & VP7 & VP8
 
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;

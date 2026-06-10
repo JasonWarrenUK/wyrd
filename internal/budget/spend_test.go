@@ -30,6 +30,7 @@ func (m *mockStore) AllRituals() ([]*types.Ritual, error)              { return 
 func (m *mockStore) ReadTheme(name string) (*types.Theme, error)       { return nil, nil }
 func (m *mockStore) ReadConfig() (*types.Config, error)                { return nil, nil }
 func (m *mockStore) WriteConfig(cfg *types.Config) error               { return nil }
+func (m *mockStore) ReadKinds() (*types.KindRegistry, error)           { return types.NewKindRegistry(nil), nil }
 func (m *mockStore) StorePath() string                                 { return "/tmp/test-store" }
 
 // mockIndex implements types.GraphIndex for testing.

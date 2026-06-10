@@ -1,5 +1,6 @@
 {
 	// Task template — defines fields for actionable items.
+	// Implies kind: Task (task-flow).
 	// due is now at date.due (a core DateFields field), not a template field.
 	"type_name": "task",
 	"fields": {

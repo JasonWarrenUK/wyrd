@@ -153,8 +153,9 @@ type nodeListPane struct {
 	columns   []string
 	colWidths []int
 	rows      []map[string]interface{}
-	// groupCol is the column name used to group rows into sections (e.g.
-	// "category"). Empty string means flat list with no group headers.
+	// groupCol is the column name used to group rows into sections (one of
+	// "category", "kind", "stage"). Empty string means flat list with no
+	// group headers.
 	groupCol string
 	width    int
 	height   int
@@ -172,7 +173,7 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 		cols = dashboardColumns
 	}
 
-	// Detect the group column: use "category" when present.
+	// Detect the group column: "category", "kind", or "stage" when present.
 	groupCol := detectGroupCol(cols)
 
 	const initialWidth = 80
@@ -436,18 +437,30 @@ func skipInitialHeaders(l *list.Model) {
 	// All items are headers (or list is empty) — leave cursor as-is.
 }
 
+// groupableCols lists the column names that, when present in a result, switch
+// the node list into grouped-header mode. A view author opts a column into
+// grouping by aliasing it to one of these names, e.g. `RETURN n.kind AS kind`
+// or `RETURN n.stage AS stage`.
+var groupableCols = map[string]bool{
+	"category": true,
+	"kind":     true,
+	"stage":    true,
+}
+
 // detectGroupCol returns the first column in cols that should be used for
-// grouping. Currently "category" is the only supported group column.
+// grouping, preserving column order so that a result carrying more than one
+// groupable column groups by whichever appears first. Returns "" when none of
+// the groupable columns are present.
 func detectGroupCol(cols []string) string {
 	for _, c := range cols {
-		if c == "category" {
-			return "category"
+		if groupableCols[c] {
+			return c
 		}
 	}
 	return ""
 }
 
-// groupLabel converts a raw category value into a display heading.
+// groupLabelMap maps known kind/category values to display headings.
 // Known values are mapped to capitalised plural labels; unknowns are
 // capitalised with a trailing "s".
 var groupLabelMap = map[string]string{
@@ -457,14 +470,28 @@ var groupLabelMap = map[string]string{
 	"budget":  "Budgets",
 }
 
-func toGroupLabel(raw string) string {
+// toGroupLabel converts a raw group value into a display heading. The column it
+// came from selects the formatting: kind/category values pluralise like node
+// types (task → Tasks); stage values are status-like and are title-cased as-is
+// without a trailing "s" (now → Now).
+func toGroupLabel(groupCol, raw string) string {
+	if raw == "" {
+		return raw
+	}
+	if groupCol == "stage" {
+		return toStageLabel(raw)
+	}
 	if label, ok := groupLabelMap[strings.ToLower(raw)]; ok {
 		return label
 	}
-	if len(raw) == 0 {
-		return raw
-	}
 	return strings.ToUpper(raw[:1]) + raw[1:] + "s"
+}
+
+// toStageLabel title-cases a stage value without pluralising, replacing
+// underscores with spaces: "now" → "Now", "in_progress" → "In progress".
+func toStageLabel(raw string) string {
+	s := strings.ReplaceAll(raw, "_", " ")
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // rowsToItems converts QueryResult rows into bubbles/list items.
@@ -498,7 +525,7 @@ func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, 
 			groups[idx].rows = append(groups[idx].rows, row)
 		} else {
 			groupIndex[raw] = len(groups)
-			groups = append(groups, group{label: toGroupLabel(raw), rows: []map[string]interface{}{row}})
+			groups = append(groups, group{label: toGroupLabel(groupCol, raw), rows: []map[string]interface{}{row}})
 		}
 	}
 

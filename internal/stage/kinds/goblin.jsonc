@@ -1,0 +1,7 @@
+{
+	// Goblin — a nagging task or obligation that must eventually be resolved.
+	"name": "Goblin",
+	"stage_group": "task-flow",
+	"glyph": "◈",
+	"colour": "#d57300"
+}

@@ -1,0 +1,6 @@
+{
+	// Content is Active while in use, then demoted to Reference.
+	"name": "content-flow",
+	"stages": ["Active", "Reference"],
+	"cycle": "terminate"
+}

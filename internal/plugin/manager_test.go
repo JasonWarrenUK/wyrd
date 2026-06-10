@@ -45,6 +45,7 @@ func (s *mockStore) AllRituals() ([]*types.Ritual, error)                 { retu
 func (s *mockStore) ReadTheme(_ string) (*types.Theme, error)             { return nil, nil }
 func (s *mockStore) ReadConfig() (*types.Config, error)                   { return &types.Config{}, nil }
 func (s *mockStore) WriteConfig(_ *types.Config) error                    { return nil }
+func (s *mockStore) ReadKinds() (*types.KindRegistry, error)              { return types.NewKindRegistry(nil), nil }
 func (s *mockStore) ReadPluginManifest(name string) (*types.PluginManifest, error) {
 	manifestPath := filepath.Join(s.storePath, "plugins", name, "plugin.jsonc")
 	data, err := os.ReadFile(manifestPath)

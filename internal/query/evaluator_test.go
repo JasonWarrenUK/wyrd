@@ -210,6 +210,81 @@ func TestEngine_Columns(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Kind and stage properties (SL.8)
+// ---------------------------------------------------------------------------
+
+func buildKindStageGraph() *mockGraph {
+	withLattice := makeNode("k1", "Plan the week", []string{"task"}, nil)
+	withLattice.Kind = "task"
+	withLattice.Stage = "open"
+
+	advanced := makeNode("k2", "Book travel", []string{"task"}, nil)
+	advanced.Kind = "task"
+	advanced.Stage = "now"
+
+	preLattice := makeNode("k3", "Legacy task", []string{"task"}, nil)
+
+	return &mockGraph{nodes: []*types.Node{withLattice, advanced, preLattice}}
+}
+
+func TestEngine_KindStageInReturn(t *testing.T) {
+	g := buildKindStageGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.stage = "open" RETURN n.body, n.kind, n.stage`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(result.Rows))
+	}
+	row := result.Rows[0]
+	if row["n.kind"] != "task" {
+		t.Errorf("expected kind 'task', got %v", row["n.kind"])
+	}
+	if row["n.stage"] != "open" {
+		t.Errorf("expected stage 'open', got %v", row["n.stage"])
+	}
+}
+
+func TestEngine_KindStageWhereFilter(t *testing.T) {
+	g := buildKindStageGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.kind = "task" RETURN n.body ORDER BY n.stage`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// k3 has no kind, so only k1 and k2 match.
+	if len(result.Rows) != 2 {
+		t.Errorf("expected 2 rows with kind 'task', got %d", len(result.Rows))
+	}
+}
+
+func TestEngine_KindStagePreLatticeDefaults(t *testing.T) {
+	g := buildKindStageGraph()
+	e := newTestEngine(g)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.body = "Legacy task" RETURN n.kind, n.stage`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(result.Rows))
+	}
+	row := result.Rows[0]
+	if row["n.kind"] != "" {
+		t.Errorf("expected empty kind for pre-lattice node, got %v", row["n.kind"])
+	}
+	if row["n.stage"] != "" {
+		t.Errorf("expected empty stage for pre-lattice node, got %v", row["n.stage"])
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Edge traversal
 // ---------------------------------------------------------------------------
 

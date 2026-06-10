@@ -118,6 +118,11 @@ type Model struct {
 
 	// rituals is the list of loaded ritual definitions.
 	rituals []*types.Ritual
+	// kinds is the merged kind registry (baked-in defaults + user's kinds.jsonc).
+	// May be nil when constructed without registry wiring (e.g. tests that don't
+	// supply kinds — callers should check for nil before use).
+	kinds *types.KindRegistry
+
 	// logger is the structured logger. May be nil.
 	logger *clog.Logger
 
@@ -164,6 +169,12 @@ type Config struct {
 	// Clock is used for date variable resolution in queries (e.g. $today).
 	// Defaults to types.RealClock{} when nil.
 	Clock types.Clock
+
+	// Kinds is the merged kind registry (baked-in defaults + user's kinds.jsonc).
+	// May be nil; callers that need kind data should check before use. Downstream
+	// TUI tasks (SL.6 stage keypresses, SL.7 kind selection forms) expect this
+	// to be populated.
+	Kinds *types.KindRegistry
 
 	// Logger is the structured logger. May be nil.
 	Logger *clog.Logger
@@ -335,6 +346,7 @@ func New(cfg Config) (Model, error) {
 		detailRenderer: NewDetailRenderer(),
 		schedulerState: schedulerState,
 		rituals:        rituals,
+		kinds:          cfg.Kinds,
 		logger:         cfg.Logger,
 		logOverlay:     newLogOverlay(theme),
 		helpOverlay:    newHelpOverlay(theme),

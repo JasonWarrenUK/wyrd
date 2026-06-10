@@ -1,0 +1,6 @@
+{
+	// Habit progression — loops: a completed habit resets to Todo, never truly finishes.
+	"name": "habit-flow",
+	"stages": ["Todo", "Done"],
+	"cycle": "loop"
+}

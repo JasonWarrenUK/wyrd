@@ -188,6 +188,12 @@ func (s *Store) WriteNode(node *types.Node) error {
 	if node.Title != "" {
 		raw["title"] = node.Title
 	}
+	if node.Kind != "" {
+		raw["kind"] = node.Kind
+	}
+	if node.Stage != "" {
+		raw["stage"] = node.Stage
+	}
 	if node.Source != nil {
 		raw["source"] = node.Source
 	}
@@ -329,6 +335,35 @@ func (s *Store) ReadConfig() (*types.Config, error) {
 func (s *Store) WriteConfig(cfg *types.Config) error {
 	path := filepath.Join(s.path, "..", "config.jsonc")
 	return writeJSONC(path, cfg)
+}
+
+// ReadKinds reads the user's kind registry from kinds.jsonc in the store's
+// parent directory (alongside config.jsonc). A missing file yields an empty
+// registry and no error — first run is not a failure. Individual kinds that
+// fail structural validation are skipped with a warning (lenient, like
+// AllViews). A whole-file JSON parse failure is a ParseError.
+func (s *Store) ReadKinds() (*types.KindRegistry, error) {
+	path := filepath.Join(s.path, "..", "kinds.jsonc")
+	data, err := readJSONC(path)
+	if err != nil {
+		if isNotExist(err) {
+			return types.NewKindRegistry(nil), nil
+		}
+		return nil, fmt.Errorf("reading kinds: %w", err)
+	}
+	var kinds []types.Kind
+	if err := unmarshalJSON(data, &kinds); err != nil {
+		return nil, &types.ParseError{Source: "kinds.jsonc", Message: err.Error()}
+	}
+	valid := make([]types.Kind, 0, len(kinds))
+	for _, k := range kinds {
+		if verr := k.Validate(); verr != nil {
+			s.logWarn("skipping invalid kind", "name", k.Name, "err", verr)
+			continue
+		}
+		valid = append(valid, k)
+	}
+	return types.NewKindRegistry(valid), nil
 }
 
 // ReadPluginManifest reads a plugin's manifest by plugin name.

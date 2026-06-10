@@ -105,6 +105,7 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	node := &types.Node{Properties: make(map[string]interface{})}
 	coreFields := map[string]bool{
 		"id": true, "body": true, "title": true, "types": true,
+		"kind": true, "stage": true,
 		"created": true, "modified": true, "source": true,
 		// date object and its flat legacy equivalents
 		"date": true, "due": true, "about": true,
@@ -124,6 +125,8 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 		Body     string        `json:"body"`
 		Title    string        `json:"title,omitempty"`
 		Types    []string      `json:"types"`
+		Kind     string        `json:"kind,omitempty"`
+		Stage    string        `json:"stage,omitempty"`
 		Created  time.Time     `json:"created"`
 		Modified time.Time     `json:"modified"`
 		Source   *types.Source `json:"source,omitempty"`
@@ -137,6 +140,8 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	node.Body = core.Body
 	node.Title = core.Title
 	node.Types = core.Types
+	node.Kind = core.Kind
+	node.Stage = core.Stage
 	node.Created = core.Created
 	node.Modified = core.Modified
 	node.Source = core.Source

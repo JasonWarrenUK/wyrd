@@ -39,6 +39,7 @@ func (s *formTestStore) AllRituals() ([]*types.Ritual, error)               { re
 func (s *formTestStore) ReadTheme(_ string) (*types.Theme, error)           { return nil, nil }
 func (s *formTestStore) ReadConfig() (*types.Config, error)                 { return nil, nil }
 func (s *formTestStore) WriteConfig(_ *types.Config) error                  { return nil }
+func (s *formTestStore) ReadKinds() (*types.KindRegistry, error)            { return types.NewKindRegistry(nil), nil }
 func (s *formTestStore) StorePath() string                                  { return "/tmp/form-test" }
 
 func formTestClock() types.Clock {

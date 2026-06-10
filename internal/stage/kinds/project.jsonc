@@ -1,0 +1,7 @@
+{
+	// Project — a multi-phase endeavour moving through planning, active work, and completion.
+	"name": "Project",
+	"stage_group": "project-flow",
+	"glyph": "■",
+	"colour": "#6f6f6f"
+}

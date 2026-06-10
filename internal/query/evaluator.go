@@ -692,6 +692,10 @@ func nodeProperty(node *types.Node, name string) interface{} {
 		return node.Body
 	case "title":
 		return node.Title
+	case "kind":
+		return node.Kind
+	case "stage":
+		return node.Stage
 	case "created":
 		return node.Created
 	case "modified":

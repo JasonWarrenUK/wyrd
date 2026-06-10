@@ -1,0 +1,6 @@
+{
+	// Terminating task progression: untriaged Open through to a final Done.
+	"name": "task-flow",
+	"stages": ["Open", "Maybe", "Later", "Soon", "Now", "Done"],
+	"cycle": "terminate"
+}
