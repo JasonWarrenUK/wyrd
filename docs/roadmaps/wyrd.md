@@ -15,9 +15,9 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | —       |
 | **SP** | SP.1, SP.3 done                     | SP.2         | —       |
-| **SL** | SL.1, SL.8, SL.8b done               | SL.2         | SL.3–SL.7 (need SL.2+) |
+| **SL** | SL.1, SL.2, SL.8, SL.8b done         | SL.3         | SL.4–SL.7 (need SL.3+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
-| **DL** | Not started                         | DL.3         | DL.1–DL.2, DL.4–DL.5 |
+| **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 
 ---
@@ -182,17 +182,17 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1 (done)**
+- [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
-- [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2**
-- [ ] SL.4. Add `kinds.jsonc` config file — user-defined kind registry; each kind has name, stage-group reference, display glyph and colour — **depends on SL.2, SL.3**
+- [ ] SL.4. Add `kinds.jsonc` config file — user-defined kind registry; each kind has name, stage-group reference, display glyph and colour — **depends on SL.2 (done), SL.3**
 - [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group; clarify which kind each starter template implies; add a Bookmark kind once NW.1 lands — **depends on SL.4**
 - [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4**
 - [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5, SL.6**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.2. Define stage group data model — `StageGroup` struct (`Name`, ordered `Stages`, `Cycle`, `LoopTarget`) and `CycleBehaviour` type with three constants: `loop` (wrap to first), `terminate` (stay at end, idempotent), `loop-to-stage` (wrap to a named stage, falling back to first if the target is missing). `Next`/`Prev` advance and retreat honouring cycle behaviour at both boundaries — `Prev` wraps to the last stage for both looping modes (the symmetric inverse of advancing off the end). `(stage, ok)` return: `ok == false` means an unknown stage so callers leave the node untouched. `IsTerminal` reports the no-advance-possible stage for DL.1's blocking check. Pure data model in `internal/types/stage.go`; no I/O — **depends on SL.1 (done)**
 - [x] SL.8b. TUI grouping for kind/stage — `detectGroupCol` recognises `kind` and `stage` columns alongside `category` (alias-triggered, e.g. `RETURN n.kind AS kind`); `toGroupLabel` is column-aware, pluralising kind values like categories and title-casing stage values without a plural (`now` → `Now`). The grouping/render machinery was already generic. No live view drives kind/stage grouping yet — that lands with SL.6/SL.7 — **depends on SL.8 (done)**
 - [x] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties in WHERE, RETURN, and ORDER BY; the index needed no changes (it stores whole nodes). Pre-lattice nodes return `""` for both, so `WHERE n.kind = ""` finds untriaged nodes. NV.12 grouping split out as SL.8b — **depends on SL.1 (done)**
 - [x] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading defaults them to empty (back-compat, no migration step); empty fields are omitted on write so legacy files are unchanged on rewrite — **no blockers**
@@ -225,11 +225,11 @@ None yet.
 
 <a name="mc-todo"><h4>To Do (Milestone C)</h4></a>
 
+- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model (`StageGroup.IsTerminal`, SL.2) — **depends on SL.2 (done), SL.8 (done)**
 - [ ] DL.3. Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness needs nothing from the status lattice — **no blockers**
 
 <a name="mc-blocked"><h4>Blocked (Milestone C)</h4></a>
 
-- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model — **depends on SL.2, SL.8 (done)**
 - [ ] DL.2. TUI: blocked badge on list items where `n.isBlocked` is true; detail pane shows BLOCKED BY section listing blocking nodes — **depends on DL.1**
 - [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages — **depends on DL.3, SL.8 (done)**
 - [ ] DL.5. Dashboard calmness threshold — when active-stage node count drops below configurable N, dashboard automatically appends backlog triage results as a separate section; N and M configurable in `config.jsonc` — **depends on DL.4**
@@ -308,8 +308,8 @@ CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
 
 SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
-SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::open
-SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::blocked
+SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
+SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::open
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::blocked
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::blocked
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
@@ -320,7 +320,7 @@ SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
 
-DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::blocked
+DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::open
 DL2["`*DL.2*<br/>**Backlog**<br/>Blocked badge`"]:::blocked
 DL3["`*DL.3*<br/>**Backlog**<br/>Staleness indicator`"]:::open
 DL4["`*DL.4*<br/>**Backlog**<br/>Triage query`"]:::blocked
