@@ -9,13 +9,13 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 |        | Status                              | Next Up      | Blocked |
 |--------|-------------------------------------|--------------|---------|
-| **CP** | CP.14 done; prefix renames pending  | CP.15        | —       |
+| **CP** | CP.14 done; prefix renames pending  | CP.15, CP.16 | —       |
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
-| **SL** | SL.1, SL.2, SL.3, SL.4, SL.5, SL.8, SL.8b done | SL.6     | SL.7, SL.9–SL.14 (need SL.5+) |
+| **SL** | SL.1, SL.2, SL.3, SL.4, SL.5, SL.8, SL.8b done | SL.15    | SL.6, SL.7, SL.9–SL.14 (need SL.15+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -54,6 +54,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, tests, and docs, so budget-related prefixes group under `b*` — **no blockers**
+- [ ] CP.16. Fix edit-mode node data loss — TUI edit forms (`internal/tui/form.go`) rebuild nodes from scratch via `(formPane).buildNode` instead of merging, silently discarding everything outside the form's fixed field set: the entire budget `spend_log` is wiped on budget edit (serious data loss), all `Date` sub-fields (`Due`/`About`/`Schedule`/`Start`/`SnoozeUntil`) are dropped on any edit, journal `About` is reset to the edit timestamp, and custom/plugin `Properties` are dropped. Stash the original node on the `formPane` in the edit constructors and have `buildNode` start from a clone, overwriting only form-owned fields; add `Validate` to the budget "Warn at" input for parity with Allocated. Blocks downstream tasks that extend the edit/write path (SL.7, SL.14) so they don't inherit or compound the loss — **no blockers**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -194,17 +195,18 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4 (done)**
+- [ ] SL.15. TUI: show `Kind` and `Stage` in the detail pane — `internal/tui/detail.go` never renders `node.Kind` or `node.Stage` because `buildMetadataLines` only iterates `Properties` and the store parser lifts kind/stage into typed top-level fields. Add a kind/stage line to the detail pane, using the kind registry for glyph and colour where the node's kind resolves. Upstream of every TUI task that surfaces or manipulates kind/stage (SL.6, SL.7, SL.9) so the display layer exists before interactions build on it — **depends on SL.4 (done), SL.5 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5 (done), SL.6**
-- [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.4 (done)**
+- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4 (done), SL.15**
+- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5 (done), SL.6, SL.15, CP.16**
+- [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.4 (done), SL.15**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
 - [ ] SL.13. User stage-group registry — `stages.jsonc` holds user-defined stage groups, loaded at startup and merged with the baked-in defaults; stage groups exist independently of kinds so multiple kinds can reference one group; kind stage-group references resolve against the merged set — **depends on SL.3 (done)**
-- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via the SL.6 stage-write path emitting `nodeUpdatedMsg`; until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.4 (done), SL.6, SL.10, SL.13**
+- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via the SL.6 stage-write path emitting `nodeUpdatedMsg`; until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.4 (done), SL.6, SL.10, SL.13, CP.16**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
@@ -347,6 +349,7 @@ mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
+CP16["`*CP.16*<br/>**Capture**<br/>Edit data-loss fix`"]:::open
 
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::done
 
@@ -379,7 +382,7 @@ SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
 SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
-SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::open
+SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
@@ -389,6 +392,7 @@ SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
 SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::blocked
 SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
 SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]
+SL15["`*SL.15*<br/>**Lattice**<br/>Kind/stage in detail pane`"]:::open
 
 TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
 TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]
@@ -433,6 +437,8 @@ SL13 --> SL11
 SL4 & SL6 & SL10 & SL13 --> SL14
 SL3 --> TD2
 SL5 & SL6 --> SL7
+SL15 --> SL6 & SL7 & SL9
+CP16 --> SL7 & SL14
 SL6 --> DA2
 SL7 --> DA5
 SL8 --> SL8b
@@ -454,13 +460,13 @@ SK3 --> SK4
 VP1 --> DA2
 VP4 --> VP6
 
-mCP --> CP14 & CP15
+mCP --> CP14 & CP15 & CP16
 mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mCO --> CO2 & CO3
 mSP --> SP2 & SP4
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14 & SL15
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
