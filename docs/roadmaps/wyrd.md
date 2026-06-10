@@ -20,6 +20,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 | **TD** | Not started                         | TD.1         | TD.2 (needs SL.3) |
+| **VP** | Not started                         | VP.1–VP.5, VP.7, VP.8 | VP.6 (needs VP.4) |
 
 ---
 
@@ -38,6 +39,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
   - [Milestone C: Backlog](#mc)
   - [Milestone D: Skeins](#md)
   - [Milestone E: Tech Debt](#me)
+  - [Milestone F: Visual Polish](#mf)
 - [Progress Map](#map)
 
 ---
@@ -129,7 +131,7 @@ None.
 
 <a name="m7-blocked"><h4>Blocked (Milestone 7)</h4></a>
 
-- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, SL.6**
+- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, SL.6, VP.1**
 - [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1**
 - [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1**
 - [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, SL.7**
@@ -297,6 +299,31 @@ None yet.
 
 ---
 
+<a name="mf"><h3>Milestone F: Visual Polish</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** The TUI looks and feels coherent — in-app branding, theme-consistent forms and markdown, considered focus affordances, and honest progress feedback. Visual polish only; no data-model changes. Task ideas VP.2–VP.8 are drawn from a survey of the Charm stack (bubbletea, bubbles, lipgloss, huh, harmonica, glamour). Soft-serve was assessed for `wyrd sync` and deliberately excluded: sync is already a generic git client, so a soft-serve remote needs zero code and adds no UX gain — at most a future docs how-to, not a polish task.
+
+<a name="mf-todo"><h4>To Do (Milestone F)</h4></a>
+
+- [ ] VP.1. Logo/title pane atop the detail column — split the right column vertically into a fixed-height logo/title pane (top) and the existing detail pane (below). Add a `wyrd` wordmark asset (none exists today); rework `layout.go` `Render` to stack the logo box and detail box with `JoinVertical`, add a height calc reserving the logo's rows, and wire a `logoPane` alongside `rightPane` in `app.go`. Must honour the background-bleed rules (`PadLines`, both fg+bg on every style) — **no blockers**
+- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI) — **no blockers**
+- [ ] VP.3. Theme-derived glamour stylesheet — build a glamour `ansi.StyleConfig` from theme colours (headings → accent, code → muted bg, links → accent-secondary) so rendered markdown in the detail pane is visually continuous with its container — **no blockers**
+- [ ] VP.4. Gradient focus border — replace the flat accent border on the focused pane with a subtle `BorderForegroundBlend` gradient (accent → accent-secondary, both already in theme) so focus is unmistakable — **no blockers**
+- [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place` — **no blockers**
+- [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view — **no blockers**
+- [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync` — **no blockers**
+
+<a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
+
+- [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
+
+<a name="mf-done"><h4>Completed (Milestone F)</h4></a>
+
+None yet.
+
+---
+
 <a name="map"><h2>Progress Map</h2></a>
 
 ```mermaid
@@ -316,6 +343,7 @@ mNW["`**Milestone B**<br/>Node Types`"]:::mile
 mDL["`**Milestone C**<br/>Backlog`"]:::mile
 mSK["`**Milestone D**<br/>Skeins`"]:::mile
 mTE["`**Milestone E**<br/>Tech Debt`"]:::mile
+mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
@@ -379,6 +407,15 @@ SK2["`*SK.2*<br/>**Skeins**<br/>Store R/W`"]:::blocked
 SK3["`*SK.3*<br/>**Skeins**<br/>Query resolution`"]:::blocked
 SK4["`*SK.4*<br/>**Skeins**<br/>Palette commands`"]:::blocked
 
+VP1["`*VP.1*<br/>**Visual Polish**<br/>Logo pane`"]:::open
+VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::open
+VP3["`*VP.3*<br/>**Visual Polish**<br/>Glamour stylesheet`"]:::open
+VP4["`*VP.4*<br/>**Visual Polish**<br/>Gradient focus border`"]:::open
+VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::open
+VP6["`*VP.6*<br/>**Visual Polish**<br/>Focus animation`"]:::blocked
+VP7["`*VP.7*<br/>**Visual Polish**<br/>Key-hint footer`"]:::open
+VP8["`*VP.8*<br/>**Visual Polish**<br/>Sync progress bar`"]:::open
+
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6
 RT5 --> DA6
@@ -414,6 +451,9 @@ SK1 --> SK2
 SK2 --> SK3
 SK3 --> SK4
 
+VP1 --> DA2
+VP4 --> VP6
+
 mCP --> CP14 & CP15
 mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
@@ -425,6 +465,7 @@ mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
 mTE --> TD1 & TD2
+mVP --> VP1 & VP2 & VP3 & VP4 & VP5 & VP6 & VP7 & VP8
 
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;
