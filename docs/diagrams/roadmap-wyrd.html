@@ -570,6 +570,55 @@
 			top: 1px;
 		}
 
+		/* ============ DIAGRAM DETAILS ============ */
+		details.diagram-group {
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			overflow: hidden;
+			margin-bottom: 12px;
+		}
+
+		details.diagram-group summary {
+			padding: 12px 18px;
+			background: var(--surface);
+			cursor: pointer;
+			list-style: none;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--text);
+			transition: background 0.15s;
+			user-select: none;
+		}
+
+		details.diagram-group summary:hover {
+			background: var(--accent-dim);
+		}
+
+		details.diagram-group summary::-webkit-details-marker {
+			display: none;
+		}
+
+		details.diagram-group summary::before {
+			content: '▸';
+			font-size: 10px;
+			color: var(--text-dim);
+			transition: transform 0.15s;
+			flex-shrink: 0;
+		}
+
+		details.diagram-group[open] summary::before {
+			transform: rotate(90deg);
+		}
+
+		.diagram-group__body {
+			padding: 16px;
+			border-top: 1px solid var(--border);
+			background: var(--bg);
+		}
+
 		/* ============ MERMAID ============ */
 		.diagram-shell {
 			position: relative;
@@ -1276,24 +1325,144 @@
 			<!-- ===== SECTION 3: DEPENDENCY GRAPH ===== -->
 			<div id="s3" class="sec-head animate" style="--i:24">3 — Dependency Graph</div>
 
-			<section class="diagram-shell animate" style="--i:25">
-				<p class="diagram-shell__hint">
-					Ctrl/Cmd + wheel to zoom &nbsp;&middot;&nbsp; drag to pan &nbsp;&middot;&nbsp; double-click to fit
-				</p>
-				<div class="mermaid-wrap">
-					<div class="zoom-controls">
-						<button type="button" data-action="zoom-in" title="Zoom in">+</button>
-						<button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
-						<button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
-						<button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
-						<button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
-						<span class="zoom-label">Loading...</span>
-					</div>
-					<div class="mermaid-viewport">
-						<div class="mermaid mermaid-canvas"></div>
-					</div>
+			<!-- Active tasks only (open by default) -->
+			<details class="diagram-group animate" style="--i:25" open>
+				<summary>Active tasks</summary>
+				<div class="diagram-group__body">
+					<section class="diagram-shell">
+						<p class="diagram-shell__hint">
+							Ctrl/Cmd + wheel to zoom &nbsp;&middot;&nbsp; drag to pan &nbsp;&middot;&nbsp; double-click to fit
+						</p>
+						<div class="mermaid-wrap">
+							<div class="zoom-controls">
+								<button type="button" data-action="zoom-in" title="Zoom in">+</button>
+								<button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+								<button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+								<button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+								<button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+								<span class="zoom-label">Loading...</span>
+							</div>
+							<div class="mermaid-viewport">
+								<div class="mermaid mermaid-canvas"></div>
+							</div>
+						</div>
+						<script type="text/plain" class="diagram-source">
+graph TD
+
+subgraph M3["M3 · Capture & Forms"]
+  CP15["`*CP.15*<br/>Prefix renames`"]:::open
+end
+
+subgraph M6["M6 · Rituals"]
+  RT6["`*RT.6*<br/>Persist deferral`"]:::open
+  RT7["`*RT.7*<br/>Action step`"]:::open
+  RT8["`*RT.8*<br/>Palette cmd`"]:::open
+end
+
+subgraph M7["M7 · Docs Assets"]
+  DA1["`*DA.1*<br/>freeze/vhs`"]:::open
+  DA2["`*DA.2*<br/>Main freeze`"]:::blocked
+  DA3["`*DA.3*<br/>Budget freeze`"]:::blocked
+  DA4["`*DA.4*<br/>Schedule freeze`"]:::blocked
+  DA5["`*DA.5*<br/>Task VHS`"]:::blocked
+  DA6["`*DA.6*<br/>Ritual VHS`"]:::blocked
+  DA7["`*DA.7*<br/>Sync VHS`"]:::blocked
+  DA8["`*DA.8*<br/>README imgs`"]:::blocked
+  DA9["`*DA.9*<br/>make demo`"]:::blocked
+end
+
+subgraph M8["M8 · Compaction"]
+  CO2["`*CO.2*<br/>Orphan edges`"]:::open
+  CO3["`*CO.3*<br/>TUI :compact`"]:::blocked
+end
+
+subgraph SP["Spend Depth"]
+  SP2["`*SP.2*<br/>Bottom-up`"]:::open
+  SP4["`*SP.4*<br/>TUI alloc`"]:::blocked
+end
+
+subgraph MA["MA · Status Lattice"]
+  SL3["`*SL.3*<br/>Default groups`"]:::open
+  SL4["`*SL.4*<br/>kinds.jsonc`"]:::blocked
+  SL5["`*SL.5*<br/>Default kinds`"]:::blocked
+  SL6["`*SL.6*<br/>] / [ keys`"]:::blocked
+  SL7["`*SL.7*<br/>Kind in forms`"]:::blocked
+  SL9["`*SL.9*<br/>:kinds view`"]:::blocked
+  SL10["`*SL.10*<br/>:kind new`"]:::blocked
+  SL11["`*SL.11*<br/>:stages new`"]:::blocked
+  SL12["`*SL.12*<br/>:stages view`"]:::blocked
+  SL13["`*SL.13*<br/>stages.jsonc`"]:::blocked
+end
+
+subgraph MB["MB · Node Types"]
+  NW1["`*NW.1*<br/>Bookmark bm:`"]:::open
+  NW2["`*NW.2*<br/>answers edge`"]:::blocked
+end
+
+subgraph MC["MC · Backlog"]
+  DL1["`*DL.1*<br/>isBlocked`"]:::open
+  DL2["`*DL.2*<br/>Blocked badge`"]:::blocked
+  DL3["`*DL.3*<br/>Staleness`"]:::open
+  DL4["`*DL.4*<br/>Triage query`"]:::blocked
+  DL5["`*DL.5*<br/>Calmness`"]:::blocked
+end
+
+subgraph MD["MD · Skeins"]
+  SK1["`*SK.1*<br/>Skein model`"]:::open
+  SK2["`*SK.2*<br/>Store R/W`"]:::blocked
+  SK3["`*SK.3*<br/>Query resolve`"]:::blocked
+  SK4["`*SK.4*<br/>Palette cmds`"]:::blocked
+end
+
+DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
+DA2 & DA3 & DA4 --> DA8
+DA5 & DA6 & DA7 --> DA9
+SL3 --> SL4 & SL12 & SL13
+SL4 --> SL5 & SL6 & SL9 & SL10
+SL13 --> SL11
+SL5 & SL6 --> SL7
+SL6 --> DA2
+SL7 --> DA5
+DL1 --> DL2
+DL3 --> DL4
+DL4 --> DL5
+NW1 --> NW2
+CO2 --> CO3
+SP2 --> SP4
+SK1 --> SK2
+SK2 --> SK3
+SK3 --> SK4
+
+classDef open    fill:#fffbeb44,stroke:#d4ac0d,color:#7a5f00
+classDef blocked fill:#fff7fb44,stroke:#d2008f,color:#4b0030
+classDef mile    fill:#e3f7ff44,stroke:#007590,color:#001f28,font-weight:bold
+						</script>
+					</section>
 				</div>
-				<script type="text/plain" class="diagram-source">
+			</details>
+
+			<!-- Full graph including completed tasks -->
+			<details class="diagram-group animate" style="--i:26">
+				<summary>Full graph — including completed tasks</summary>
+				<div class="diagram-group__body">
+					<section class="diagram-shell">
+						<p class="diagram-shell__hint">
+							Ctrl/Cmd + wheel to zoom &nbsp;&middot;&nbsp; drag to pan &nbsp;&middot;&nbsp; double-click to fit
+						</p>
+						<div class="mermaid-wrap">
+							<div class="zoom-controls">
+								<button type="button" data-action="zoom-in" title="Zoom in">+</button>
+								<button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+								<button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+								<button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+								<button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+								<span class="zoom-label">Loading...</span>
+							</div>
+							<div class="mermaid-viewport">
+								<div class="mermaid mermaid-canvas"></div>
+							</div>
+						</div>
+						<script type="text/plain" class="diagram-source">
 graph TD
 
 subgraph M3["M3 · Capture & Forms"]
@@ -1406,10 +1575,12 @@ classDef open    fill:#fffbeb44,stroke:#d4ac0d,color:#7a5f00
 classDef blocked fill:#fff7fb44,stroke:#d2008f,color:#4b0030
 classDef done    fill:#d7fff744,stroke:#007c6e,color:#004d42
 classDef mile    fill:#e3f7ff44,stroke:#007590,color:#001f28,font-weight:bold
-      </script>
-			</section>
+						</script>
+					</section>
+				</div>
+			</details>
 
-			<div class="legend animate" style="--i:26">
+			<div class="legend animate" style="--i:27">
 				<div class="legend-item">
 					<div class="legend-swatch" style="background:var(--color-done)"></div>
 					Done
@@ -1547,6 +1718,8 @@ classDef mile    fill:#e3f7ff44,stroke:#007590,color:#001f28,font-weight:bold
 				lineColor: isDark ? '#9a8f85' : '#6b5f55',
 				noteBkgColor: isDark ? '#201a14' : '#fefce8',
 				noteTextColor: isDark ? '#e8e0d8' : '#1a1410',
+				clusterBkg: isDark ? '#1e1e1e' : '#f0efed',
+				clusterBorder: isDark ? '#383838' : '#d4cfc9',
 			}
 		});
 
