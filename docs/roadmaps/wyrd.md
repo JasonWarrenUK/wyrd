@@ -5,20 +5,20 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 # Wyrd: Feature Roadmap
 
 > [!NOTE]
-> Capture prefix changes from tui.md: `s:` → `bs:` (spend), `b:` → `bc:` (budget category), `bm:` (bookmark, new).
+> Capture prefix renames (`s:` → `bs:`, `b:` → `bc:`) are tracked as CP.15; the code currently uses `s:` and `b:`. The `bm:` bookmark prefix arrives with NW.1.
 
-|        | Status                          | Next Up | Blocked |
-|--------|---------------------------------|---------|---------|
-| **CP** | CP.13 done; CP.14 outstanding   | CP.14   | —       |
-| **LG** | LG.1–LG.6 done                  | LG.7    | —       |
-| **RT** | RT.1 done; runner not wired     | RT.2    | RT.3–RT.8 (need RT.2) |
-| **DA** | No screenshots/gifs             | DA.1    | DA.2–DA.9 |
-| **CO** | CO.1 done                       | CO.2    | —       |
-| **SP** | SP.1, SP.3 done                 | SP.2    | —       |
-| **SL** | Not started                     | SL.1    | SL.2–SL.8 (need SL.1+) |
-| **NW** | Not started                     | —       | NW.1–NW.2 (need SL.5+) |
-| **DL** | Not started                     | —       | DL.1–DL.5 (need SL.1+) |
-| **SK** | Not started                     | SK.1    | SK.2–SK.4 (need SK.1+) |
+|        | Status                              | Next Up      | Blocked |
+|--------|-------------------------------------|--------------|---------|
+| **CP** | CP.14 done; prefix renames pending  | CP.15        | —       |
+| **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
+| **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
+| **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
+| **CO** | CO.1 done                           | CO.2         | —       |
+| **SP** | SP.1, SP.3 done                     | SP.2         | —       |
+| **SL** | Not started                         | SL.1         | SL.2–SL.8 (need SL.1+) |
+| **NW** | Not started                         | NW.1         | NW.2 (needs SL.8, NW.1) |
+| **DL** | Not started                         | DL.3         | DL.1–DL.2, DL.4–DL.5 |
+| **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 
 ---
 
@@ -49,10 +49,11 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.14. Budget creation form — `huh`-based form triggered by `bc:` capture prefix; fields for category name, allocation amount, period select, warn threshold; creates a budget-type node — **depends on CP.13 (done)**
+- [ ] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, tests, and docs, so budget-related prefixes group under `b*` — **no blockers**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
+- [x] CP.14. Budget creation form — `huh`-based form with fields for category name, allocation amount, period select, warn threshold; creates a budget-type node. Shipped on the `b:` prefix; the `bc:` rename is CP.15 — **depends on CP.13 (done)**
 - [x] CP.13. Add `budget.jsonc` starter template — **no blockers**
 - [x] CP.11. Edge management in edit form — **no blockers**
 - [x] CP.10. Edit existing node — `ctrl+o` opens pre-populated huh form — **no blockers**
@@ -76,10 +77,11 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="m5-todo"><h4>To Do (Milestone 5)</h4></a>
 
-- [ ] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2 (done)**
+None — milestone complete.
 
 <a name="m5-done"><h4>Completed (Milestone 5)</h4></a>
 
+- [x] LG.7. Add TUI debug overlay (`:log` command in palette) that tails `wyrd.log` in a viewport — **depends on LG.2 (done)**
 - [x] LG.6. Thread logger through query engine — **depends on LG.2 (done)**
 - [x] LG.5. Thread logger through sync — **depends on LG.2 (done)**
 - [x] LG.4. Thread logger through store operations — **depends on LG.2 (done)**
@@ -96,19 +98,20 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="m6-todo"><h4>To Do (Milestone 6)</h4></a>
 
-- [ ] RT.2. Mount ritual runner in a full-screen overlay pane (or replace left pane temporarily) — **no blockers**
+- [ ] RT.6. Persist ritual deferral timestamp — the `Esc Esc d` defer sequence and in-session `StateDeferred` are done, but nothing is written to disk; deferrals (and per-day dismissals, currently in-memory in `SchedulerState`) should survive a restart — **depends on RT.5 (done)**
+- [ ] RT.7. Action step execution — the step type is parsed and rendered but all v1 actions are stubbed (`internal/tui/ritual/runner.go`); implement real actions — **depends on RT.2 (done)**
+- [ ] RT.8. Palette ritual command — `:ritual <name>` launches a ritual on demand — **depends on RT.2 (done)**
 
 <a name="m6-blocked"><h4>Blocked (Milestone 6)</h4></a>
 
-- [ ] RT.3. Query steps in ritual — **depends on RT.2**
-- [ ] RT.4. Prompt steps via huh — **depends on RT.2, CP.1 (done)**
-- [ ] RT.5. Gate step — **depends on RT.2**
-- [ ] RT.6. Wire `Esc Esc d` to defer ritual and record deferral timestamp — **depends on RT.5**
-- [ ] RT.7. Action step — **depends on RT.2**
-- [ ] RT.8. Palette ritual command — **depends on RT.2**
+None.
 
 <a name="m6-done"><h4>Completed (Milestone 6)</h4></a>
 
+- [x] RT.5. Gate step — **depends on RT.2 (done)**
+- [x] RT.4. Prompt steps — implemented with a `bubbles` textinput rather than huh; submission writes the node and edge — **depends on RT.2 (done), CP.1 (done)**
+- [x] RT.3. Query steps in ritual — `query_summary` and `query_list` — **depends on RT.2 (done)**
+- [x] RT.2. Mount ritual runner in a full-screen overlay pane — **no blockers**
 - [x] RT.1. Ritual scheduler on startup — **depends on CP.1 (done)**
 
 ---
@@ -128,14 +131,14 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1**
 - [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1**
 - [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, SL.7**
-- [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5, DA.1**
+- [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5 (done), DA.1**
 - [ ] DA.7. Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) — **depends on NV.8 (done), DA.1**
 - [ ] DA.8. Integrate screenshots and gifs into README.md under a "Screenshots" section — **depends on DA.2, DA.3, DA.4**
 - [ ] DA.9. Store VHS tapes in `docs/vhs/` directory; add make target `make demo` to regenerate all gifs — **depends on DA.5, DA.6, DA.7**
 
 <a name="m7-done"><h4>Completed (Milestone 7)</h4></a>
 
-## (none yet)
+None yet.
 
 ---
 
@@ -179,21 +182,21 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation — **no blockers**
+- [ ] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading must default them (back-compat, no migration step) — **no blockers**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
 - [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1**
 - [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2**
 - [ ] SL.4. Add `kinds.jsonc` config file — user-defined kind registry; each kind has name, stage-group reference, display glyph and colour — **depends on SL.2, SL.3**
-- [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group — **depends on SL.4**
+- [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group; clarify which kind each starter template implies; add a Bookmark kind once NW.1 lands — **depends on SL.4**
 - [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4**
 - [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5, SL.6**
 - [ ] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties; update index; add to NV.12 grouping logic — **depends on SL.1**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
-## (none yet)
+None yet.
 
 ---
 
@@ -204,14 +207,15 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="mb-todo"><h4>To Do (Milestone B)</h4></a>
 
+- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional). `bm:` does not collide with `b:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **no blockers**
+
 <a name="mb-blocked"><h4>Blocked (Milestone B)</h4></a>
 
-- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional) — **depends on SL.5**
 - [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8, NW.1**
 
 <a name="mb-done"><h4>Completed (Milestone B)</h4></a>
 
-## (none yet)
+None yet.
 
 ---
 
@@ -222,17 +226,18 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="mc-todo"><h4>To Do (Milestone C)</h4></a>
 
+- [ ] DL.3. Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness needs nothing from the status lattice — **no blockers**
+
 <a name="mc-blocked"><h4>Blocked (Milestone C)</h4></a>
 
-- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine — **depends on SL.8**
+- [ ] DL.1. Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model — **depends on SL.2, SL.8**
 - [ ] DL.2. TUI: blocked badge on list items where `n.isBlocked` is true; detail pane shows BLOCKED BY section listing blocking nodes — **depends on DL.1**
-- [ ] DL.3. Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness feeds into backlog triage priority ranking — **depends on SL.1**
-- [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view — **depends on DL.3**
+- [ ] DL.4. Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages — **depends on DL.3, SL.8**
 - [ ] DL.5. Dashboard calmness threshold — when active-stage node count drops below configurable N, dashboard automatically appends backlog triage results as a separate section; N and M configurable in `config.jsonc` — **depends on DL.4**
 
 <a name="mc-done"><h4>Completed (Milestone C)</h4></a>
 
-## (none yet)
+None yet.
 
 ---
 
@@ -247,13 +252,13 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="md-blocked"><h4>Blocked (Milestone D)</h4></a>
 
-- [ ] SK.2. Store: read/write skeins via StoreFS; expose via GraphIndex as `GetSkein(name)` and `ListSkeins()` — **depends on SK.1**
+- [ ] SK.2. Store: read/write skeins via StoreFS; expose via GraphIndex as `GetSkein(name)` and `ListSkeins()`; extend the fsnotify watcher (currently `nodes/` and `edges/` only) to cover `skeins/`; sync commit messages should describe skein changes — **depends on SK.1**
 - [ ] SK.3. Query engine: resolve skein references at parse time — interpolated into the containing query before evaluation; circular references are a parse error — **depends on SK.2**
 - [ ] SK.4. TUI: skein management via palette — `:skein list`, `:skein new`, `:skein edit <name>`; edit opens a huh text form — **depends on SK.3**
 
 <a name="md-done"><h4>Completed (Milestone D)</h4></a>
 
-## (none yet)
+None yet.
 
 ---
 
@@ -276,17 +281,18 @@ mNW["`**Milestone B**<br/>Node Types`"]:::mile
 mDL["`**Milestone C**<br/>Backlog`"]:::mile
 mSK["`**Milestone D**<br/>Skeins`"]:::mile
 
-CP14["`*CP.14*<br/>**Capture**<br/>Budget form (bc:)`"]:::open
+CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
+CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
 
-LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::open
+LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::done
 
-RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::open
-RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::blocked
-RT4["`*RT.4*<br/>**Rituals**<br/>Prompt via huh`"]:::blocked
-RT5["`*RT.5*<br/>**Rituals**<br/>Gate step`"]:::blocked
-RT6["`*RT.6*<br/>**Rituals**<br/>Defer ritual`"]:::blocked
-RT7["`*RT.7*<br/>**Rituals**<br/>Action step`"]:::blocked
-RT8["`*RT.8*<br/>**Rituals**<br/>Palette command`"]:::blocked
+RT2["`*RT.2*<br/>**Rituals**<br/>Overlay pane`"]:::done
+RT3["`*RT.3*<br/>**Rituals**<br/>Query steps`"]:::done
+RT4["`*RT.4*<br/>**Rituals**<br/>Prompt steps`"]:::done
+RT5["`*RT.5*<br/>**Rituals**<br/>Gate step`"]:::done
+RT6["`*RT.6*<br/>**Rituals**<br/>Persist deferral`"]:::open
+RT7["`*RT.7*<br/>**Rituals**<br/>Action step`"]:::open
+RT8["`*RT.8*<br/>**Rituals**<br/>Palette command`"]:::open
 
 DA1["`*DA.1*<br/>**Docs**<br/>Install freeze/vhs`"]:::open
 DA2["`*DA.2*<br/>**Docs**<br/>Main view freeze`"]:::blocked
@@ -311,12 +317,12 @@ SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::blocked
 
-NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::blocked
+NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
 
 DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::blocked
 DL2["`*DL.2*<br/>**Backlog**<br/>Blocked badge`"]:::blocked
-DL3["`*DL.3*<br/>**Backlog**<br/>Staleness indicator`"]:::blocked
+DL3["`*DL.3*<br/>**Backlog**<br/>Staleness indicator`"]:::open
 DL4["`*DL.4*<br/>**Backlog**<br/>Triage query`"]:::blocked
 DL5["`*DL.5*<br/>**Backlog**<br/>Calmness threshold`"]:::blocked
 
@@ -327,32 +333,32 @@ SK4["`*SK.4*<br/>**Skeins**<br/>Palette commands`"]:::blocked
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6
-RT6 --> DA6
+RT5 --> DA6
 
 DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
 
-SL1 --> SL2 & SL8 & DL3
+SL1 --> SL2 & SL8
 SL2 --> SL3
 SL2 & SL3 --> SL4
 SL4 --> SL5 & SL6
 SL5 & SL6 --> SL7
 SL6 --> DA2
 SL7 --> DA5
-SL5 --> NW1
-SL8 --> DL1 & NW2
+SL2 & SL8 --> DL1
+SL8 --> NW2
 NW1 --> NW2
 
 DL1 --> DL2
-DL3 --> DL4
+DL3 & SL8 --> DL4
 DL4 --> DL5
 
 SK1 --> SK2
 SK2 --> SK3
 SK3 --> SK4
 
-mCP --> CP14
+mCP --> CP14 & CP15
 mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
