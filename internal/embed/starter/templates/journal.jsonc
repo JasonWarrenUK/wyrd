@@ -1,5 +1,6 @@
 {
 	// Journal template — defines fields for daily journal entries.
+	// Implies kind: none — content node, no lattice kind.
 	// date.about holds the date this entry is about (a core DateFields field).
 	"type_name": "journal",
 	"fields": {

@@ -15,7 +15,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
-| **SL** | SL.1, SL.2, SL.3, SL.4, SL.8, SL.8b done | SL.5     | SL.6–SL.7, SL.9–SL.14 (need SL.4+) |
+| **SL** | SL.1, SL.2, SL.3, SL.4, SL.5, SL.8, SL.8b done | SL.6     | SL.7, SL.9–SL.14 (need SL.5+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -194,12 +194,11 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group; clarify which kind each starter template implies; add a Bookmark kind once NW.1 lands — **depends on SL.4 (done)**
+- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4 (done)**
-- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5, SL.6**
+- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5 (done), SL.6**
 - [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.4 (done)**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
@@ -209,6 +208,7 @@ None yet.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group (Task/Goblin/Talk → task-flow; Event/Travel → event-flow; Habit → habit-flow; Project → project-flow); two new baked-in stage groups added (habit-flow: loop, project-flow: terminate); `stage.DefaultKinds()` and `stage.MergeKinds()` in `internal/stage/kinds.go`; starter template kind implications recorded as JSONC comments; merged registry threaded through `tui.Config.Kinds` at startup; Bookmark kind deferred to NW.1 — **depends on SL.4 (done)**
 - [x] SL.4. Add `kinds.jsonc` config file — `types.Kind` struct (name, stage-group ref, glyph, colour) in `internal/types/kind.go`; `KindRegistry` with `Lookup`/`All`/`Names` and last-wins-by-name merge seam for SL.5; `(*Store).ReadKinds()` in `internal/store/` reads `~/wyrd/kinds.jsonc` (store parent, sibling of `config.jsonc`); missing file yields empty registry; individual invalid entries skipped (lenient); `StoreFS` interface extended; 6 test-mock stubs updated — **depends on SL.2 (done), SL.3 (done)**
 - [x] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2 (done)**
 - [x] SL.2. Define stage group data model — `StageGroup` struct (`Name`, ordered `Stages`, `Cycle`, `LoopTarget`) and `CycleBehaviour` type with three constants: `loop` (wrap to first), `terminate` (stay at end, idempotent), `loop-to-stage` (wrap to a named stage, falling back to first if the target is missing). `Next`/`Prev` advance and retreat honouring cycle behaviour at both boundaries — `Prev` wraps to the last stage for both looping modes (the symmetric inverse of advancing off the end). `(stage, ok)` return: `ok == false` means an unknown stage so callers leave the node untouched. `IsTerminal` reports the no-advance-possible stage for DL.1's blocking check. Pure data model in `internal/types/stage.go`; no I/O — **depends on SL.1 (done)**
@@ -378,8 +378,8 @@ SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
 SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
 SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
-SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::open
-SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
+SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
+SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::open
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done

@@ -1,0 +1,7 @@
+{
+	// Event — a scheduled occurrence that moves from upcoming to live to finished.
+	"name": "Event",
+	"stage_group": "event-flow",
+	"glyph": "●",
+	"colour": "#794aff"
+}

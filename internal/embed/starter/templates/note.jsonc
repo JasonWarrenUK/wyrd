@@ -1,5 +1,6 @@
 {
 	// Note template — defines fields for reference notes.
+	// Implies kind: none — content node, no lattice kind.
 	// title is now a core node field, not a template field.
 	"type_name": "note",
 	"fields": {

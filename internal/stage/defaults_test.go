@@ -12,8 +12,8 @@ func TestDefaultStageGroupsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultStageGroups() error: %v", err)
 	}
-	if len(groups) != 3 {
-		t.Fatalf("expected 3 groups, got %d", len(groups))
+	if len(groups) != 5 {
+		t.Fatalf("expected 5 groups, got %d", len(groups))
 	}
 }
 
@@ -48,6 +48,16 @@ func TestDefaultStageGroupsContents(t *testing.T) {
 			stages: []string{"Active", "Reference"},
 			cycle:  types.CycleTerminate,
 		},
+		{
+			name:   "habit-flow",
+			stages: []string{"Todo", "Done"},
+			cycle:  types.CycleLoop,
+		},
+		{
+			name:   "project-flow",
+			stages: []string{"Planning", "Active", "Done"},
+			cycle:  types.CycleTerminate,
+		},
 	}
 
 	for _, tc := range cases {
@@ -71,14 +81,28 @@ func TestDefaultStageGroupsContents(t *testing.T) {
 	}
 }
 
-func TestDefaultStageGroupsAllTerminate(t *testing.T) {
+func TestDefaultStageGroupsCycles(t *testing.T) {
 	groups, err := stage.DefaultStageGroups()
 	if err != nil {
 		t.Fatalf("DefaultStageGroups() error: %v", err)
 	}
+
+	wantCycle := map[string]types.CycleBehaviour{
+		"task-flow":    types.CycleTerminate,
+		"event-flow":   types.CycleTerminate,
+		"content-flow": types.CycleTerminate,
+		"habit-flow":   types.CycleLoop,
+		"project-flow": types.CycleTerminate,
+	}
+
 	for _, g := range groups {
-		if g.Cycle != types.CycleTerminate {
-			t.Errorf("group %q: cycle = %q, want terminate", g.Name, g.Cycle)
+		want, known := wantCycle[g.Name]
+		if !known {
+			t.Errorf("unexpected group %q — update test", g.Name)
+			continue
+		}
+		if g.Cycle != want {
+			t.Errorf("group %q: cycle = %q, want %q", g.Name, g.Cycle, want)
 		}
 		if g.LoopTarget != "" {
 			t.Errorf("group %q: loop_target = %q, want empty", g.Name, g.LoopTarget)

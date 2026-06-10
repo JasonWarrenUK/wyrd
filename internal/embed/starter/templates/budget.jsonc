@@ -1,5 +1,6 @@
 {
 	// Budget template — defines fields for budget envelope nodes.
+	// Implies kind: none — content node, no lattice kind.
 	"type_name": "budget",
 	"fields": {
 		"category": {

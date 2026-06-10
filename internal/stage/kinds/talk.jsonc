@@ -1,0 +1,7 @@
+{
+	// Talk — a presentation or lecture, prepared and worked through to completion.
+	"name": "Talk",
+	"stage_group": "task-flow",
+	"glyph": "▮",
+	"colour": "#ff4647"
+}

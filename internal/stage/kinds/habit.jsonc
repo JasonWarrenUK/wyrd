@@ -1,0 +1,7 @@
+{
+	// Habit — a recurring practice that loops: Done resets to Todo rather than finishing.
+	"name": "Habit",
+	"stage_group": "habit-flow",
+	"glyph": "↻",
+	"colour": "#009e8c"
+}
