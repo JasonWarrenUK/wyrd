@@ -53,6 +53,93 @@ func TestWriteNode_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestWriteNode_KindStageRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	defer s.Close()
+
+	node := &types.Node{
+		ID:       "aaaaaaaa-0000-0000-0000-000000000002",
+		Body:     "Node with kind and stage",
+		Types:    []string{"task"},
+		Kind:     "task",
+		Stage:    "open",
+		Created:  s.clock.Now(),
+		Modified: s.clock.Now(),
+	}
+
+	if err := s.WriteNode(node); err != nil {
+		t.Fatalf("WriteNode: %v", err)
+	}
+
+	got, err := s.ReadNode(node.ID)
+	if err != nil {
+		t.Fatalf("ReadNode: %v", err)
+	}
+
+	if got.Kind != "task" {
+		t.Errorf("Kind = %q, want task", got.Kind)
+	}
+	if got.Stage != "open" {
+		t.Errorf("Stage = %q, want open", got.Stage)
+	}
+	// kind/stage are core fields and must not be misfiled into Properties.
+	if _, ok := got.Properties["kind"]; ok {
+		t.Errorf("kind leaked into Properties: %v", got.Properties["kind"])
+	}
+	if _, ok := got.Properties["stage"]; ok {
+		t.Errorf("stage leaked into Properties: %v", got.Properties["stage"])
+	}
+}
+
+func TestReadNode_PreLatticeDefaults(t *testing.T) {
+	s := newTestStore(t)
+	defer s.Close()
+
+	// A node written before SL.1 has no kind or stage on disk.
+	id := "aaaaaaaa-0000-0000-0000-000000000003"
+	raw := []byte(`{
+		"id": "` + id + `",
+		"body": "Legacy node",
+		"types": ["task"],
+		"created": "2025-01-01T00:00:00Z",
+		"modified": "2025-01-01T00:00:00Z"
+	}`)
+	if err := os.WriteFile(s.nodePath(id), raw, 0o644); err != nil {
+		t.Fatalf("writing legacy fixture: %v", err)
+	}
+
+	got, err := s.ReadNode(id)
+	if err != nil {
+		t.Fatalf("ReadNode: %v", err)
+	}
+	if got.Kind != "" {
+		t.Errorf("Kind = %q, want empty for pre-lattice node", got.Kind)
+	}
+	if got.Stage != "" {
+		t.Errorf("Stage = %q, want empty for pre-lattice node", got.Stage)
+	}
+
+	// Writing a node with empty kind/stage must not add the keys to disk,
+	// keeping pre-lattice files unchanged on rewrite.
+	if err := s.WriteNode(got); err != nil {
+		t.Fatalf("WriteNode: %v", err)
+	}
+	data, err := os.ReadFile(s.nodePath(id))
+	if err != nil {
+		t.Fatalf("reading rewritten file: %v", err)
+	}
+	var onDisk map[string]interface{}
+	if err := json.Unmarshal(data, &onDisk); err != nil {
+		t.Fatalf("unmarshalling rewritten file: %v", err)
+	}
+	if _, ok := onDisk["kind"]; ok {
+		t.Errorf("empty kind was written to disk")
+	}
+	if _, ok := onDisk["stage"]; ok {
+		t.Errorf("empty stage was written to disk")
+	}
+}
+
 func TestWriteEdge_RoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	defer s.Close()

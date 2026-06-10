@@ -48,6 +48,16 @@ type Node struct {
 	// Minimum one type. Determines which conditional fields are active.
 	Types []string `json:"types"`
 
+	// Kind names the kind registry entry this node belongs to (SL.1).
+	// Empty on nodes created before the status lattice; readers must treat
+	// an empty Kind as "no kind assigned" rather than a valid registry key.
+	Kind string `json:"kind,omitempty"`
+
+	// Stage is the node's current stage within its kind's stage group (SL.1).
+	// Valid values are defined by the stage group model (SL.2); until a kind
+	// is assigned, Stage is empty.
+	Stage string `json:"stage,omitempty"`
+
 	// Created is the creation timestamp, auto-generated and immutable.
 	// Also accessible via Date.Created.
 	Created time.Time `json:"created"`

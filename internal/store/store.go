@@ -188,6 +188,12 @@ func (s *Store) WriteNode(node *types.Node) error {
 	if node.Title != "" {
 		raw["title"] = node.Title
 	}
+	if node.Kind != "" {
+		raw["kind"] = node.Kind
+	}
+	if node.Stage != "" {
+		raw["stage"] = node.Stage
+	}
 	if node.Source != nil {
 		raw["source"] = node.Source
 	}
