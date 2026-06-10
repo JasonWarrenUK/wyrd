@@ -17,7 +17,30 @@ func TestDetectGroupCol_CategoryPresent(t *testing.T) {
 	}
 }
 
-func TestDetectGroupCol_NoCategoryColumn(t *testing.T) {
+func TestDetectGroupCol_KindPresent(t *testing.T) {
+	cols := []string{"title", "kind", "date"}
+	if got := detectGroupCol(cols); got != "kind" {
+		t.Errorf("expected 'kind', got %q", got)
+	}
+}
+
+func TestDetectGroupCol_StagePresent(t *testing.T) {
+	cols := []string{"title", "stage", "date"}
+	if got := detectGroupCol(cols); got != "stage" {
+		t.Errorf("expected 'stage', got %q", got)
+	}
+}
+
+func TestDetectGroupCol_FirstGroupableWins(t *testing.T) {
+	// When more than one groupable column is present, the first in column
+	// order is chosen.
+	cols := []string{"title", "kind", "category", "stage"}
+	if got := detectGroupCol(cols); got != "kind" {
+		t.Errorf("expected 'kind' (first groupable), got %q", got)
+	}
+}
+
+func TestDetectGroupCol_NoGroupableColumn(t *testing.T) {
 	cols := []string{"title", "status", "date"}
 	if got := detectGroupCol(cols); got != "" {
 		t.Errorf("expected empty string, got %q", got)
@@ -43,24 +66,57 @@ func TestToGroupLabel_KnownLabels(t *testing.T) {
 		"NOTE":    "Notes",
 	}
 	for input, want := range cases {
-		if got := toGroupLabel(input); got != want {
-			t.Errorf("toGroupLabel(%q) = %q, want %q", input, got, want)
+		if got := toGroupLabel("category", input); got != want {
+			t.Errorf("toGroupLabel(%q, %q) = %q, want %q", "category", input, got, want)
 		}
 	}
 }
 
 func TestToGroupLabel_Unknown(t *testing.T) {
 	// Unknown values are capitalised and pluralised.
-	got := toGroupLabel("sprint")
+	got := toGroupLabel("category", "sprint")
 	want := "Sprints"
 	if got != want {
-		t.Errorf("toGroupLabel(%q) = %q, want %q", "sprint", got, want)
+		t.Errorf("toGroupLabel(%q, %q) = %q, want %q", "category", "sprint", got, want)
 	}
 }
 
 func TestToGroupLabel_Empty(t *testing.T) {
-	if got := toGroupLabel(""); got != "" {
+	if got := toGroupLabel("category", ""); got != "" {
 		t.Errorf("expected empty string for empty input, got %q", got)
+	}
+}
+
+func TestToGroupLabel_Kind(t *testing.T) {
+	// Kind values share the category formatting: known values map to their
+	// plural label, unknowns are capitalised and pluralised.
+	cases := map[string]string{
+		"task":  "Tasks",  // known map entry
+		"event": "Events", // unknown, pluralised
+		"TASK":  "Tasks",  // case-insensitive
+		"":      "",       // empty stays empty
+	}
+	for input, want := range cases {
+		if got := toGroupLabel("kind", input); got != want {
+			t.Errorf("toGroupLabel(%q, %q) = %q, want %q", "kind", input, got, want)
+		}
+	}
+}
+
+func TestToGroupLabel_Stage(t *testing.T) {
+	// Stage values are title-cased without pluralising; underscores become
+	// spaces.
+	cases := map[string]string{
+		"now":         "Now",
+		"open":        "Open",
+		"later":       "Later",
+		"in_progress": "In progress",
+		"":            "",
+	}
+	for input, want := range cases {
+		if got := toGroupLabel("stage", input); got != want {
+			t.Errorf("toGroupLabel(%q, %q) = %q, want %q", "stage", input, got, want)
+		}
 	}
 }
 
@@ -186,6 +242,51 @@ func TestRowsToItems_EmptyRows_WithGrouping(t *testing.T) {
 	items := rowsToItems(nil, []string{"category", "title"}, []int{8, 10}, "category")
 	if len(items) != 0 {
 		t.Errorf("expected 0 items for empty rows, got %d", len(items))
+	}
+}
+
+func TestRowsToItems_GroupByKind(t *testing.T) {
+	rows := []map[string]interface{}{
+		{"id": "t1", "title": "Task 1", "kind": "task"},
+		{"id": "t2", "title": "Task 2", "kind": "task"},
+		{"id": "e1", "title": "Event 1", "kind": "event"},
+	}
+	cols := []string{"kind", "title"}
+	widths := []int{8, 10}
+
+	items := rowsToItems(rows, cols, widths, "kind")
+	// Expected: header(Tasks), t1, t2, header(Events), e1 = 5 items.
+	if len(items) != 5 {
+		t.Fatalf("expected 5 items (2 headers + 3 data), got %d", len(items))
+	}
+	if h, ok := items[0].(groupHeaderItem); !ok || h.label != "Tasks" {
+		t.Errorf("expected header 'Tasks', got %v", items[0])
+	}
+	if h, ok := items[3].(groupHeaderItem); !ok || h.label != "Events" {
+		t.Errorf("expected header 'Events', got %v", items[3])
+	}
+}
+
+func TestRowsToItems_GroupByStage(t *testing.T) {
+	rows := []map[string]interface{}{
+		{"id": "a", "title": "Alpha", "stage": "now"},
+		{"id": "b", "title": "Beta", "stage": "now"},
+		{"id": "c", "title": "Gamma", "stage": "later"},
+	}
+	cols := []string{"stage", "title"}
+	widths := []int{8, 10}
+
+	items := rowsToItems(rows, cols, widths, "stage")
+	// Expected: header(Now), a, b, header(Later), c = 5 items.
+	if len(items) != 5 {
+		t.Fatalf("expected 5 items (2 headers + 3 data), got %d", len(items))
+	}
+	// Stage headers are title-cased, not pluralised.
+	if h, ok := items[0].(groupHeaderItem); !ok || h.label != "Now" {
+		t.Errorf("expected header 'Now', got %v", items[0])
+	}
+	if h, ok := items[3].(groupHeaderItem); !ok || h.label != "Later" {
+		t.Errorf("expected header 'Later', got %v", items[3])
 	}
 }
 

@@ -15,7 +15,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | —       |
 | **SP** | SP.1, SP.3 done                     | SP.2         | —       |
-| **SL** | SL.1, SL.8 done                     | SL.2, SL.8b  | SL.3–SL.7 (need SL.2+) |
+| **SL** | SL.1, SL.8, SL.8b done               | SL.2         | SL.3–SL.7 (need SL.2+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.3         | DL.1–DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -183,7 +183,6 @@ None yet.
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
 - [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1 (done)**
-- [ ] SL.8b. TUI grouping for kind/stage — wire `n.kind` and `n.stage` into `detectGroupCol` and `groupLabelMap` (`internal/tui/node_list_pane.go`) so query results grouped by kind or stage render grouped headers in the node list — **depends on SL.8 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 - [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2**
@@ -194,6 +193,7 @@ None yet.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.8b. TUI grouping for kind/stage — `detectGroupCol` recognises `kind` and `stage` columns alongside `category` (alias-triggered, e.g. `RETURN n.kind AS kind`); `toGroupLabel` is column-aware, pluralising kind values like categories and title-casing stage values without a plural (`now` → `Now`). The grouping/render machinery was already generic. No live view drives kind/stage grouping yet — that lands with SL.6/SL.7 — **depends on SL.8 (done)**
 - [x] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties in WHERE, RETURN, and ORDER BY; the index needed no changes (it stores whole nodes). Pre-lattice nodes return `""` for both, so `WHERE n.kind = ""` finds untriaged nodes. NV.12 grouping split out as SL.8b — **depends on SL.1 (done)**
 - [x] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading defaults them to empty (back-compat, no migration step); empty fields are omitted on write so legacy files are unchanged on rewrite — **no blockers**
 
@@ -315,7 +315,7 @@ SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::blocked
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
-SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::open
+SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
