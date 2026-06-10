@@ -1,0 +1,6 @@
+{
+	// Events move from Scheduled, through Now while live, to Finished.
+	"name": "event-flow",
+	"stages": ["Scheduled", "Now", "Finished"],
+	"cycle": "terminate"
+}
