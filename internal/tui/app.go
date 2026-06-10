@@ -123,6 +123,10 @@ type Model struct {
 	// supply kinds — callers should check for nil before use).
 	kinds *types.KindRegistry
 
+	// stageGroups is the merged stage-group registry (baked-in defaults + user's
+	// stages.jsonc once SL.13 lands). May be nil; always check before use.
+	stageGroups *types.StageGroupRegistry
+
 	// logger is the structured logger. May be nil.
 	logger *clog.Logger
 
@@ -175,6 +179,11 @@ type Config struct {
 	// TUI tasks (SL.6 stage keypresses, SL.7 kind selection forms) expect this
 	// to be populated.
 	Kinds *types.KindRegistry
+
+	// StageGroups is the merged stage-group registry (baked-in defaults; user
+	// groups from stages.jsonc added by SL.13). May be nil; SL.6 stage keypresses
+	// are silently no-ops when nil.
+	StageGroups *types.StageGroupRegistry
 
 	// Logger is the structured logger. May be nil.
 	Logger *clog.Logger
@@ -347,6 +356,7 @@ func New(cfg Config) (Model, error) {
 		schedulerState: schedulerState,
 		rituals:        rituals,
 		kinds:          cfg.Kinds,
+		stageGroups:    cfg.StageGroups,
 		logger:         cfg.Logger,
 		logOverlay:     newLogOverlay(theme),
 		helpOverlay:    newHelpOverlay(theme),
@@ -678,6 +688,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleEditNode()
 		case key.Matches(msg, m.keyMap.ArchiveNode):
 			return m.handleArchiveNode()
+		case key.Matches(msg, m.keyMap.AdvanceStage):
+			return m.handleStageShift(+1)
+		case key.Matches(msg, m.keyMap.RetreatStage):
+			return m.handleStageShift(-1)
 		default:
 			return m.updateFocusedPane(msg)
 		}
@@ -979,6 +993,99 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	})
 
 	return m, clearCmd
+}
+
+// handleStageShift advances (dir > 0) or retreats (dir < 0) the selected
+// node's stage by one step within its kind's stage group. It is a no-op when:
+//   - a form is active
+//   - no node is selected
+//   - the node has no kind, or the kind is unknown
+//   - the kind's stage group is unknown or the current stage is unknown to it
+//
+// When the node is already at a terminal boundary (CycleTerminate, no advance
+// possible), no write is performed but a brief status hint is shown.
+//
+// The write routes through UpdateNode (not WriteNode) so the in-memory index
+// is refreshed synchronously before the detail and dashboard re-render.
+func (m Model) handleStageShift(dir int) (tea.Model, tea.Cmd) {
+	// Guard: form already open.
+	if _, isForm := m.rightPane.(formActivePane); isForm {
+		return m, nil
+	}
+	// Guard: store unavailable.
+	if m.store == nil {
+		return m, nil
+	}
+	// Guard: no node selected.
+	lp, ok := m.leftPane.(nodeListPane)
+	if !ok {
+		return m, nil
+	}
+	nodeID := lp.SelectedNodeID()
+	if nodeID == "" {
+		return m, nil
+	}
+
+	node, err := m.store.ReadNode(nodeID)
+	if err != nil || node == nil {
+		return m, nil
+	}
+
+	// Resolve kind → stage group; silent no-op on any missing piece.
+	group, ok := types.ResolveStageGroup(m.kinds, m.stageGroups, node)
+	if !ok {
+		return m, nil
+	}
+
+	var newStage string
+	if dir > 0 {
+		newStage, ok = group.Next(node.Stage)
+	} else {
+		newStage, ok = group.Prev(node.Stage)
+	}
+	if !ok {
+		// Unknown current stage (e.g. legacy node with empty stage field) — no-op.
+		return m, nil
+	}
+
+	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return captureConfirmClearMsg{}
+	})
+
+	if newStage == node.Stage {
+		// Terminal boundary: no write needed, but show a hint so the keypress
+		// isn't silent.
+		m.statusBar.SetCaptureText("Stage: " + node.Stage + " (terminal)")
+		return m, clearCmd
+	}
+
+	oldStage := node.Stage
+	if _, err := m.store.UpdateNode(nodeID, map[string]interface{}{"stage": newStage}); err != nil {
+		return m, nil
+	}
+	m.statusBar.SetCaptureText("Stage: " + oldStage + " → " + newStage)
+
+	// Refresh the dashboard so the updated stage is reflected in the list.
+	if m.queryRunner != nil {
+		dq := DefaultDashboardQuery()
+		if m.store != nil {
+			if view, err := m.store.ReadView("dashboard"); err == nil {
+				dq = DashboardQueryFromView(view)
+			}
+		}
+		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+			nlp := newNodeListPane(result, m.theme)
+			sized, _ := nlp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.leftPane = sized
+		}
+	}
+
+	// Re-render the detail pane so the right side shows the new stage.
+	detailCmd := m.renderDetailAsync(nodeID)
+	return m, tea.Batch(detailCmd, clearCmd)
 }
 
 // captureDisplayText formats capture bar input for display in the status bar,
