@@ -15,7 +15,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | —       |
 | **SP** | SP.1, SP.3 done                     | SP.2         | —       |
-| **SL** | Not started                         | SL.1         | SL.2–SL.8 (need SL.1+) |
+| **SL** | SL.1 done                           | SL.2, SL.8   | SL.3–SL.7 (need SL.2+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs SL.8, NW.1) |
 | **DL** | Not started                         | DL.3         | DL.1–DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -182,21 +182,19 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading must default them (back-compat, no migration step) — **no blockers**
+- [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1 (done)**
+- [ ] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties; update index; add to NV.12 grouping logic — **depends on SL.1 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
-
-- [ ] SL.2. Define stage group data model — named progressions with ordered stages and cycle behaviour (loop / terminate / loop-to-stage) — **depends on SL.1**
 - [ ] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2**
 - [ ] SL.4. Add `kinds.jsonc` config file — user-defined kind registry; each kind has name, stage-group reference, display glyph and colour — **depends on SL.2, SL.3**
 - [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group; clarify which kind each starter template implies; add a Bookmark kind once NW.1 lands — **depends on SL.4**
 - [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4**
 - [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5, SL.6**
-- [ ] SL.8. Query engine: `n.kind` and `n.stage` as first-class queryable properties; update index; add to NV.12 grouping logic — **depends on SL.1**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
-None yet.
+- [x] SL.1. Add `kind` and `stage` fields to Node struct and store serialisation; existing nodes lack both fields, so loading defaults them to empty (back-compat, no migration step); empty fields are omitted on write so legacy files are unchanged on rewrite — **no blockers**
 
 ---
 
@@ -308,14 +306,14 @@ CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 
 SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
 
-SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::open
-SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::blocked
+SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
+SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::open
 SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::blocked
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::blocked
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::blocked
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
-SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::blocked
+SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::open
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
