@@ -1,0 +1,206 @@
+package tui
+
+import (
+	"strings"
+
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
+)
+
+// kindsOverlay is a modal overlay that lists all registered kinds with their
+// glyph, colour, stage-group name, and ordered stages. It is toggled via the
+// :kinds command in the palette (SL.9).
+type kindsOverlay struct {
+	active        bool
+	vp            viewport.Model
+	theme         *ActiveTheme
+	kinds         *types.KindRegistry
+	stageGroups   *types.StageGroupRegistry
+	width, height int
+}
+
+// newKindsOverlay creates an inactive kinds overlay. Both registries may be nil.
+func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry) kindsOverlay {
+	return kindsOverlay{
+		theme:       theme,
+		kinds:       kinds,
+		stageGroups: groups,
+	}
+}
+
+// Open populates the viewport with all registered kinds and makes the overlay
+// visible.
+func (ko *kindsOverlay) Open(width, height int) {
+	ko.active = true
+	ko.width = width
+	ko.height = height
+
+	bg := ko.theme.BgSecondary()
+
+	mutedStyle := lipgloss.NewStyle().
+		Foreground(ko.theme.FgMuted()).
+		Background(bg)
+
+	primaryStyle := lipgloss.NewStyle().
+		Foreground(ko.theme.FgPrimary()).
+		Background(bg)
+
+	vpWidth := width * 3 / 4
+	if vpWidth < 40 {
+		vpWidth = 40
+	}
+	vpHeight := height - 6
+	if vpHeight < 5 {
+		vpHeight = 5
+	}
+
+	// Build content lines.
+	var lines []string
+
+	if ko.kinds == nil || len(ko.kinds.All()) == 0 {
+		lines = append(lines, mutedStyle.Render("No kinds registered"))
+	} else {
+		kinds := ko.kinds.All()
+
+		// Measure name column width for alignment (min 12, max longest name + 2).
+		nameColWidth := 12
+		for _, k := range kinds {
+			if len(k.Name)+2 > nameColWidth {
+				nameColWidth = len(k.Name) + 2
+			}
+		}
+
+		// Measure stage-group column width similarly.
+		groupColWidth := 12
+		for _, k := range kinds {
+			if len(k.StageGroup)+2 > groupColWidth {
+				groupColWidth = len(k.StageGroup) + 2
+			}
+		}
+
+		for _, k := range kinds {
+			// Glyph in the kind's own colour; fall back to FgPrimary when blank.
+			glyphColour := ko.theme.FgPrimary()
+			if k.Colour != "" {
+				glyphColour = lipgloss.Color(k.Colour)
+			}
+			glyphStyle := lipgloss.NewStyle().
+				Foreground(glyphColour).
+				Background(bg)
+
+			glyph := k.Glyph
+			if glyph == "" {
+				glyph = "·"
+			}
+
+			// Name column, padded to nameColWidth with Spacer.
+			nameSeg := primaryStyle.Render(k.Name)
+			namePad := nameColWidth - len(k.Name)
+			if namePad < 1 {
+				namePad = 1
+			}
+
+			// Stage-group name column, padded to groupColWidth.
+			groupSeg := mutedStyle.Render(k.StageGroup)
+			groupPad := groupColWidth - len(k.StageGroup)
+			if groupPad < 1 {
+				groupPad = 1
+			}
+
+			// Stages: resolve group and join with arrows.
+			var stagesSeg string
+			if ko.stageGroups != nil && k.StageGroup != "" {
+				if g, ok := ko.stageGroups.Lookup(k.StageGroup); ok {
+					stageStr := strings.Join(g.Stages, " → ")
+					if g.Cycle == types.CycleLoop || g.Cycle == types.CycleLoopToStage {
+						stageStr += " ↺"
+					}
+					stagesSeg = mutedStyle.Render(stageStr)
+				}
+			}
+
+			line := glyphStyle.Render(glyph) +
+				Spacer(1, bg) +
+				nameSeg +
+				Spacer(namePad, bg) +
+				groupSeg +
+				Spacer(groupPad, bg) +
+				stagesSeg
+
+			lines = append(lines, line)
+		}
+	}
+
+	content := PadLines(strings.Join(lines, "\n"), vpWidth, bg)
+
+	ko.vp = viewport.New(viewport.WithWidth(vpWidth), viewport.WithHeight(vpHeight))
+	if ko.theme != nil {
+		ko.vp.Style = lipgloss.NewStyle().Background(bg)
+	}
+	ko.vp.SetContent(content)
+}
+
+// Close hides the overlay.
+func (ko *kindsOverlay) Close() { ko.active = false }
+
+// IsActive reports whether the overlay is visible.
+func (ko *kindsOverlay) IsActive() bool { return ko.active }
+
+// Update handles keyboard input while the overlay is active.
+func (ko *kindsOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
+	if !ko.active {
+		return nil, false
+	}
+
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "esc", "q":
+			ko.Close()
+			return nil, true
+		}
+	}
+
+	var cmd tea.Cmd
+	ko.vp, cmd = ko.vp.Update(msg)
+	return cmd, true
+}
+
+// View renders the overlay as a bordered box centred on the screen.
+func (ko *kindsOverlay) View(width, height int) string {
+	if !ko.active {
+		return ""
+	}
+
+	bg := ko.theme.BgSecondary()
+
+	titleStyle := lipgloss.NewStyle().
+		Foreground(ko.theme.AccentPrimary()).
+		Background(bg).
+		Bold(true)
+
+	boxWidth := width * 3 / 4
+	if boxWidth < 40 {
+		boxWidth = 40
+	}
+
+	boxStyle := lipgloss.NewStyle().
+		Background(bg).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(ko.theme.AccentPrimary()).
+		BorderBackground(bg).
+		Padding(1, 2).
+		Width(boxWidth)
+
+	divStyle := lipgloss.NewStyle().Foreground(ko.theme.Border()).Background(bg)
+
+	var sb strings.Builder
+	sb.WriteString(titleStyle.Render("KINDS"))
+	sb.WriteString("\n")
+	sb.WriteString(divStyle.Render(strings.Repeat("─", boxWidth-6)))
+	sb.WriteString("\n")
+	sb.WriteString(ko.vp.View())
+
+	return boxStyle.Render(sb.String())
+}

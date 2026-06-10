@@ -30,6 +30,9 @@ type openLogOverlayMsg struct{}
 // openHelpOverlayMsg is emitted when the :help command is invoked.
 type openHelpOverlayMsg struct{}
 
+// openKindsOverlayMsg is emitted when the :kinds command is invoked.
+type openKindsOverlayMsg struct{}
+
 // syncResultMsg carries the outcome of a background sync operation.
 type syncResultMsg struct {
 	err    error
@@ -135,6 +138,9 @@ type Model struct {
 
 	// helpOverlay is the key-bindings help overlay.
 	helpOverlay helpOverlay
+
+	// kindsOverlay is the kind registry viewer overlay (SL.9).
+	kindsOverlay kindsOverlay
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -337,6 +343,17 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
+	// Wire up the "kinds" command.
+	palette.Register(Command{
+		Name:        "kinds",
+		Description: "Show registered kinds",
+		Execute: func(args []string) tea.Cmd {
+			return func() tea.Msg {
+				return openKindsOverlayMsg{}
+			}
+		},
+	})
+
 	m := Model{
 		theme:          theme,
 		storePath:      storePath,
@@ -360,6 +377,7 @@ func New(cfg Config) (Model, error) {
 		logger:         cfg.Logger,
 		logOverlay:     newLogOverlay(theme),
 		helpOverlay:    newHelpOverlay(theme),
+		kindsOverlay:   newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
 		ready:          false,
 	}
 
@@ -448,6 +466,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// When the kinds overlay is active, route input to it.
+	if m.kindsOverlay.IsActive() {
+		cmd, consumed := m.kindsOverlay.Update(msg)
+		if consumed {
+			return m, cmd
+		}
+	}
+
 	// When the node list is actively filtering, key input goes exclusively to
 	// it — same pattern as the capture bar. ctrl+c is checked first so the
 	// user can always quit, even mid-filter.
@@ -469,6 +495,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openHelpOverlayMsg:
 		m.helpOverlay.Open(m.layout.totalWidth, m.layout.totalHeight, m.keyMap.AllBindings())
+		return m, nil
+
+	case openKindsOverlayMsg:
+		m.kindsOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
 	case syncResultMsg:
@@ -1121,6 +1151,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	m.palette.theme = t
 	m.logOverlay.theme = t
 	m.helpOverlay.theme = t
+	m.kindsOverlay.theme = t
 
 	// Rebuild the node list pane so the delegate's baked-in Lipgloss styles
 	// (section headers, row colours) repaint with the new theme.
@@ -1197,6 +1228,21 @@ func (m Model) View() tea.View {
 		// If the help overlay is active, composite it on top.
 		if m.helpOverlay.IsActive() {
 			overlay := m.helpOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
+			if overlay != "" {
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
+				}
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
+			}
+		}
+
+		// If the kinds overlay is active, composite it on top.
+		if m.kindsOverlay.IsActive() {
+			overlay := m.kindsOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
 			if overlay != "" {
 				overlayWidth := lipgloss.Width(overlay)
 				centreX := (m.layout.totalWidth - overlayWidth) / 2
