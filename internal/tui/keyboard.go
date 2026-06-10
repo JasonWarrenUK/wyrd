@@ -16,6 +16,8 @@ type AppKeyMap struct {
 	Capture        key.Binding
 	EditNode       key.Binding
 	ArchiveNode    key.Binding
+	AdvanceStage   key.Binding
+	RetreatStage   key.Binding
 }
 
 // DefaultAppKeyMap returns the built-in key bindings.
@@ -57,6 +59,14 @@ func DefaultAppKeyMap() AppKeyMap {
 			key.WithKeys("ctrl+d"),
 			key.WithHelp("ctrl+d", "archive node"),
 		),
+		AdvanceStage: key.NewBinding(
+			key.WithKeys("]"),
+			key.WithHelp("]", "advance stage"),
+		),
+		RetreatStage: key.NewBinding(
+			key.WithKeys("["),
+			key.WithHelp("[", "retreat stage"),
+		),
 	}
 }
 
@@ -73,6 +83,8 @@ func (km AppKeyMap) AllBindings() []KeyBinding {
 		km.Capture,
 		km.EditNode,
 		km.ArchiveNode,
+		km.AdvanceStage,
+		km.RetreatStage,
 	}
 	result := make([]KeyBinding, 0, len(bindings))
 	for _, b := range bindings {

@@ -30,6 +30,9 @@ type openLogOverlayMsg struct{}
 // openHelpOverlayMsg is emitted when the :help command is invoked.
 type openHelpOverlayMsg struct{}
 
+// openKindsOverlayMsg is emitted when the :kinds command is invoked.
+type openKindsOverlayMsg struct{}
+
 // syncResultMsg carries the outcome of a background sync operation.
 type syncResultMsg struct {
 	err    error
@@ -123,6 +126,10 @@ type Model struct {
 	// supply kinds — callers should check for nil before use).
 	kinds *types.KindRegistry
 
+	// stageGroups is the merged stage-group registry (baked-in defaults + user's
+	// stages.jsonc once SL.13 lands). May be nil; always check before use.
+	stageGroups *types.StageGroupRegistry
+
 	// logger is the structured logger. May be nil.
 	logger *clog.Logger
 
@@ -131,6 +138,9 @@ type Model struct {
 
 	// helpOverlay is the key-bindings help overlay.
 	helpOverlay helpOverlay
+
+	// kindsOverlay is the kind registry viewer overlay (SL.9).
+	kindsOverlay kindsOverlay
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -175,6 +185,11 @@ type Config struct {
 	// TUI tasks (SL.6 stage keypresses, SL.7 kind selection forms) expect this
 	// to be populated.
 	Kinds *types.KindRegistry
+
+	// StageGroups is the merged stage-group registry (baked-in defaults; user
+	// groups from stages.jsonc added by SL.13). May be nil; SL.6 stage keypresses
+	// are silently no-ops when nil.
+	StageGroups *types.StageGroupRegistry
 
 	// Logger is the structured logger. May be nil.
 	Logger *clog.Logger
@@ -328,6 +343,17 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
+	// Wire up the "kinds" command.
+	palette.Register(Command{
+		Name:        "kinds",
+		Description: "Show registered kinds",
+		Execute: func(args []string) tea.Cmd {
+			return func() tea.Msg {
+				return openKindsOverlayMsg{}
+			}
+		},
+	})
+
 	m := Model{
 		theme:          theme,
 		storePath:      storePath,
@@ -347,9 +373,11 @@ func New(cfg Config) (Model, error) {
 		schedulerState: schedulerState,
 		rituals:        rituals,
 		kinds:          cfg.Kinds,
+		stageGroups:    cfg.StageGroups,
 		logger:         cfg.Logger,
 		logOverlay:     newLogOverlay(theme),
 		helpOverlay:    newHelpOverlay(theme),
+		kindsOverlay:   newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
 		ready:          false,
 	}
 
@@ -438,6 +466,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// When the kinds overlay is active, route input to it.
+	if m.kindsOverlay.IsActive() {
+		cmd, consumed := m.kindsOverlay.Update(msg)
+		if consumed {
+			return m, cmd
+		}
+	}
+
 	// When the node list is actively filtering, key input goes exclusively to
 	// it — same pattern as the capture bar. ctrl+c is checked first so the
 	// user can always quit, even mid-filter.
@@ -459,6 +495,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openHelpOverlayMsg:
 		m.helpOverlay.Open(m.layout.totalWidth, m.layout.totalHeight, m.keyMap.AllBindings())
+		return m, nil
+
+	case openKindsOverlayMsg:
+		m.kindsOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
 	case syncResultMsg:
@@ -678,6 +718,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleEditNode()
 		case key.Matches(msg, m.keyMap.ArchiveNode):
 			return m.handleArchiveNode()
+		case key.Matches(msg, m.keyMap.AdvanceStage):
+			return m.handleStageShift(+1)
+		case key.Matches(msg, m.keyMap.RetreatStage):
+			return m.handleStageShift(-1)
 		default:
 			return m.updateFocusedPane(msg)
 		}
@@ -981,6 +1025,99 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	return m, clearCmd
 }
 
+// handleStageShift advances (dir > 0) or retreats (dir < 0) the selected
+// node's stage by one step within its kind's stage group. It is a no-op when:
+//   - a form is active
+//   - no node is selected
+//   - the node has no kind, or the kind is unknown
+//   - the kind's stage group is unknown or the current stage is unknown to it
+//
+// When the node is already at a terminal boundary (CycleTerminate, no advance
+// possible), no write is performed but a brief status hint is shown.
+//
+// The write routes through UpdateNode (not WriteNode) so the in-memory index
+// is refreshed synchronously before the detail and dashboard re-render.
+func (m Model) handleStageShift(dir int) (tea.Model, tea.Cmd) {
+	// Guard: form already open.
+	if _, isForm := m.rightPane.(formActivePane); isForm {
+		return m, nil
+	}
+	// Guard: store unavailable.
+	if m.store == nil {
+		return m, nil
+	}
+	// Guard: no node selected.
+	lp, ok := m.leftPane.(nodeListPane)
+	if !ok {
+		return m, nil
+	}
+	nodeID := lp.SelectedNodeID()
+	if nodeID == "" {
+		return m, nil
+	}
+
+	node, err := m.store.ReadNode(nodeID)
+	if err != nil || node == nil {
+		return m, nil
+	}
+
+	// Resolve kind → stage group; silent no-op on any missing piece.
+	group, ok := types.ResolveStageGroup(m.kinds, m.stageGroups, node)
+	if !ok {
+		return m, nil
+	}
+
+	var newStage string
+	if dir > 0 {
+		newStage, ok = group.Next(node.Stage)
+	} else {
+		newStage, ok = group.Prev(node.Stage)
+	}
+	if !ok {
+		// Unknown current stage (e.g. legacy node with empty stage field) — no-op.
+		return m, nil
+	}
+
+	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return captureConfirmClearMsg{}
+	})
+
+	if newStage == node.Stage {
+		// Terminal boundary: no write needed, but show a hint so the keypress
+		// isn't silent.
+		m.statusBar.SetCaptureText("Stage: " + node.Stage + " (terminal)")
+		return m, clearCmd
+	}
+
+	oldStage := node.Stage
+	if _, err := m.store.UpdateNode(nodeID, map[string]interface{}{"stage": newStage}); err != nil {
+		return m, nil
+	}
+	m.statusBar.SetCaptureText("Stage: " + oldStage + " → " + newStage)
+
+	// Refresh the dashboard so the updated stage is reflected in the list.
+	if m.queryRunner != nil {
+		dq := DefaultDashboardQuery()
+		if m.store != nil {
+			if view, err := m.store.ReadView("dashboard"); err == nil {
+				dq = DashboardQueryFromView(view)
+			}
+		}
+		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
+			nlp := newNodeListPane(result, m.theme)
+			sized, _ := nlp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.leftPane = sized
+		}
+	}
+
+	// Re-render the detail pane so the right side shows the new stage.
+	detailCmd := m.renderDetailAsync(nodeID)
+	return m, tea.Batch(detailCmd, clearCmd)
+}
+
 // captureDisplayText formats capture bar input for display in the status bar,
 // appending a lightweight cursor character.
 func captureDisplayText(input string) string {
@@ -1014,6 +1151,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	m.palette.theme = t
 	m.logOverlay.theme = t
 	m.helpOverlay.theme = t
+	m.kindsOverlay.theme = t
 
 	// Rebuild the node list pane so the delegate's baked-in Lipgloss styles
 	// (section headers, row colours) repaint with the new theme.
@@ -1090,6 +1228,21 @@ func (m Model) View() tea.View {
 		// If the help overlay is active, composite it on top.
 		if m.helpOverlay.IsActive() {
 			overlay := m.helpOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
+			if overlay != "" {
+				overlayWidth := lipgloss.Width(overlay)
+				centreX := (m.layout.totalWidth - overlayWidth) / 2
+				if centreX < 0 {
+					centreX = 0
+				}
+				frameLayer := lipgloss.NewLayer(frame).Z(0)
+				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
+				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
+			}
+		}
+
+		// If the kinds overlay is active, composite it on top.
+		if m.kindsOverlay.IsActive() {
+			overlay := m.kindsOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
 			if overlay != "" {
 				overlayWidth := lipgloss.Width(overlay)
 				centreX := (m.layout.totalWidth - overlayWidth) / 2
@@ -1202,6 +1355,7 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	renderer := m.detailRenderer
 	renderer.Width = m.layout.totalWidth / 2
+	renderer.Kinds = m.kinds
 	renderer.Colours.BgPrimary       = m.theme.BgPrimary()
 	renderer.Colours.FGPrimary       = m.theme.FgPrimary()
 	renderer.Colours.FGMuted         = m.theme.FgMuted()

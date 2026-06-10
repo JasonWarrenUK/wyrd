@@ -31,6 +31,9 @@ func (m *mockStore) ReadEdge(_ string) (*types.Edge, error) { return nil, nil }
 func (m *mockStore) WriteEdge(_ *types.Edge) error          { return nil }
 func (m *mockStore) DeleteEdge(_ string) error              { return nil }
 func (m *mockStore) ArchiveNode(_ string) error             { return nil }
+func (m *mockStore) UpdateNode(_ string, _ map[string]interface{}) (*types.Node, error) {
+	return nil, nil
+}
 func (m *mockStore) ReadTemplate(_ string) (*types.Template, error) {
 	return nil, &types.NotFoundError{Kind: "template", ID: ""}
 }

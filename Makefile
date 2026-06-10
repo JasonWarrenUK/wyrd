@@ -47,12 +47,12 @@ coverage:
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
-demo:
+video:
 	@echo "Generating VHS demo recordings..."
 	@which vhs > /dev/null || (echo "vhs not installed; run: go install github.com/charmbracelet/vhs@latest" && exit 1)
 	@echo "No tape files yet — add .tape files to docs/vhs/ and update this target."
 
-screenshots:
+screens:
 	@echo "Generating screenshots with freeze..."
 	@which freeze > /dev/null || (echo "freeze not installed; run: go install github.com/charmbracelet/freeze@latest" && exit 1)
 	@echo "No screenshot scripts yet — add scripts to docs/screenshots/ and update this target."

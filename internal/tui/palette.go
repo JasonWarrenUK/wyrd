@@ -121,6 +121,12 @@ func builtinCommands() []Command {
 			Hint:        "",
 			Execute:     nil, // wired up in app.go
 		},
+		{
+			Name:        "kinds",
+			Description: "Show registered kinds",
+			Hint:        "",
+			Execute:     nil, // wired up in app.go
+		},
 	}
 }
 

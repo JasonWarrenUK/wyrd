@@ -143,6 +143,14 @@ property graph. Run without arguments to launch the TUI.`,
 			}
 			kinds := stage.MergeKinds(kindDefaults, userKindReg.All())
 
+			// Build the merged stage-group registry: baked-in defaults (SL.13
+			// will add user groups from stages.jsonc as the second argument).
+			groupDefaults, err := stage.DefaultStageGroups()
+			if err != nil {
+				return fmt.Errorf("loading built-in stage-group defaults: %w", err)
+			}
+			stageGroups := stage.MergeStageGroups(groupDefaults, nil)
+
 			var engineOpts []query.EngineOption
 			if appLogger != nil {
 				engineOpts = append(engineOpts, query.WithLogger(appLogger))
@@ -154,6 +162,7 @@ property graph. Run without arguments to launch the TUI.`,
 				QueryRunner: query.NewEngine(s.Index(), 0, engineOpts...),
 				Clock:       types.RealClock{},
 				Kinds:       kinds,
+				StageGroups: stageGroups,
 				Logger:      appLogger,
 			})
 		},
