@@ -15,7 +15,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
-| **SL** | SL.1, SL.2, SL.3, SL.4, SL.5, SL.8, SL.8b done | SL.15    | SL.6, SL.7, SL.9–SL.14 (need SL.15+) |
+| **SL** | SL.1–SL.5, SL.8, SL.8b, SL.15 done | SL.6, SL.9   | SL.7, SL.10–SL.14 (need SL.6/SL.13+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -195,13 +195,12 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.15. TUI: show `Kind` and `Stage` in the detail pane — `internal/tui/detail.go` never renders `node.Kind` or `node.Stage` because `buildMetadataLines` only iterates `Properties` and the store parser lifts kind/stage into typed top-level fields. Add a kind/stage line to the detail pane, using the kind registry for glyph and colour where the node's kind resolves. Upstream of every TUI task that surfaces or manipulates kind/stage (SL.6, SL.7, SL.9) so the display layer exists before interactions build on it — **depends on SL.5 (done)**
+- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.15 (done)**
+- [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.15 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.15**
 - [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.6, CP.16**
-- [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.15**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
@@ -210,6 +209,7 @@ None yet.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.15. TUI: show `Kind` and `Stage` in the detail pane — a kind/stage line renders immediately after the type badges, resolving the node's kind against the merged registry (`DetailRenderer.Kinds`, threaded from `m.kinds`) for glyph and colour; falls back to a plain muted stage string when the kind is empty or unresolved, and omits the line entirely when both fields are empty. `renderKindStageLine` in `internal/tui/detail.go`; nil-registry safe — **depends on SL.5 (done)**
 - [x] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group (Task/Goblin/Talk → task-flow; Event/Travel → event-flow; Habit → habit-flow; Project → project-flow); two new baked-in stage groups added (habit-flow: loop, project-flow: terminate); `stage.DefaultKinds()` and `stage.MergeKinds()` in `internal/stage/kinds.go`; starter template kind implications recorded as JSONC comments; merged registry threaded through `tui.Config.Kinds` at startup; Bookmark kind deferred to NW.1 — **depends on SL.4 (done)**
 - [x] SL.4. Add `kinds.jsonc` config file — `types.Kind` struct (name, stage-group ref, glyph, colour) in `internal/types/kind.go`; `KindRegistry` with `Lookup`/`All`/`Names` and last-wins-by-name merge seam for SL.5; `(*Store).ReadKinds()` in `internal/store/` reads `~/wyrd/kinds.jsonc` (store parent, sibling of `config.jsonc`); missing file yields empty registry; individual invalid entries skipped (lenient); `StoreFS` interface extended; 6 test-mock stubs updated — **depends on SL.3 (done)**
 - [x] SL.3. Ship three baked-in default stage groups as embedded JSONC: `task-flow` (Open→Maybe→Later→Soon→Now→Done), `event-flow` (Scheduled→Now→Finished), `content-flow` (Active→Reference) — **depends on SL.2 (done)**
@@ -382,17 +382,16 @@ SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
 SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
-SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
+SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::open
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
-SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::blocked
+SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::open
 SL10["`*SL.10*<br/>**Lattice**<br/>Create kinds in TUI`"]:::blocked
 SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
 SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::blocked
 SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
 SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]
-SL15["`*SL.15*<br/>**Lattice**<br/>Kind/stage in detail pane`"]:::open
 
 TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
 TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]
@@ -433,12 +432,10 @@ SL2 --> SL3
 SL3 --> SL4
 SL3 --> SL12 & SL13
 SL4 --> SL5 & SL10
-SL5 --> SL15
 SL13 --> SL11
 SL6 & SL10 & SL13 --> SL14
 SL3 --> TD2
 SL6 --> SL7
-SL15 --> SL6 & SL9
 CP16 --> SL7 & SL14
 SL6 --> DA2
 SL7 --> DA5
@@ -467,7 +464,7 @@ mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mCO --> CO2 & CO3
 mSP --> SP2 & SP4
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14 & SL15
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
