@@ -36,6 +36,23 @@ func (s *mockStore) ReadEdge(id string) (*types.Edge, error)              { retu
 func (s *mockStore) WriteEdge(edge *types.Edge) error                     { s.edges[edge.ID] = edge; return nil }
 func (s *mockStore) DeleteEdge(id string) error                           { delete(s.edges, id); return nil }
 func (s *mockStore) ArchiveNode(_ string) error                           { return nil }
+func (s *mockStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
+	n := s.nodes[id]
+	if n == nil {
+		return nil, &types.NotFoundError{Kind: "node", ID: id}
+	}
+	for k, v := range updates {
+		switch k {
+		case "stage":
+			if sv, ok := v.(string); ok {
+				n.Stage = sv
+			}
+		default:
+			n.Properties[k] = v
+		}
+	}
+	return n, nil
+}
 func (s *mockStore) ReadTemplate(_ string) (*types.Template, error)       { return nil, nil }
 func (s *mockStore) AllTemplates() ([]*types.Template, error)             { return nil, nil }
 func (s *mockStore) ReadView(_ string) (*types.SavedView, error)          { return nil, nil }

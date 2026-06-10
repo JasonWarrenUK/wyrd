@@ -48,6 +48,11 @@ type StoreFS interface {
 	// ArchiveNode sets status to "archived" on the node. Never deletes the file.
 	ArchiveNode(id string) error
 
+	// UpdateNode applies a map of field updates to a node, persists it
+	// atomically, and refreshes the in-memory index. Returns the reloaded node.
+	// Immutable fields (id, created) are silently ignored in updates.
+	UpdateNode(id string, updates map[string]interface{}) (*Node, error)
+
 	// ReadTemplate reads a template definition by type name.
 	ReadTemplate(typeName string) (*Template, error)
 

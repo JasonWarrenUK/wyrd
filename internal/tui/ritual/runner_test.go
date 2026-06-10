@@ -85,6 +85,23 @@ func (m *mockStore) ReadConfig() (*types.Config, error)               { return n
 func (m *mockStore) WriteConfig(_ *types.Config) error                { return nil }
 func (m *mockStore) ReadKinds() (*types.KindRegistry, error)          { return types.NewKindRegistry(nil), nil }
 func (m *mockStore) ArchiveNode(id string) error                      { n := m.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
+func (m *mockStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
+	n := m.nodes[id]
+	if n == nil {
+		return nil, fmt.Errorf("node %s not found", id)
+	}
+	for k, v := range updates {
+		switch k {
+		case "stage":
+			if sv, ok := v.(string); ok {
+				n.Stage = sv
+			}
+		default:
+			n.Properties[k] = v
+		}
+	}
+	return n, nil
+}
 func (m *mockStore) StorePath() string                                 { return "/tmp/store" }
 
 // ---- Fixtures --------------------------------------------------------------

@@ -30,6 +30,23 @@ func (s *formTestStore) ReadEdge(id string) (*types.Edge, error)            { re
 func (s *formTestStore) WriteEdge(e *types.Edge) error                      { s.edges[e.ID] = e; return nil }
 func (s *formTestStore) DeleteEdge(id string) error                         { delete(s.edges, id); s.deletedIDs = append(s.deletedIDs, id); return nil }
 func (s *formTestStore) ArchiveNode(id string) error                        { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
+func (s *formTestStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
+	n := s.nodes[id]
+	if n == nil {
+		return nil, &types.NotFoundError{Kind: "node", ID: id}
+	}
+	for k, v := range updates {
+		switch k {
+		case "stage":
+			if sv, ok := v.(string); ok {
+				n.Stage = sv
+			}
+		default:
+			n.Properties[k] = v
+		}
+	}
+	return n, nil
+}
 func (s *formTestStore) ReadTemplate(_ string) (*types.Template, error)     { return nil, nil }
 func (s *formTestStore) AllTemplates() ([]*types.Template, error)           { return nil, nil }
 func (s *formTestStore) ReadView(_ string) (*types.SavedView, error)        { return nil, nil }
