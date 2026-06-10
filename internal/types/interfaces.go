@@ -75,6 +75,11 @@ type StoreFS interface {
 	// WriteConfig persists the application configuration.
 	WriteConfig(cfg *Config) error
 
+	// ReadKinds reads the user's kind registry from kinds.jsonc in the store's
+	// parent directory (alongside config.jsonc). A missing file returns an
+	// empty registry and no error. Writing is SL.10.
+	ReadKinds() (*KindRegistry, error)
+
 	// StorePath returns the absolute path to the /store root.
 	StorePath() string
 }

@@ -1,0 +1,189 @@
+package store
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/jasonwarrenuk/wyrd/internal/types"
+)
+
+// newKindsTestStore creates a parent/store layout so kinds.jsonc at
+// filepath.Join(s.path, "..", "kinds.jsonc") resolves to parent/kinds.jsonc
+// — the same geometry as the ReadConfig / WriteConfig tests.
+func newKindsTestStore(t *testing.T) (*Store, string) {
+	t.Helper()
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	clock := &fixedClock{t: time.Date(2026, 3, 17, 10, 30, 0, 0, time.UTC)}
+	s, err := New(storePath, clock)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	return s, parent
+}
+
+// writeKindsFixture writes content as kinds.jsonc in the parent directory.
+func writeKindsFixture(t *testing.T, parent, content string) {
+	t.Helper()
+	path := filepath.Join(parent, "kinds.jsonc")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("writing kinds.jsonc fixture: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+func TestReadKindsMissingFile(t *testing.T) {
+	s, _ := newKindsTestStore(t)
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() error = %v, want nil (missing file is not an error)", err)
+	}
+	if reg == nil {
+		t.Fatal("ReadKinds() registry = nil, want empty non-nil registry")
+	}
+	if all := reg.All(); len(all) != 0 {
+		t.Errorf("All() len = %d, want 0", len(all))
+	}
+}
+
+func TestReadKindsParse(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	writeKindsFixture(t, parent, `[
+		{"name": "Task",  "stage_group": "task-flow",  "glyph": "◆", "colour": "#9b70ff"},
+		{"name": "Event", "stage_group": "event-flow", "glyph": "◇", "colour": "#d57300"}
+	]`)
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() error = %v", err)
+	}
+	if all := reg.All(); len(all) != 2 {
+		t.Fatalf("len(All()) = %d, want 2", len(all))
+	}
+
+	task, ok := reg.Lookup("Task")
+	if !ok {
+		t.Fatal("Lookup(Task) ok = false")
+	}
+	if task.StageGroup != "task-flow" {
+		t.Errorf("Task.StageGroup = %q, want %q", task.StageGroup, "task-flow")
+	}
+	if task.Glyph != "◆" {
+		t.Errorf("Task.Glyph = %q, want %q", task.Glyph, "◆")
+	}
+	if task.Colour != "#9b70ff" {
+		t.Errorf("Task.Colour = %q, want %q", task.Colour, "#9b70ff")
+	}
+
+	_, ok = reg.Lookup("Event")
+	if !ok {
+		t.Error("Lookup(Event) ok = false")
+	}
+}
+
+func TestReadKindsParentPath(t *testing.T) {
+	// Regression guard against the config.jsonc trap: a file placed at the
+	// store ROOT must be ignored; only the parent-level file is loaded.
+	s, parent := newKindsTestStore(t)
+
+	// Write to the WRONG location (store root — should be ignored).
+	wrongPath := filepath.Join(s.path, "kinds.jsonc")
+	wrongContent := `[{"name": "WrongKind", "stage_group": "task-flow", "glyph": "✗", "colour": "#ff0000"}]`
+	if err := os.WriteFile(wrongPath, []byte(wrongContent), 0o644); err != nil {
+		t.Fatalf("writing wrong kinds.jsonc: %v", err)
+	}
+
+	// Nothing at the correct location yet — should return empty registry.
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() with only root-level file: error = %v", err)
+	}
+	if _, ok := reg.Lookup("WrongKind"); ok {
+		t.Error("Lookup(WrongKind) ok = true: store-root kinds.jsonc was read, expected parent only")
+	}
+
+	// Now write the correct one and confirm it is used.
+	writeKindsFixture(t, parent, `[{"name": "RightKind", "stage_group": "task-flow", "glyph": "✓", "colour": "#00ff00"}]`)
+	reg2, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() with parent file: error = %v", err)
+	}
+	if _, ok := reg2.Lookup("RightKind"); !ok {
+		t.Error("Lookup(RightKind) ok = false: parent kinds.jsonc not loaded")
+	}
+}
+
+func TestReadKindsStripsComments(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	// JSONC with // comments and a trailing comma — readJSONC/stripComments
+	// should handle both.
+	writeKindsFixture(t, parent, `[
+		// This is a task kind.
+		{
+			"name": "Task",
+			"stage_group": "task-flow",
+			"glyph": "◆",
+			"colour": "#9b70ff", // trailing comma on last field
+		},
+	]`)
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() with comments: error = %v", err)
+	}
+	if _, ok := reg.Lookup("Task"); !ok {
+		t.Error("Lookup(Task) ok = false after comment stripping")
+	}
+}
+
+func TestReadKindsLenientSkip(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	// One valid kind and one missing stage_group — the invalid entry should
+	// be silently skipped, leaving only the valid kind in the registry.
+	writeKindsFixture(t, parent, `[
+		{"name": "Task",  "stage_group": "task-flow", "glyph": "◆", "colour": "#9b70ff"},
+		{"name": "Bad",   "stage_group": "",           "glyph": "✗", "colour": "#ff0000"}
+	]`)
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() error = %v, want nil (lenient skip)", err)
+	}
+	if all := reg.All(); len(all) != 1 {
+		t.Errorf("len(All()) = %d, want 1 (bad entry should be skipped)", len(all))
+	}
+	if _, ok := reg.Lookup("Task"); !ok {
+		t.Error("Lookup(Task) ok = false: valid kind was skipped along with invalid one")
+	}
+	if _, ok := reg.Lookup("Bad"); ok {
+		t.Error("Lookup(Bad) ok = true: invalid kind (empty stage_group) should have been skipped")
+	}
+}
+
+func TestReadKindsParseError(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	// Whole-file corruption (unclosed array) — must return a ParseError.
+	writeKindsFixture(t, parent, `[{"name": "Task", "stage_group": "task-flow"`)
+
+	_, err := s.ReadKinds()
+	if err == nil {
+		t.Fatal("ReadKinds() error = nil, want ParseError for malformed JSON")
+	}
+	var pe *types.ParseError
+	if !errors.As(err, &pe) {
+		t.Fatalf("error type = %T, want *types.ParseError", err)
+	}
+	if pe.Source != "kinds.jsonc" {
+		t.Errorf("ParseError.Source = %q, want %q", pe.Source, "kinds.jsonc")
+	}
+}
