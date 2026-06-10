@@ -391,7 +391,7 @@ SL10["`*SL.10*<br/>**Lattice**<br/>Create kinds in TUI`"]:::blocked
 SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
 SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::blocked
 SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
-SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]
+SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]:::blocked
 
 TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
 TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]
