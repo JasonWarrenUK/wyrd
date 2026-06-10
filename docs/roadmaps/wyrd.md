@@ -15,10 +15,11 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
-| **SL** | SL.1, SL.2, SL.8, SL.8b done         | SL.3         | SL.4–SL.7, SL.9–SL.13 (need SL.3+) |
+| **SL** | SL.1, SL.2, SL.8, SL.8b done         | SL.3         | SL.4–SL.7, SL.9–SL.14 (need SL.3+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
+| **TD** | Not started                         | TD.1         | TD.2 (needs SL.3) |
 
 ---
 
@@ -36,6 +37,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
   - [Milestone B: Node Types Expansion](#mb)
   - [Milestone C: Backlog](#mc)
   - [Milestone D: Skeins](#md)
+  - [Milestone E: Tech Debt](#me)
 - [Progress Map](#map)
 
 ---
@@ -202,6 +204,7 @@ None yet.
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3**
 - [ ] SL.13. User stage-group registry — `stages.jsonc` holds user-defined stage groups, loaded at startup and merged with the baked-in defaults; stage groups exist independently of kinds so multiple kinds can reference one group; kind stage-group references resolve against the merged set — **depends on SL.3**
+- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via the SL.6 stage-write path emitting `nodeUpdatedMsg`; until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.4, SL.6, SL.10, SL.13**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
@@ -274,6 +277,25 @@ None yet.
 
 ---
 
+<a name="me"><h3>Milestone E: Tech Debt</h3></a>
+
+> [!IMPORTANT]
+> **Goal:** Internal infrastructure cleaned up: JSONC parsing consolidated into a single shared package; default-asset lifecycle documented and consistent across the codebase.
+
+<a name="me-todo"><h4>To Do (Milestone E)</h4></a>
+
+- [ ] TD.1. Consolidate JSONC parsing — four duplicated `stripComments` scanners exist across `internal/store/jsonc.go`, `internal/tui/theme.go`, `internal/tui/views/loader.go`, and `internal/tui/ritual/loader.go` (SL.3 adds a fourth in `internal/stage/`); only the store variant strips trailing commas; extract into a shared `internal/jsonc` package, repoint all consumers, add a trailing-comma test — **no blockers**
+
+<a name="me-blocked"><h4>Blocked (Milestone E)</h4></a>
+
+- [ ] TD.2. ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` — **depends on SL.3**
+
+<a name="me-done"><h4>Completed (Milestone E)</h4></a>
+
+None yet.
+
+---
+
 <a name="map"><h2>Progress Map</h2></a>
 
 ```mermaid
@@ -292,6 +314,7 @@ mSL["`**Milestone A**<br/>Status Lattice`"]:::mile
 mNW["`**Milestone B**<br/>Node Types`"]:::mile
 mDL["`**Milestone C**<br/>Backlog`"]:::mile
 mSK["`**Milestone D**<br/>Skeins`"]:::mile
+mTE["`**Milestone E**<br/>Tech Debt`"]:::mile
 
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
@@ -336,6 +359,10 @@ SL10["`*SL.10*<br/>**Lattice**<br/>Create kinds in TUI`"]:::blocked
 SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
 SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::blocked
 SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
+SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]
+
+TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
+TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
@@ -365,6 +392,8 @@ SL2 & SL3 --> SL4
 SL3 --> SL12 & SL13
 SL4 --> SL5 & SL6 & SL9 & SL10
 SL13 --> SL11
+SL4 & SL6 & SL10 & SL13 --> SL14
+SL3 --> TD2
 SL5 & SL6 --> SL7
 SL6 --> DA2
 SL7 --> DA5
@@ -390,10 +419,11 @@ mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mCO --> CO2 & CO3
 mSP --> SP2 & SP4
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
+mTE --> TD1 & TD2
 
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;
