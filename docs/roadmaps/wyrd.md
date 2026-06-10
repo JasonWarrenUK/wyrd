@@ -13,9 +13,9 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
-| **CO** | CO.1 done                           | CO.2         | —       |
-| **SP** | SP.1, SP.3 done                     | SP.2         | —       |
-| **SL** | SL.1, SL.2, SL.8, SL.8b done         | SL.3         | SL.4–SL.7 (need SL.3+) |
+| **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
+| **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
+| **SL** | SL.1, SL.2, SL.8, SL.8b done         | SL.3         | SL.4–SL.7, SL.9–SL.13 (need SL.3+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -151,6 +151,10 @@ None yet.
 
 - [ ] CO.2. `wyrd compact` — orphan edge handling: detach or archive edges linked to archived nodes — **depends on CO.1 (done)**
 
+<a name="m8-blocked"><h4>Blocked (Milestone 8)</h4></a>
+
+- [ ] CO.3. TUI compaction — `:compact` palette command; shows dry-run preview in an overlay, confirm executes, reports moved/detached counts — **depends on CO.2**
+
 <a name="m8-done"><h4>Completed (Milestone 8)</h4></a>
 
 - [x] CO.1. `wyrd compact` — move archived nodes to `archive/` directory with `--dry-run` flag
@@ -165,6 +169,10 @@ None yet.
 <a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
 
 - [ ] SP.2. Bottom-up budgets — effective allocation = sum of all expected (future-dated) spend entries — **depends on SP.1 (done)**
+
+<a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
+
+- [ ] SP.4. Surface bottom-up allocation in TUI — budget detail pane and progress bars use the effective allocation; derived allocations visually distinguished from explicitly set ones — **depends on SP.2, SP.3 (done)**
 
 <a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
 
@@ -189,6 +197,11 @@ None yet.
 - [ ] SL.5. Ship default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project — each referencing appropriate stage group; clarify which kind each starter template implies; add a Bookmark kind once NW.1 lands — **depends on SL.4**
 - [ ] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; emits `nodeUpdatedMsg` — **depends on SL.4**
 - [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.5, SL.6**
+- [ ] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group — **depends on SL.4**
+- [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4**
+- [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
+- [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3**
+- [ ] SL.13. User stage-group registry — `stages.jsonc` holds user-defined stage groups, loaded at startup and merged with the baked-in defaults; stage groups exist independently of kinds so multiple kinds can reference one group; kind stage-group references resolve against the merged set — **depends on SL.3**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
@@ -304,8 +317,10 @@ DA8["`*DA.8*<br/>**Docs**<br/>README images`"]:::blocked
 DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 
 CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
+CO3["`*CO.3*<br/>**Compaction**<br/>TUI :compact`"]:::blocked
 
 SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
+SP4["`*SP.4*<br/>**Spend**<br/>Bottom-up in TUI`"]:::blocked
 
 SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
 SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
@@ -316,6 +331,11 @@ SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::blocked
 SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
+SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::blocked
+SL10["`*SL.10*<br/>**Lattice**<br/>Create kinds in TUI`"]:::blocked
+SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
+SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::blocked
+SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
@@ -342,7 +362,9 @@ DA5 & DA6 & DA7 --> DA9
 SL1 --> SL2 & SL8
 SL2 --> SL3
 SL2 & SL3 --> SL4
-SL4 --> SL5 & SL6
+SL3 --> SL12 & SL13
+SL4 --> SL5 & SL6 & SL9 & SL10
+SL13 --> SL11
 SL5 & SL6 --> SL7
 SL6 --> DA2
 SL7 --> DA5
@@ -350,6 +372,9 @@ SL8 --> SL8b
 SL2 & SL8 --> DL1
 SL8 --> NW2
 NW1 --> NW2
+
+CO2 --> CO3
+SP2 --> SP4
 
 DL1 --> DL2
 DL3 & SL8 --> DL4
@@ -363,9 +388,9 @@ mCP --> CP14 & CP15
 mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
-mCO --> CO2
-mSP --> SP2
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b
+mCO --> CO2 & CO3
+mSP --> SP2 & SP4
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
