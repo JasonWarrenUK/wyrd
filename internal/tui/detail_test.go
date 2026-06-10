@@ -576,3 +576,92 @@ func TestRender_SpendLog_NoteOptional(t *testing.T) {
 		t.Errorf("expected amount 9.99 in output, got:\n%s", output)
 	}
 }
+
+// --- Kind/Stage line tests ---
+
+// newRendererWithKinds builds a renderer with a minimal kind registry for tests.
+func newRendererWithKinds() *DetailRenderer {
+	r := newRenderer()
+	r.Kinds = types.NewKindRegistry([]types.Kind{
+		{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"},
+		{Name: "Goblin", StageGroup: "task-flow", Glyph: "◈", Colour: "#f97316"},
+	})
+	return r
+}
+
+func TestRender_KindStage_Resolved(t *testing.T) {
+	node := simpleNode("ks1", "Some task", []string{"task"})
+	node.Kind = "Task"
+	node.Stage = "doing"
+	r := newRendererWithKinds()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if !strings.Contains(output, "Task") {
+		t.Errorf("expected kind name 'Task' in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "◆") {
+		t.Errorf("expected glyph '◆' in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "doing") {
+		t.Errorf("expected stage 'doing' in output, got:\n%s", output)
+	}
+}
+
+func TestRender_KindStage_StageOnly_NoKind(t *testing.T) {
+	node := simpleNode("ks2", "Node without kind", []string{"task"})
+	node.Kind = ""
+	node.Stage = "doing"
+	r := newRendererWithKinds()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	// Stage should appear; no glyph from a kind.
+	if !strings.Contains(output, "doing") {
+		t.Errorf("expected stage 'doing' in output, got:\n%s", output)
+	}
+	if strings.Contains(output, "◆") || strings.Contains(output, "◈") {
+		t.Errorf("expected no kind glyph when Kind is empty, got:\n%s", output)
+	}
+}
+
+func TestRender_KindStage_Unresolved(t *testing.T) {
+	node := simpleNode("ks3", "Old node", []string{"task"})
+	node.Kind = "OldKind"
+	node.Stage = "doing"
+	r := newRendererWithKinds()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	// Unresolved kind falls back to stage-only; no panic.
+	if !strings.Contains(output, "doing") {
+		t.Errorf("expected stage 'doing' in output for unresolved kind, got:\n%s", output)
+	}
+	if strings.Contains(output, "◆") || strings.Contains(output, "◈") {
+		t.Errorf("expected no kind glyph for unresolved kind 'OldKind', got:\n%s", output)
+	}
+}
+
+func TestRender_KindStage_BothEmpty(t *testing.T) {
+	node := simpleNode("ks4", "Plain node", []string{"note"})
+	node.Kind = ""
+	node.Stage = ""
+	r := newRendererWithKinds()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	// Neither kind nor stage — the line should be absent. Check no stray glyphs.
+	if strings.Contains(output, "◆") || strings.Contains(output, "◈") {
+		t.Errorf("expected no kind/stage line for empty kind+stage, got:\n%s", output)
+	}
+}
+
+func TestRender_KindStage_NilRegistry(t *testing.T) {
+	node := simpleNode("ks5", "Legacy node", []string{"task"})
+	node.Kind = "Task"
+	node.Stage = "todo"
+	// newRenderer() leaves Kinds nil — must not panic; falls back to stage-only.
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	// Stage should still render; no panic.
+	if !strings.Contains(output, "todo") {
+		t.Errorf("expected stage 'todo' in output with nil registry, got:\n%s", output)
+	}
+}

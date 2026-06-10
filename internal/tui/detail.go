@@ -52,6 +52,10 @@ type DetailRenderer struct {
 	// Colours holds the colour palette. Set via NewDetailRenderer or mutated after construction.
 	Colours Colours
 
+	// Kinds is the merged kind registry used to resolve glyphs and colours for node.Kind.
+	// May be nil (e.g. in tests); renderKindStageLine guards for nil before calling Lookup.
+	Kinds *types.KindRegistry
+
 	// glamRenderer caches the Glamour terminal renderer so it is only created
 	// once (or recreated when Width or theme light/dark character changes).
 	glamRenderer *glamour.TermRenderer
@@ -129,6 +133,12 @@ func (r *DetailRenderer) Render(
 	// --- Type badges ---
 	if len(node.Types) > 0 {
 		sb.WriteString(TypeBadges(node.Types, bg))
+		sb.WriteString("\n\n")
+	}
+
+	// --- Kind / Stage ---
+	if line, ok := r.renderKindStageLine(node, bg, mutedStyle, primaryStyle); ok {
+		sb.WriteString(line)
 		sb.WriteString("\n\n")
 	}
 
@@ -345,6 +355,43 @@ func firstLine(s string) string {
 		}
 	}
 	return s
+}
+
+// renderKindStageLine builds the "◆ Task · doing" line shown immediately after type badges.
+//
+// Resolution order:
+//  1. Registry present + node.Kind resolves → glyph (kind colour) + kind name + stage.
+//  2. Kind empty/unresolved, stage present → plain muted stage string.
+//  3. Both empty → returns ("", false) so the caller omits the block entirely.
+//
+// Every style carries Background(bg) to prevent terminal-default bleed (see CLAUDE.md rules).
+func (r *DetailRenderer) renderKindStageLine(
+	node *types.Node,
+	bg color.Color,
+	mutedStyle, primaryStyle lipgloss.Style,
+) (string, bool) {
+	sp := Spacer(1, bg)
+
+	// Attempt a registry lookup when we have both a registry and a kind name.
+	if r.Kinds != nil && node.Kind != "" {
+		if k, ok := r.Kinds.Lookup(node.Kind); ok {
+			kindStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color(k.Colour)).
+				Background(bg)
+			line := kindStyle.Render(k.Glyph) + sp + primaryStyle.Render(k.Name)
+			if node.Stage != "" {
+				line += sp + mutedStyle.Render("· "+node.Stage)
+			}
+			return line, true
+		}
+	}
+
+	// Fallback: no registry, empty kind, or unresolved kind — show stage alone.
+	if node.Stage != "" {
+		return mutedStyle.Render(node.Stage), true
+	}
+
+	return "", false
 }
 
 // buildMetadataLines produces "key: value" strings for non-empty, non-nil properties.

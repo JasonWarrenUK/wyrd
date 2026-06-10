@@ -1202,6 +1202,7 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	renderer := m.detailRenderer
 	renderer.Width = m.layout.totalWidth / 2
+	renderer.Kinds = m.kinds
 	renderer.Colours.BgPrimary       = m.theme.BgPrimary()
 	renderer.Colours.FGPrimary       = m.theme.FgPrimary()
 	renderer.Colours.FGMuted         = m.theme.FgMuted()
