@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"strconv"
-	"time"
 
 	huh "charm.land/huh/v2"
 	tea "charm.land/bubbletea/v2"
@@ -73,10 +72,11 @@ type formPane struct {
 	selectedNodeID string // used to create a "related" edge on submit
 	linkToSelected bool   // set by huh.Confirm; only meaningful when selectedNodeID != ""
 
-	// editingNodeID is non-empty when editing an existing node. It carries the
-	// original node ID so buildNode preserves it instead of generating a new UUID.
-	editingNodeID  string
-	editingCreated time.Time // original Created timestamp, preserved on update
+	// originalNode is non-nil when editing an existing node. buildNode starts
+	// from a clone of it so everything outside the form's own fields (custom
+	// properties, spend_log, date sub-fields, kind/stage, source) survives the
+	// edit. Stashed as a clone so later caller mutations cannot leak in.
+	originalNode *types.Node
 
 	// Edge management (edit mode only). existingEdges holds all edges found
 	// when the edit form was constructed. keptEdgeIDs is bound to the
@@ -107,6 +107,14 @@ type formPane struct {
 // Compile-time checks: formPane must satisfy both PaneModel and formActivePane.
 var _ PaneModel = formPane{}
 var _ formActivePane = formPane{}
+
+// editingID returns the ID of the node being edited, or "" in create mode.
+func (f formPane) editingID() string {
+	if f.originalNode == nil {
+		return ""
+	}
+	return f.originalNode.ID
+}
 
 // NewTaskFormPane builds a formPane for task creation. prefillTitle is the
 // text the user typed in the capture bar after the "t:" prefix (may be empty).
@@ -336,7 +344,7 @@ func newBudgetFormPane(
 		selectedNodeID: selectedNodeID,
 		category:       prefillCategory,
 		allocated:      "",
-		warnAt:         "0.8",
+		warnAt:         "",
 		period:         "month",
 		linkToSelected: true,
 	}
@@ -351,12 +359,13 @@ func newBudgetFormPane(
 			Title("Allocated").
 			Value(&f.allocated).
 			Placeholder("0.00").
-			Validate(validatePositiveNumber("allocated")),
+			Validate(validateNonNegativeNumber("allocated")),
 
 		huh.NewInput().
 			Title("Warn at (fraction 0–1)").
 			Value(&f.warnAt).
-			Placeholder("0.8"),
+			Placeholder("1").
+			Validate(validateOptionalFraction("warn_at")),
 
 		huh.NewSelect[string]().
 			Title("Period").
@@ -414,17 +423,16 @@ func newEditTaskFormPane(
 	}
 
 	f := formPane{
-		kind:           formTask,
-		store:          store,
-		index:          index,
-		clock:          clock,
-		theme:          theme,
-		title:          node.Title,
-		body:           node.Body,
-		status:         status,
-		energy:         energy,
-		editingNodeID:  node.ID,
-		editingCreated: node.Created,
+		kind:         formTask,
+		store:        store,
+		index:        index,
+		clock:        clock,
+		theme:        theme,
+		title:        node.Title,
+		body:         node.Body,
+		status:       status,
+		energy:       energy,
+		originalNode: node.Clone(),
 	}
 
 	fields := []huh.Field{
@@ -488,15 +496,14 @@ func newEditJournalFormPane(
 	node *types.Node,
 ) formPane {
 	f := formPane{
-		kind:           formJournal,
-		store:          store,
-		index:          index,
-		clock:          clock,
-		theme:          theme,
-		title:          node.Title,
-		body:           node.Body,
-		editingNodeID:  node.ID,
-		editingCreated: node.Created,
+		kind:         formJournal,
+		store:        store,
+		index:        index,
+		clock:        clock,
+		theme:        theme,
+		title:        node.Title,
+		body:         node.Body,
+		originalNode: node.Clone(),
 	}
 
 	fields := []huh.Field{
@@ -542,15 +549,14 @@ func newEditNoteFormPane(
 	node *types.Node,
 ) formPane {
 	f := formPane{
-		kind:           formNote,
-		store:          store,
-		index:          index,
-		clock:          clock,
-		theme:          theme,
-		title:          node.Title,
-		body:           node.Body,
-		editingNodeID:  node.ID,
-		editingCreated: node.Created,
+		kind:         formNote,
+		store:        store,
+		index:        index,
+		clock:        clock,
+		theme:        theme,
+		title:        node.Title,
+		body:         node.Body,
+		originalNode: node.Clone(),
 	}
 
 	fields := []huh.Field{
@@ -605,7 +611,7 @@ func newEditBudgetFormPane(
 		allocated = strconv.FormatFloat(v, 'f', -1, 64)
 	}
 
-	warnAt := "0.8"
+	warnAt := ""
 	if v, ok := node.Properties["warn_at"].(float64); ok {
 		warnAt = strconv.FormatFloat(v, 'f', -1, 64)
 	}
@@ -616,17 +622,16 @@ func newEditBudgetFormPane(
 	}
 
 	f := formPane{
-		kind:           formBudget,
-		store:          store,
-		index:          index,
-		clock:          clock,
-		theme:          theme,
-		category:       category,
-		allocated:      allocated,
-		warnAt:         warnAt,
-		period:         period,
-		editingNodeID:  node.ID,
-		editingCreated: node.Created,
+		kind:         formBudget,
+		store:        store,
+		index:        index,
+		clock:        clock,
+		theme:        theme,
+		category:     category,
+		allocated:    allocated,
+		warnAt:       warnAt,
+		period:       period,
+		originalNode: node.Clone(),
 	}
 
 	fields := []huh.Field{
@@ -639,12 +644,13 @@ func newEditBudgetFormPane(
 			Title("Allocated").
 			Value(&f.allocated).
 			Placeholder("0.00").
-			Validate(validatePositiveNumber("allocated")),
+			Validate(validateNonNegativeNumber("allocated")),
 
 		huh.NewInput().
 			Title("Warn at (fraction 0–1)").
 			Value(&f.warnAt).
-			Placeholder("0.8"),
+			Placeholder("1").
+			Validate(validateOptionalFraction("warn_at")),
 
 		huh.NewSelect[string]().
 			Title("Period").
@@ -827,7 +833,7 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			// Non-fatal — emit cancel so the pane is restored.
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
-		if f.editingNodeID == "" && f.selectedNodeID != "" && f.linkToSelected {
+		if f.originalNode == nil && f.selectedNodeID != "" && f.linkToSelected {
 			now := f.clock.Now()
 			edge := &types.Edge{
 				ID:      uuid.New().String(),
@@ -840,7 +846,7 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		}
 		// Edge management: diff kept vs existing to delete unchecked edges,
 		// then create new edge if specified.
-		if f.editingNodeID != "" {
+		if f.originalNode != nil {
 			f.applyEdgeChanges()
 		}
 		label := node.Types[0] + ": " + node.Title
@@ -850,7 +856,7 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		if len(label) > 40 {
 			label = label[:37] + "…"
 		}
-		if f.editingNodeID != "" {
+		if f.originalNode != nil {
 			return f, tea.Batch(cmd, func() tea.Msg {
 				return editSubmitMsg{nodeID: node.ID, label: label}
 			})
@@ -908,7 +914,7 @@ func (f formPane) applyEdgeChanges() {
 	edge := &types.Edge{
 		ID:      uuid.New().String(),
 		Type:    f.newEdgeType,
-		From:    f.editingNodeID,
+		From:    f.editingID(),
 		To:      target,
 		Created: now,
 	}
@@ -943,27 +949,35 @@ func (f formPane) HandleFocusLost() tea.Cmd { return nil }
 func (formPane) isFormActive() {}
 
 // buildNode constructs a types.Node from the captured form field values.
-// When editingNodeID is set, the original ID and Created timestamp are preserved.
+// In edit mode it starts from a clone of the original node, so everything the
+// form doesn't own (custom properties, spend_log, date sub-fields, kind/stage,
+// source) is preserved; only form-owned fields are overwritten.
 func (f formPane) buildNode() *types.Node {
 	now := f.clock.Now()
-	id := uuid.New().String()
-	created := now
-	if f.editingNodeID != "" {
-		id = f.editingNodeID
-		created = f.editingCreated
+
+	node := f.originalNode.Clone() // nil in create mode (Clone is nil-safe)
+	if node == nil {
+		node = &types.Node{
+			ID:      uuid.New().String(),
+			Created: now,
+		}
 	}
-	node := &types.Node{
-		ID:         id,
-		Title:      f.title,
-		Body:       f.body,
-		Created:    created,
-		Modified:   now,
-		Properties: make(map[string]interface{}),
+	node.Title = f.title
+	node.Body = f.body
+	node.Modified = now
+	node.Date.Created = node.Created
+	node.Date.Modified = now
+	if node.Properties == nil {
+		node.Properties = make(map[string]interface{})
 	}
 
+	// Types are not editable in forms; only stamp the form's type when the
+	// node doesn't already carry one (i.e. creation).
 	switch f.kind {
 	case formTask:
-		node.Types = []string{"task"}
+		if len(node.Types) == 0 {
+			node.Types = []string{"task"}
+		}
 		if f.status != "" {
 			node.Properties["status"] = f.status
 		}
@@ -972,14 +986,24 @@ func (f formPane) buildNode() *types.Node {
 		}
 
 	case formJournal:
-		node.Types = []string{"journal"}
-		node.Date.About = &now
+		if len(node.Types) == 0 {
+			node.Types = []string{"journal"}
+		}
+		// Stamp About only on creation — an edit must not move the date the
+		// entry is about.
+		if f.originalNode == nil {
+			node.Date.About = &now
+		}
 
 	case formNote:
-		node.Types = []string{"note"}
+		if len(node.Types) == 0 {
+			node.Types = []string{"note"}
+		}
 
 	case formBudget:
-		node.Types = []string{"budget"}
+		if len(node.Types) == 0 {
+			node.Types = []string{"budget"}
+		}
 		node.Title = f.category
 		node.Properties["category"] = f.category
 		if alloc, err := strconv.ParseFloat(f.allocated, 64); err == nil {
@@ -988,7 +1012,7 @@ func (f formPane) buildNode() *types.Node {
 		if warnAt, err := strconv.ParseFloat(f.warnAt, 64); err == nil {
 			node.Properties["warn_at"] = warnAt
 		} else {
-			node.Properties["warn_at"] = 0.8
+			node.Properties["warn_at"] = 1.0
 		}
 		node.Properties["period"] = f.period
 	}
@@ -1006,9 +1030,9 @@ func notEmpty(fieldName string) func(string) error {
 	}
 }
 
-// validatePositiveNumber returns a validation function that rejects empty,
-// non-numeric, zero, and negative values.
-func validatePositiveNumber(fieldName string) func(string) error {
+// validateNonNegativeNumber returns a validation function that rejects empty,
+// non-numeric, and negative values. Zero is allowed.
+func validateNonNegativeNumber(fieldName string) func(string) error {
 	return func(s string) error {
 		if s == "" {
 			return fmt.Errorf("%s is required", fieldName)
@@ -1017,8 +1041,26 @@ func validatePositiveNumber(fieldName string) func(string) error {
 		if err != nil {
 			return fmt.Errorf("%s must be a number", fieldName)
 		}
-		if v <= 0 {
-			return fmt.Errorf("%s must be greater than zero", fieldName)
+		if v < 0 {
+			return fmt.Errorf("%s must not be negative", fieldName)
+		}
+		return nil
+	}
+}
+
+// validateOptionalFraction returns a validation function that accepts blank
+// (the field has a default) but otherwise requires a number in [0, 1].
+func validateOptionalFraction(fieldName string) func(string) error {
+	return func(s string) error {
+		if s == "" {
+			return nil
+		}
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fmt.Errorf("%s must be a number", fieldName)
+		}
+		if v < 0 || v > 1 {
+			return fmt.Errorf("%s must be between 0 and 1", fieldName)
 		}
 		return nil
 	}

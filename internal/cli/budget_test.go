@@ -32,9 +32,30 @@ func TestBudgetCreate_ZeroAllocated(t *testing.T) {
 	}
 	defer s.Close()
 
-	_, err = cli.BudgetCreate(s, cli.BudgetCreateOptions{Category: "groceries", Allocated: 0})
+	// Zero is a valid allocation (e.g. a category being wound down).
+	id, err := cli.BudgetCreate(s, cli.BudgetCreateOptions{Category: "groceries", Allocated: 0})
+	if err != nil {
+		t.Fatalf("BudgetCreate with zero allocated: %v", err)
+	}
+	node, err := s.ReadNode(id)
+	if err != nil {
+		t.Fatalf("ReadNode: %v", err)
+	}
+	if alloc, ok := node.Properties["allocated"].(float64); !ok || alloc != 0 {
+		t.Errorf("allocated = %v, want 0", node.Properties["allocated"])
+	}
+}
+
+func TestBudgetCreate_NegativeAllocated(t *testing.T) {
+	s, err := store.New(t.TempDir(), types.RealClock{})
+	if err != nil {
+		t.Fatalf("opening store: %v", err)
+	}
+	defer s.Close()
+
+	_, err = cli.BudgetCreate(s, cli.BudgetCreateOptions{Category: "groceries", Allocated: -50})
 	if err == nil {
-		t.Fatal("expected validation error for zero allocated")
+		t.Fatal("expected validation error for negative allocated")
 	}
 	var ve *types.ValidationError
 	if !asValidationError(err, &ve) {
@@ -102,8 +123,8 @@ func TestBudgetCreate_Valid(t *testing.T) {
 	if period, ok := node.Properties["period"].(string); !ok || period != "month" {
 		t.Errorf("period = %v, want month", node.Properties["period"])
 	}
-	if warnAt, ok := node.Properties["warn_at"].(float64); !ok || warnAt != 0.8 {
-		t.Errorf("warn_at = %v, want 0.8", node.Properties["warn_at"])
+	if warnAt, ok := node.Properties["warn_at"].(float64); !ok || warnAt != 1 {
+		t.Errorf("warn_at = %v, want 1", node.Properties["warn_at"])
 	}
 }
 

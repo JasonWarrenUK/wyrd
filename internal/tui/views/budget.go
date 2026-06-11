@@ -147,7 +147,7 @@ func (r *BudgetRenderer) resolveEnvelope(node *types.Node) budgetEnvelope {
 	}
 	env := budgetEnvelope{
 		name:   name,
-		warnAt: 0.8, // sensible default if not specified
+		warnAt: 1, // default when not specified: warn at the full allocation
 	}
 
 	if node.Properties == nil {

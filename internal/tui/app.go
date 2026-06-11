@@ -916,6 +916,8 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node)
 	case "note":
 		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node)
+	case "budget":
+		fp = newEditBudgetFormPane(m.theme, m.store, m.clock, m.index, node)
 	default:
 		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node)
 	}

@@ -79,6 +79,50 @@ type Node struct {
 	Properties map[string]interface{} `json:"-"`
 }
 
+// Clone returns a copy of the node safe to mutate independently of the
+// original: the Types slice, Properties map, Date pointer fields, and Source
+// are all freshly allocated. Values held inside Properties are not deep-copied;
+// callers that mutate nested property values (rather than replacing keys)
+// must copy those themselves.
+func (n *Node) Clone() *Node {
+	if n == nil {
+		return nil
+	}
+	c := *n
+
+	if n.Types != nil {
+		c.Types = make([]string, len(n.Types))
+		copy(c.Types, n.Types)
+	}
+
+	if n.Properties != nil {
+		c.Properties = make(map[string]interface{}, len(n.Properties))
+		for k, v := range n.Properties {
+			c.Properties[k] = v
+		}
+	}
+
+	copyTime := func(t *time.Time) *time.Time {
+		if t == nil {
+			return nil
+		}
+		v := *t
+		return &v
+	}
+	c.Date.Due = copyTime(n.Date.Due)
+	c.Date.About = copyTime(n.Date.About)
+	c.Date.Schedule = copyTime(n.Date.Schedule)
+	c.Date.Start = copyTime(n.Date.Start)
+	c.Date.SnoozeUntil = copyTime(n.Date.SnoozeUntil)
+
+	if n.Source != nil {
+		src := *n.Source
+		c.Source = &src
+	}
+
+	return &c
+}
+
 // Source describes where a synced node originated.
 type Source struct {
 	// Type identifies the plugin that created this node (e.g., "github").

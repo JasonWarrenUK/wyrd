@@ -13,7 +13,7 @@ type BudgetCreateOptions struct {
 	// Category is the budget envelope name. Required.
 	Category string
 
-	// Allocated is the amount allocated for the period. Required, must be > 0.
+	// Allocated is the amount allocated for the period. Required, must be >= 0.
 	Allocated float64
 
 	// Period is the budget period (week, month, quarter, year).
@@ -21,7 +21,7 @@ type BudgetCreateOptions struct {
 	Period string
 
 	// WarnAt is the fraction of allocation that triggers a warning (0–1).
-	// Defaults to 0.8 when zero.
+	// Defaults to 1 when zero (warn as soon as spend reaches the allocation).
 	WarnAt float64
 
 	// LinkID is an optional node ID to create a "related" edge to.
@@ -42,8 +42,8 @@ func BudgetCreate(store types.StoreFS, opts BudgetCreateOptions) (string, error)
 	if opts.Category == "" {
 		return "", &types.ValidationError{Field: "category", Message: "budget category must not be empty"}
 	}
-	if opts.Allocated <= 0 {
-		return "", &types.ValidationError{Field: "allocated", Message: "allocated amount must be greater than zero"}
+	if opts.Allocated < 0 {
+		return "", &types.ValidationError{Field: "allocated", Message: "allocated amount must not be negative"}
 	}
 
 	// Default period.
@@ -59,7 +59,7 @@ func BudgetCreate(store types.StoreFS, opts BudgetCreateOptions) (string, error)
 
 	// Default warn_at.
 	if opts.WarnAt == 0 {
-		opts.WarnAt = 0.8
+		opts.WarnAt = 1
 	}
 	if opts.WarnAt < 0 || opts.WarnAt > 1 {
 		return "", &types.ValidationError{
