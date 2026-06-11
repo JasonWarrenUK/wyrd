@@ -9,13 +9,13 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 |        | Status                              | Next Up      | Blocked |
 |--------|-------------------------------------|--------------|---------|
-| **CP** | CP.14 done; prefix renames pending  | CP.15, CP.16 | —       |
+| **CP** | CP.14, CP.16 done; prefix renames pending | CP.15        | —       |
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
-| **SP** | SP.1, SP.3 done                     | SP.2         | SP.4 (needs SP.2) |
-| **SL** | SL.1–SL.6, SL.8, SL.8b, SL.9, SL.15 done | —            | SL.7, SL.10–SL.14 (need SL.7/SL.13+) |
+| **SP** | SP.1, SP.3 done                     | SP.2, SP.5   | SP.4 (needs SP.2), SP.6 (needs SP.5) |
+| **SL** | SL.1–SL.6, SL.8, SL.8b, SL.9, SL.15 done | SL.7         | SL.10–SL.14 (need SL.13+) |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -54,10 +54,10 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, tests, and docs, so budget-related prefixes group under `b*` — **no blockers**
-- [ ] CP.16. Fix edit-mode node data loss — TUI edit forms (`internal/tui/form.go`) rebuild nodes from scratch via `(formPane).buildNode` instead of merging, silently discarding everything outside the form's fixed field set: the entire budget `spend_log` is wiped on budget edit (serious data loss), all `Date` sub-fields (`Due`/`About`/`Schedule`/`Start`/`SnoozeUntil`) are dropped on any edit, journal `About` is reset to the edit timestamp, and custom/plugin `Properties` are dropped. Stash the original node on the `formPane` in the edit constructors and have `buildNode` start from a clone, overwriting only form-owned fields; add `Validate` to the budget "Warn at" input for parity with Allocated. Blocks downstream tasks that extend the edit/write path (SL.7, SL.14) so they don't inherit or compound the loss — **no blockers**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
+- [x] CP.16. Fix edit-mode node data loss — `(formPane).buildNode` now starts from a `Node.Clone()` of the original node (stashed on the `formPane` by the edit constructors) and overwrites only form-owned fields, so budget `spend_log`, `Date` sub-fields, journal `About`, kind/stage, source, and custom/plugin `Properties` all survive edits. `Clone` added to `types.Node`. Also fixed in passing: `handleEditNode` had no `budget` case (budget nodes fell through to the task edit form, rewriting them as tasks — now wired to `newEditBudgetFormPane`); "Warn at" gained `Validate` (optional, [0–1], blank defaults to 1.0 — the warn_at default changed from 0.8 to 1.0 across form, CLI, and budget view); "Allocated" now accepts 0 — **no blockers**
 - [x] CP.14. Budget creation form — `huh`-based form with fields for category name, allocation amount, period select, warn threshold; creates a budget-type node. Shipped on the `b:` prefix; the `bc:` rename is CP.15 — **depends on CP.13 (done)**
 - [x] CP.13. Add `budget.jsonc` starter template — **no blockers**
 - [x] CP.11. Edge management in edit form — **no blockers**
@@ -173,11 +173,13 @@ None yet.
 
 <a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
 
-- [ ] SP.2. Bottom-up budgets — effective allocation = sum of all expected (future-dated) spend entries — **depends on SP.1 (done)**
+- [ ] SP.2. Bottom-up budgets — effective allocation = sum of all expected (future-dated) spend entries; whichever of SP.2/SP.5 lands second must reconcile the net calculation (income offsets spend) — **depends on SP.1 (done)**
+- [ ] SP.5. Income entries — add a `Direction` field to `types.SpendEntry` (`"in"` / `"out"`; default `"out"` so legacy entries are unchanged and omitted-on-write stays back-compatible); `RecordIncome` in `internal/budget/` mirrors `RecordSpend` writing `Direction: "in"`; `Compute` sums net (`spent = sum(out) − sum(in)`); new `wyrd income` CLI subcommand with `--date` flag mirroring SP.1 — **depends on SP.1 (done)**
 
 <a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
 
 - [ ] SP.4. Surface bottom-up allocation in TUI — budget detail pane and progress bars use the effective allocation; derived allocations visually distinguished from explicitly set ones — **depends on SP.2, SP.3 (done)**
+- [ ] SP.6. TUI income capture form — `bi:` capture-bar prefix opens a huh income form (amount, source/note, date); delegates to `RecordIncome`; mirrors CP.7; the budget edit form must preserve income entries in `spend_log` per the CP.16 edit-mode invariants — **depends on SP.5, CP.16 (done)**
 
 <a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
 
@@ -195,16 +197,15 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-None — all unblocked tasks complete.
+- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.6 (done), CP.16 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.6, CP.16**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
 - [ ] SL.13. User stage-group registry — `stages.jsonc` holds user-defined stage groups, loaded at startup and merged with the baked-in defaults; stage groups exist independently of kinds so multiple kinds can reference one group; kind stage-group references resolve against the merged set — **depends on SL.3 (done)**
-- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via `UpdateNode` (the SL.6 stage-write path); until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.6 (done), SL.10, SL.13, CP.16**
+- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via `UpdateNode` (the SL.6 stage-write path); until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.6 (done), SL.10, SL.13, CP.16 (done)**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
@@ -350,7 +351,7 @@ mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
-CP16["`*CP.16*<br/>**Capture**<br/>Edit data-loss fix`"]:::open
+CP16["`*CP.16*<br/>**Capture**<br/>Edit data-loss fix`"]:::done
 
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::done
 
@@ -375,8 +376,11 @@ DA9["`*DA.9*<br/>**Docs**<br/>make demo target`"]:::blocked
 CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 CO3["`*CO.3*<br/>**Compaction**<br/>TUI :compact`"]:::blocked
 
+SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::done
 SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
 SP4["`*SP.4*<br/>**Spend**<br/>Bottom-up in TUI`"]:::blocked
+SP5["`*SP.5*<br/>**Spend**<br/>Income entries`"]:::open
+SP6["`*SP.6*<br/>**Spend**<br/>TUI income form`"]:::blocked
 
 SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
 SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
@@ -384,7 +388,7 @@ SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::done
-SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::blocked
+SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::open
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::done
@@ -446,7 +450,10 @@ SL8 --> NW2
 NW1 --> NW2
 
 CO2 --> CO3
+SP1 --> SP5
 SP2 --> SP4
+SP5 --> SP6
+CP16 --> SP6
 
 DL1 --> DL2
 DL3 & SL8 --> DL4
@@ -464,7 +471,7 @@ mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mCO --> CO2 & CO3
-mSP --> SP2 & SP4
+mSP --> SP1 & SP2 & SP4 & SP5 & SP6
 mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
