@@ -9,18 +9,18 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 |        | Status                              | Next Up      | Blocked |
 |--------|-------------------------------------|--------------|---------|
-| **CP** | CP.14, CP.16 done; prefix renames pending | CP.15        | —       |
+| **CP** | CP.14, CP.16 done; prefix renames pending | CP.15, CP.17 | —       |
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
-| **SP** | SP.1, SP.3 done                     | SP.2, SP.5   | SP.4 (needs SP.2), SP.6 (needs SP.5) |
-| **SL** | SL.1–SL.6, SL.8, SL.8b, SL.9, SL.15 done | SL.7         | SL.10–SL.14 (need SL.13+) |
-| **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
+| **SP** | SP.1, SP.3 done; rescoped to movement nodes | SP.7         | SP.2, SP.4–SP.6, SP.8–SP.11 |
+| **SL** | SL.1–SL.6, SL.8, SL.8b, SL.9, SL.15 done | SL.7a        | SL.7b–SL.7c, SL.10–SL.14 |
+| **NW** | Not started                         | —            | NW.1 (needs SL.7b), NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
-| **TD** | Not started                         | TD.1         | TD.2 (needs SL.3) |
-| **VP** | Not started                         | VP.1–VP.5, VP.7, VP.8 | VP.6 (needs VP.4) |
+| **TD** | Not started                         | TD.1–TD.3    | —       |
+| **VP** | Not started                         | VP.1, VP.3, VP.4, VP.9 | VP.2 (needs SL.7c), VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
 
@@ -32,7 +32,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
   - [Milestone 6: Rituals & Workflows](#m6)
   - [Milestone 7: Documentation Assets](#m7)
   - [Milestone 8: Compaction](#m8)
-  - [Spend Depth](#sp)
+  - [Milestone G: Spend Depth](#sp)
 - [New Milestones](#new)
   - [Milestone A: Status Lattice](#ma)
   - [Milestone B: Node Types Expansion](#mb)
@@ -54,6 +54,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
 - [ ] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, tests, and docs, so budget-related prefixes group under `b*` — **no blockers**
+- [ ] CP.17. Dismissable capture-bar messages — status text set via `SetCaptureText` (e.g. "Sync failed: …" in `app.go`) persists indefinitely with no way to dismiss it and restore the key-hint bar; add an explicit dismiss keypress and consider auto-expiry for transient messages — **no blockers**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
@@ -126,18 +127,21 @@ None.
 > [!IMPORTANT]
 > **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
+> [!NOTE]
+> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.7c, SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
+
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
 - [ ] DA.1. Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites — **depends on VS.10 (done)**
 
 <a name="m7-blocked"><h4>Blocked (Milestone 7)</h4></a>
 
-- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, SL.6, VP.1**
-- [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1**
-- [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1**
-- [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, SL.7**
-- [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5 (done), DA.1**
-- [ ] DA.7. Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) — **depends on NV.8 (done), DA.1**
+- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, CP.15, Milestone A (SL.7c, SL.11, SL.12, SL.14), Milestone B (NW.2), Milestone C (DL.2, DL.5), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8), Milestone G (SP.4, SP.6, SP.9, SP.11)**
+- [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, Milestone A (SL.7c, SL.11, SL.12, SL.14), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5 (done), DA.1, Milestone 6 (RT.6, RT.7, RT.8), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.7. Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) — **depends on NV.8 (done), DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.8. Integrate screenshots and gifs into README.md under a "Screenshots" section — **depends on DA.2, DA.3, DA.4**
 - [ ] DA.9. Store VHS tapes in `docs/vhs/` directory; add make target `make demo` to regenerate all gifs — **depends on DA.5, DA.6, DA.7**
 
@@ -166,22 +170,27 @@ None yet.
 
 ---
 
-<a name="sp"><h3>Spend Depth</h3></a>
+<a name="sp"><h3>Milestone G: Spend Depth</h3></a>
 
 > [!IMPORTANT]
-> **Goal:** Spend entries carry an explicit date. Bottom-up budgeting derives the envelope from expected spend entries.
+> **Goal:** Money movements are first-class nodes (kind `movement`, stage group `expected → cleared`) linked to budgets via `draws_from`/`adds_to` edges. Spends, income, and transfers are edge-topology variants of one model: `draws_from` only = spend; `adds_to` only = income; both = transfer. Bottom-up budgeting derives the envelope from expected movements. A movement is a dated event, not an abstract relationship — hence node plus edges rather than a payload edge.
 
-<a name="sp-todo"><h4>To Do (Spend Depth)</h4></a>
+<a name="sp-todo"><h4>To Do (Milestone G)</h4></a>
 
-- [ ] SP.2. Bottom-up budgets — effective allocation = sum of all expected (future-dated) spend entries; whichever of SP.2/SP.5 lands second must reconcile the net calculation (income offsets spend) — **depends on SP.1 (done)**
-- [ ] SP.5. Income entries — add a `Direction` field to `types.SpendEntry` (`"in"` / `"out"`; default `"out"` so legacy entries are unchanged and omitted-on-write stays back-compatible); `RecordIncome` in `internal/budget/` mirrors `RecordSpend` writing `Direction: "in"`; `Compute` sums net (`spent = sum(out) − sum(in)`); new `wyrd income` CLI subcommand with `--date` flag mirroring SP.1 — **depends on SP.1 (done)**
+- [ ] SP.7. Movement node data model — register a `movement` kind in `stage.DefaultKinds`; new baked-in `movement-flow` stage group (`expected → cleared`, terminate); add `draws_from` and `adds_to` to the built-in edge types; movement nodes carry the amount in `Properties`, the transaction date in `Date.About`, and the note in `Body` — **depends on SL.3 (done), SL.5 (done)**
 
-<a name="sp-blocked"><h4>Blocked (Spend Depth)</h4></a>
+<a name="sp-blocked"><h4>Blocked (Milestone G)</h4></a>
 
+- [ ] SP.2. Bottom-up budgets — effective allocation = sum of stage-`expected` movements drawing from the category in the upcoming period — **depends on SP.8**
 - [ ] SP.4. Surface bottom-up allocation in TUI — budget detail pane and progress bars use the effective allocation; derived allocations visually distinguished from explicitly set ones — **depends on SP.2, SP.3 (done)**
-- [ ] SP.6. TUI income capture form — `bi:` capture-bar prefix opens a huh income form (amount, source/note, date); delegates to `RecordIncome`; mirrors CP.7; the budget edit form must preserve income entries in `spend_log` per the CP.16 edit-mode invariants — **depends on SP.5, CP.16 (done)**
+- [ ] SP.5. Income recording — `wyrd income` CLI subcommand creates a movement node with an `adds_to` edge (mirrors `wyrd spend`); the previous `Direction`-field design is superseded by edge topology — **depends on SP.8**
+- [ ] SP.6. TUI income capture form — `bi:` capture-bar prefix opens a huh movement form (amount, source/note, date); delegates to the SP.5 income path; creates a node, so it carries the SL.7 form pattern — **depends on SP.5, SL.7b**
+- [ ] SP.8. Budget engine over movements — `RecordSpend` creates a movement node plus a `draws_from` edge to the budget instead of appending to `spend_log`; `Compute` derives spent from cleared movements in the current period (net = draws_from − adds_to); the embedded `spend_log` representation is deleted outright — the dual-shape handling in `budget.SpendLog` and the CP.16 spend_log-preservation tests retire with it (pre-production, no migration) — **depends on SP.7**
+- [ ] SP.9. Budget detail pane lists movements — rework SP.3's spend-events section to read movement nodes via edges: amount, date, stage, and counterpart category for transfers — **depends on SP.8**
+- [ ] SP.10. Transfer recording — `wyrd transfer` CLI creates a single movement node with both a `draws_from` and an `adds_to` edge; the unbalanced-transfer state is unrepresentable by construction — **depends on SP.8**
+- [ ] SP.11. TUI transfer capture form — `bt:` capture-bar prefix opens a huh form (from-category, to-category, amount, date); delegates to the SP.10 transfer path — **depends on SP.10, SL.7b**
 
-<a name="sp-done"><h4>Completed (Spend Depth)</h4></a>
+<a name="sp-done"><h4>Completed (Milestone G)</h4></a>
 
 - [x] SP.3. Spend events in budget detail pane — **no blockers**
 - [x] SP.1. Dated spend entries — `SpendEntry.Date` across `RecordSpend`, `SpendOptions`, `--date` CLI flag, TUI spend form — **no blockers**
@@ -197,10 +206,12 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.7. TUI: kind selection field in all capture/edit forms; stage initialises to first stage of selected kind's group — **depends on SL.6 (done), CP.16 (done)**
+- [ ] SL.7a. TUI: kind selection in task create form — thread the merged kind and stage-group registries into `formPane`; add a `huh.NewSelect` kind field to `newTaskFormPane` (options from the registry, default Task); `buildNode` sets `Kind` and initialises `Stage` to the first stage of the selected kind's group. Note: `formPane` already has a `kind formKind` discriminator field, so the node-kind value needs a distinct name (e.g. `nodeKind`) — **depends on SL.6 (done), CP.16 (done)**
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
+- [ ] SL.7b. TUI: kind selection in remaining create forms — repeat the SL.7a pattern across `newJournalFormPane`, `newNoteFormPane`, `newBudgetFormPane`, with sensible per-form default kinds — **depends on SL.7a**
+- [ ] SL.7c. TUI: kind selection in edit forms — all four edit constructors pre-populate the kind select with the node's current kind; an unchanged kind leaves kind/stage untouched (the CP.16 clone invariant); a changed kind keeps the stage when it exists in the new kind's group, else resets to the group's first stage (the single-node analogue of SL.14's registry-level remap, deliberately scoped to one node) — **depends on SL.7b, CP.16 (done)**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
@@ -229,10 +240,11 @@ None yet.
 
 <a name="mb-todo"><h4>To Do (Milestone B)</h4></a>
 
-- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional). `bm:` does not collide with `b:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **no blockers**
+None — NW.1 awaits SL.7b.
 
 <a name="mb-blocked"><h4>Blocked (Milestone B)</h4></a>
 
+- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional; the form carries the SL.7 kind select from birth). `bm:` does not collide with `b:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **depends on SL.7b**
 - [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8 (done), NW.1**
 
 <a name="mb-done"><h4>Completed (Milestone B)</h4></a>
@@ -292,10 +304,12 @@ None yet.
 <a name="me-todo"><h4>To Do (Milestone E)</h4></a>
 
 - [ ] TD.1. Consolidate JSONC parsing — four duplicated `stripComments` scanners exist across `internal/store/jsonc.go`, `internal/tui/theme.go`, `internal/tui/views/loader.go`, and `internal/tui/ritual/loader.go` (SL.3 adds a fourth in `internal/stage/`); only the store variant strips trailing commas; extract into a shared `internal/jsonc` package, repoint all consumers, add a trailing-comma test — **no blockers**
+- [ ] TD.2. ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` — **depends on SL.3 (done)**
+- [ ] TD.3. Edge `Modified` timestamp — restructure `types.Edge` date properties into an embedded `DateFields`-style block holding the existing `Created` plus a new `Modified`; store write paths stamp `Modified` on every edge update; serialisation changes freely (pre-production, no back-compat constraint). Implementation question to settle: whether `Node`'s top-level `Created`/`Modified` should move into its date block for symmetry — **no blockers**
 
 <a name="me-blocked"><h4>Blocked (Milestone E)</h4></a>
 
-- [ ] TD.2. ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` — **depends on SL.3**
+None.
 
 <a name="me-done"><h4>Completed (Milestone E)</h4></a>
 
@@ -311,16 +325,17 @@ None yet.
 <a name="mf-todo"><h4>To Do (Milestone F)</h4></a>
 
 - [ ] VP.1. Logo/title pane atop the detail column — split the right column vertically into a fixed-height logo/title pane (top) and the existing detail pane (below). Add a `wyrd` wordmark asset (none exists today); rework `layout.go` `Render` to stack the logo box and detail box with `JoinVertical`, add a height calc reserving the logo's rows, and wire a `logoPane` alongside `rightPane` in `app.go`. Must honour the background-bleed rules (`PadLines`, both fg+bg on every style) — **no blockers**
-- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI) — **no blockers**
 - [ ] VP.3. Theme-derived glamour stylesheet — build a glamour `ansi.StyleConfig` from theme colours (headings → accent, code → muted bg, links → accent-secondary) so rendered markdown in the detail pane is visually continuous with its container — **no blockers**
 - [ ] VP.4. Gradient focus border — replace the flat accent border on the focused pane with a subtle `BorderForegroundBlend` gradient (accent → accent-secondary, both already in theme) so focus is unmistakable — **no blockers**
-- [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place` — **no blockers**
-- [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view — **no blockers**
-- [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync` — **no blockers**
+- [ ] VP.9. Fix overlay panel overflow — the `:log`, `:help`, and `:kinds` overlays extend past the bottom of the visible TUI; clamp the rendered panel to the terminal height. Each overlay computes its own `vpHeight = height - 6` (`log_overlay.go`, `help_overlay.go`, `kinds_overlay.go`), so the chrome allowance or outer-box clamp is wrong in all three — fix once, consistently — **no blockers**
 
 <a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
 
+- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c**
+- [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place`. Sequenced after VP.9 so the compositor re-implementation inherits correct overlay sizing — **depends on VP.9**
 - [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
+- [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17**
+- [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync`; the bar's terminal failure state is displayed through the CP.17 dismissable-message mechanism — **depends on CP.17**
 
 <a name="mf-done"><h4>Completed (Milestone F)</h4></a>
 
@@ -341,7 +356,7 @@ mLG["`**Milestone 5**<br/>Logging`"]:::mile
 mRT["`**Milestone 6**<br/>Rituals`"]:::mile
 mDA["`**Milestone 7**<br/>Docs Assets`"]:::mile
 mCO["`**Milestone 8**<br/>Compaction`"]:::mile
-mSP["`**Spend Depth**`"]:::mile
+mSP["`**Milestone G**<br/>Spend Depth`"]:::mile
 mSL["`**Milestone A**<br/>Status Lattice`"]:::mile
 mNW["`**Milestone B**<br/>Node Types`"]:::mile
 mDL["`**Milestone C**<br/>Backlog`"]:::mile
@@ -352,6 +367,7 @@ mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
 CP16["`*CP.16*<br/>**Capture**<br/>Edit data-loss fix`"]:::done
+CP17["`*CP.17*<br/>**Capture**<br/>Dismissable messages`"]:::open
 
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::done
 
@@ -377,10 +393,15 @@ CO2["`*CO.2*<br/>**Compaction**<br/>Orphan edges`"]:::open
 CO3["`*CO.3*<br/>**Compaction**<br/>TUI :compact`"]:::blocked
 
 SP1["`*SP.1*<br/>**Spend**<br/>Dated spend entries`"]:::done
-SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::open
+SP2["`*SP.2*<br/>**Spend**<br/>Bottom-up budgets`"]:::blocked
 SP4["`*SP.4*<br/>**Spend**<br/>Bottom-up in TUI`"]:::blocked
-SP5["`*SP.5*<br/>**Spend**<br/>Income entries`"]:::open
+SP5["`*SP.5*<br/>**Spend**<br/>Income movements`"]:::blocked
 SP6["`*SP.6*<br/>**Spend**<br/>TUI income form`"]:::blocked
+SP7["`*SP.7*<br/>**Spend**<br/>Movement node model`"]:::open
+SP8["`*SP.8*<br/>**Spend**<br/>Budget engine over movements`"]:::blocked
+SP9["`*SP.9*<br/>**Spend**<br/>Detail pane movements`"]:::blocked
+SP10["`*SP.10*<br/>**Spend**<br/>Transfer CLI`"]:::blocked
+SP11["`*SP.11*<br/>**Spend**<br/>Transfer form (bt:)`"]:::blocked
 
 SL1["`*SL.1*<br/>**Lattice**<br/>kind+stage fields`"]:::done
 SL2["`*SL.2*<br/>**Lattice**<br/>Stage group model`"]:::done
@@ -388,7 +409,9 @@ SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::done
-SL7["`*SL.7*<br/>**Lattice**<br/>Kind in forms`"]:::open
+SL7a["`*SL.7a*<br/>**Lattice**<br/>Kind in task form`"]:::open
+SL7b["`*SL.7b*<br/>**Lattice**<br/>Kind in create forms`"]:::blocked
+SL7c["`*SL.7c*<br/>**Lattice**<br/>Kind in edit forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::done
@@ -399,9 +422,10 @@ SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::blocked
 SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]:::blocked
 
 TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
-TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]
+TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]:::open
+TD3["`*TD.3*<br/>**Tech Debt**<br/>Edge Modified + DateFields`"]:::open
 
-NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
+NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::blocked
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
 
 DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::open
@@ -416,13 +440,14 @@ SK3["`*SK.3*<br/>**Skeins**<br/>Query resolution`"]:::blocked
 SK4["`*SK.4*<br/>**Skeins**<br/>Palette commands`"]:::blocked
 
 VP1["`*VP.1*<br/>**Visual Polish**<br/>Logo pane`"]:::open
-VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::open
+VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::blocked
 VP3["`*VP.3*<br/>**Visual Polish**<br/>Glamour stylesheet`"]:::open
 VP4["`*VP.4*<br/>**Visual Polish**<br/>Gradient focus border`"]:::open
-VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::open
+VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::blocked
 VP6["`*VP.6*<br/>**Visual Polish**<br/>Focus animation`"]:::blocked
-VP7["`*VP.7*<br/>**Visual Polish**<br/>Key-hint footer`"]:::open
-VP8["`*VP.8*<br/>**Visual Polish**<br/>Sync progress bar`"]:::open
+VP7["`*VP.7*<br/>**Visual Polish**<br/>Key-hint footer`"]:::blocked
+VP8["`*VP.8*<br/>**Visual Polish**<br/>Sync progress bar`"]:::blocked
+VP9["`*VP.9*<br/>**Visual Polish**<br/>Overlay overflow fix`"]:::open
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6
@@ -431,6 +456,13 @@ RT5 --> DA6
 DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
+CP15 --> DA2
+SL7c & SL11 & SL12 & SL14 --> DA2 & DA5
+NW2 --> DA2
+DL2 & DL5 --> DA2
+SP4 & SP6 & SP9 & SP11 --> DA3
+RT6 & RT7 & RT8 --> DA6
+VP1 & VP2 & VP3 & VP5 & VP6 & VP7 & VP8 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 
 SL1 --> SL2 & SL8
 SL2 --> SL3
@@ -440,20 +472,23 @@ SL4 --> SL5 & SL10
 SL13 --> SL11
 SL6 & SL10 & SL13 --> SL14
 SL3 --> TD2
-SL6 --> SL7
-CP16 --> SL7 & SL14
-SL6 --> DA2
-SL7 --> DA5
+SL6 --> SL7a
+SL7a --> SL7b
+SL7b --> SL7c & NW1 & SP6 & SP11
+SL7c --> VP2
+CP16 --> SL7a & SL7c & SL14
 SL8 --> SL8b
 SL2 & SL8 --> DL1
 SL8 --> NW2
 NW1 --> NW2
 
 CO2 --> CO3
-SP1 --> SP5
+SL3 & SL5 --> SP7
+SP7 --> SP8
+SP8 --> SP2 & SP5 & SP9 & SP10
 SP2 --> SP4
 SP5 --> SP6
-CP16 --> SP6
+SP10 --> SP11
 
 DL1 --> DL2
 DL3 & SL8 --> DL4
@@ -463,21 +498,22 @@ SK1 --> SK2
 SK2 --> SK3
 SK3 --> SK4
 
-VP1 --> DA2
 VP4 --> VP6
+VP9 --> VP5
+CP17 --> VP7 & VP8
 
-mCP --> CP14 & CP15 & CP16
+mCP --> CP14 & CP15 & CP16 & CP17
 mLG --> LG7
 mRT --> RT2 & RT3 & RT4 & RT5 & RT6 & RT7 & RT8
 mDA --> DA1 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9
 mCO --> CO2 & CO3
-mSP --> SP1 & SP2 & SP4 & SP5 & SP6
-mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7 & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
+mSP --> SP1 & SP2 & SP4 & SP5 & SP6 & SP7 & SP8 & SP9 & SP10 & SP11
+mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL10 & SL11 & SL12 & SL13 & SL14
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
-mTE --> TD1 & TD2
-mVP --> VP1 & VP2 & VP3 & VP4 & VP5 & VP6 & VP7 & VP8
+mTE --> TD1 & TD2 & TD3
+mVP --> VP1 & VP2 & VP3 & VP4 & VP5 & VP6 & VP7 & VP8 & VP9
 
 classDef default fill:#fff7fb,stroke:#ccc;
 classDef blocked fill:#fff7fb,stroke:#ccc;
