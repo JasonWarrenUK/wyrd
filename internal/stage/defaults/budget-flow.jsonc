@@ -1,0 +1,6 @@
+{
+	// A budget envelope is Active while live, then Closed when retired.
+	"name": "budget-flow",
+	"stages": ["Active", "Closed"],
+	"cycle": "terminate"
+}

@@ -1,0 +1,7 @@
+{
+	// Journal — a dated reflective entry; Active while current, then Reference.
+	"name": "Journal",
+	"stage_group": "content-flow",
+	"glyph": "✎",
+	"colour": "#794aff"
+}

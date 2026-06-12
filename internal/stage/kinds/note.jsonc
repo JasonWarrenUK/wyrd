@@ -1,0 +1,7 @@
+{
+	// Note — a free-form note; Active while in use, then demoted to Reference.
+	"name": "Note",
+	"stage_group": "content-flow",
+	"glyph": "▪",
+	"colour": "#009e8c"
+}
