@@ -46,7 +46,7 @@ func TestEditTaskBuildNodePreservesUnownedFields(t *testing.T) {
 	original.Properties["status"] = "inbox"
 	original.Properties["energy"] = "low"
 
-	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original)
+	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original, nil, nil)
 	f.title = "New title"
 	f.body = "New body"
 	f.status = "active"
@@ -99,7 +99,7 @@ func TestEditBudgetBuildNodePreservesSpendLog(t *testing.T) {
 		map[string]interface{}{"date": "2026-06-08", "amount": 40.0},
 	}
 
-	f := newEditBudgetFormPane(nil, nil, internalTestClock(), nil, original)
+	f := newEditBudgetFormPane(nil, nil, internalTestClock(), nil, original, nil, nil)
 	f.category = "food"
 	f.allocated = "350"
 	f.warnAt = "0.9"
@@ -132,7 +132,7 @@ func TestEditBudgetWarnAtBlankDefaultsToOne(t *testing.T) {
 	original := seedRichNode("budget")
 	original.Properties["allocated"] = 100.0
 
-	f := newEditBudgetFormPane(nil, nil, internalTestClock(), nil, original)
+	f := newEditBudgetFormPane(nil, nil, internalTestClock(), nil, original, nil, nil)
 	f.category = "misc"
 	f.allocated = "100"
 	f.warnAt = ""
@@ -147,7 +147,7 @@ func TestEditJournalBuildNodePreservesAbout(t *testing.T) {
 	original := seedRichNode("journal")
 	originalAbout := *original.Date.About
 
-	f := newEditJournalFormPane(nil, nil, internalTestClock(), nil, original)
+	f := newEditJournalFormPane(nil, nil, internalTestClock(), nil, original, nil, nil)
 	f.body = "Edited entry"
 
 	got := f.buildNode()
@@ -311,5 +311,127 @@ func TestCreateBudgetBuildNodeNilRegistriesLeaveKindStageEmpty(t *testing.T) {
 	}
 	if got.Stage != "" {
 		t.Errorf("Stage = %q, want empty (nil registry → untriaged)", got.Stage)
+	}
+}
+
+// SL.7c: edit forms — kind/stage stamping rules.
+
+// sharedKindStageRegistries returns a two-kind registry for SL.7c tests:
+//   - "Task" → task-flow (stages: Open, Now, Done)
+//   - "Note" → content-flow (stages: Active, Reference)
+//
+// "Now" is present in task-flow but absent from content-flow, exercising the
+// stage-reset path when changing kinds.
+func sharedKindStageRegistries() (*types.KindRegistry, *types.StageGroupRegistry) {
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"},
+		{Name: "Note", StageGroup: "content-flow", Glyph: "▪", Colour: "#009e8c"},
+	})
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "task-flow", Stages: []string{"Open", "Now", "Done"}, Cycle: types.CycleTerminate},
+		{Name: "content-flow", Stages: []string{"Active", "Reference"}, Cycle: types.CycleTerminate},
+	})
+	return kinds, groups
+}
+
+// TestEditTaskUnchangedKindPreservesStage confirms that leaving the kind select
+// on its current value (CP.16) leaves Kind and Stage untouched.
+func TestEditTaskUnchangedKindPreservesStage(t *testing.T) {
+	original := seedRichNode("task") // Kind="Task", Stage="Now"
+	kinds, groups := sharedKindStageRegistries()
+
+	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original, kinds, groups)
+	// nodeKind pre-populated from node.Kind ("Task"); do not change it.
+	f.title = "Updated title"
+
+	got := f.buildNode()
+
+	if got.Kind != "Task" {
+		t.Errorf("Kind = %q, want Task (unchanged kind must not alter Kind)", got.Kind)
+	}
+	if got.Stage != "Now" {
+		t.Errorf("Stage = %q, want Now (unchanged kind must not alter Stage)", got.Stage)
+	}
+}
+
+// TestEditTaskChangedKindStageAbsentResetsToFirst confirms that switching to a
+// kind whose group does not contain the current stage resets Stage to the
+// group's first stage.
+func TestEditTaskChangedKindStageAbsentResetsToFirst(t *testing.T) {
+	original := seedRichNode("task") // Kind="Task", Stage="Now"
+	kinds, groups := sharedKindStageRegistries()
+
+	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original, kinds, groups)
+	f.nodeKind = "Note" // content-flow has no "Now"
+
+	got := f.buildNode()
+
+	if got.Kind != "Note" {
+		t.Errorf("Kind = %q, want Note", got.Kind)
+	}
+	if got.Stage != "Active" {
+		t.Errorf("Stage = %q, want Active (first stage of content-flow; Now absent)", got.Stage)
+	}
+}
+
+// TestEditTaskChangedKindStagePresent confirms that switching to a kind whose
+// group contains the current stage keeps Stage unchanged.
+func TestEditTaskChangedKindStagePresent(t *testing.T) {
+	// Build a node with Stage="Active" so content-flow (Active, Reference) keeps it.
+	original := seedRichNode("task")
+	original.Stage = "Active"
+
+	kinds, groups := sharedKindStageRegistries()
+
+	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original, kinds, groups)
+	f.nodeKind = "Note" // content-flow contains "Active"
+
+	got := f.buildNode()
+
+	if got.Kind != "Note" {
+		t.Errorf("Kind = %q, want Note", got.Kind)
+	}
+	if got.Stage != "Active" {
+		t.Errorf("Stage = %q, want Active (present in content-flow; should be kept)", got.Stage)
+	}
+}
+
+// TestEditTaskEmptyKindNodeUntriaged confirms that a node with an empty Kind
+// and a select left at "" leaves Kind/Stage empty after edit.
+func TestEditTaskEmptyKindNodeUntriaged(t *testing.T) {
+	original := seedRichNode("task")
+	original.Kind = ""
+	original.Stage = ""
+
+	kinds, groups := sharedKindStageRegistries()
+
+	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original, kinds, groups)
+	// nodeKind is "" (set from node.Kind); user did not choose a kind.
+
+	got := f.buildNode()
+
+	if got.Kind != "" {
+		t.Errorf("Kind = %q, want empty (untriaged node with unchanged empty kind)", got.Kind)
+	}
+	if got.Stage != "" {
+		t.Errorf("Stage = %q, want empty", got.Stage)
+	}
+}
+
+// TestEditTaskNilRegistriesPreservesKindStage confirms that passing nil
+// registries to an edit form is safe and does not wipe Kind/Stage.
+func TestEditTaskNilRegistriesPreservesKindStage(t *testing.T) {
+	original := seedRichNode("task") // Kind="Task", Stage="Now"
+
+	f := newEditTaskFormPane(nil, nil, internalTestClock(), nil, original, nil, nil)
+	// With nil registries, nodeKind=="Task" but applyKindStage returns early.
+
+	got := f.buildNode()
+
+	if got.Kind != "Task" {
+		t.Errorf("Kind = %q, want Task (nil registry must not wipe Kind)", got.Kind)
+	}
+	if got.Stage != "Now" {
+		t.Errorf("Stage = %q, want Now (nil registry must not wipe Stage)", got.Stage)
 	}
 }
