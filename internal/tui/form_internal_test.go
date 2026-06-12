@@ -158,7 +158,7 @@ func TestEditJournalBuildNodePreservesAbout(t *testing.T) {
 
 func TestCreateJournalBuildNodeStampsAbout(t *testing.T) {
 	clock := internalTestClock()
-	f := newJournalFormPane(nil, nil, clock, "", "")
+	f := newJournalFormPane(nil, nil, clock, "", "", nil, nil)
 	f.body = "New entry"
 
 	got := f.buildNode()
@@ -224,6 +224,86 @@ func TestCreateTaskBuildNodeStampsKindAndStage(t *testing.T) {
 
 func TestCreateTaskBuildNodeNilRegistriesLeaveKindStageEmpty(t *testing.T) {
 	f := newTaskFormPane(nil, nil, internalTestClock(), "", "Buy milk", nil, nil)
+	got := f.buildNode() // must not panic
+
+	if got.Kind != "" {
+		t.Errorf("Kind = %q, want empty (nil registry → untriaged)", got.Kind)
+	}
+	if got.Stage != "" {
+		t.Errorf("Stage = %q, want empty (nil registry → untriaged)", got.Stage)
+	}
+}
+
+// SL.7b: journal/note/budget creation must stamp Kind and Stage.
+
+func TestCreateJournalBuildNodeStampsKindAndStage(t *testing.T) {
+	clock := internalTestClock()
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Journal", StageGroup: "content-flow", Glyph: "✎", Colour: "#794aff"},
+	})
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "content-flow", Stages: []string{"Active", "Reference"}, Cycle: types.CycleTerminate},
+	})
+
+	f := newJournalFormPane(nil, nil, clock, "", "", kinds, groups)
+	got := f.buildNode()
+
+	if got.Kind != "Journal" {
+		t.Errorf("Kind = %q, want Journal", got.Kind)
+	}
+	if got.Stage != "Active" {
+		t.Errorf("Stage = %q, want Active (first stage of content-flow)", got.Stage)
+	}
+}
+
+func TestCreateNoteBuildNodeStampsKindAndStage(t *testing.T) {
+	clock := internalTestClock()
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Note", StageGroup: "content-flow", Glyph: "▪", Colour: "#009e8c"},
+	})
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "content-flow", Stages: []string{"Active", "Reference"}, Cycle: types.CycleTerminate},
+	})
+
+	f := newNoteFormPane(nil, nil, clock, "", "", kinds, groups)
+	got := f.buildNode()
+
+	if got.Kind != "Note" {
+		t.Errorf("Kind = %q, want Note", got.Kind)
+	}
+	if got.Stage != "Active" {
+		t.Errorf("Stage = %q, want Active (first stage of content-flow)", got.Stage)
+	}
+}
+
+func TestCreateBudgetBuildNodeStampsKindAndStage(t *testing.T) {
+	clock := internalTestClock()
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Budget", StageGroup: "budget-flow", Glyph: "❖", Colour: "#b98300"},
+	})
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "budget-flow", Stages: []string{"Active", "Closed"}, Cycle: types.CycleTerminate},
+	})
+
+	f := newBudgetFormPane(nil, nil, clock, "", "", kinds, groups)
+	f.category = "Groceries"
+	f.allocated = "300"
+	f.warnAt = ""
+	got := f.buildNode()
+
+	if got.Kind != "Budget" {
+		t.Errorf("Kind = %q, want Budget", got.Kind)
+	}
+	if got.Stage != "Active" {
+		t.Errorf("Stage = %q, want Active (first stage of budget-flow)", got.Stage)
+	}
+}
+
+func TestCreateBudgetBuildNodeNilRegistriesLeaveKindStageEmpty(t *testing.T) {
+	f := newBudgetFormPane(nil, nil, internalTestClock(), "", "", nil, nil)
+	f.category = "Misc"
+	f.allocated = "100"
+	f.warnAt = ""
 	got := f.buildNode() // must not panic
 
 	if got.Kind != "" {

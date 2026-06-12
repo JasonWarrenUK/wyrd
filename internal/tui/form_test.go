@@ -156,7 +156,7 @@ func TestJournalFormPaneViewRenders(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewJournalFormPane(theme, store, clock, "", "")
+	fp := tui.NewJournalFormPane(theme, store, clock, "", "", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -172,7 +172,7 @@ func TestNoteFormPaneViewRenders(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note")
+	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -209,7 +209,7 @@ func TestJournalFormBodyPlaceholder(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewJournalFormPane(theme, store, clock, "", "")
+	fp := tui.NewJournalFormPane(theme, store, clock, "", "", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -226,7 +226,7 @@ func TestNoteFormBodyPlaceholder(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note")
+	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
