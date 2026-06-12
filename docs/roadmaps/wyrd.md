@@ -15,7 +15,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done; rescoped to movement nodes | SP.7         | SP.2, SP.4–SP.6, SP.8–SP.11 |
-| **SL** | SL.1–SL.6, SL.8, SL.8b, SL.9, SL.15 done | SL.7a        | SL.7b–SL.7c, SL.10–SL.14 |
+| **SL** | SL.1–SL.6, SL.7a, SL.8, SL.8b, SL.9, SL.15 done | SL.7b        | SL.7c, SL.10–SL.14 |
 | **NW** | Not started                         | —            | NW.1 (needs SL.7b), NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
@@ -206,11 +206,11 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.7a. TUI: kind selection in task create form — thread the merged kind and stage-group registries into `formPane`; add a `huh.NewSelect` kind field to `newTaskFormPane` (options from the registry, default Task); `buildNode` sets `Kind` and initialises `Stage` to the first stage of the selected kind's group. Note: `formPane` already has a `kind formKind` discriminator field, so the node-kind value needs a distinct name (e.g. `nodeKind`) — **depends on SL.6 (done), CP.16 (done)**
+None — SL.7a done; SL.7b now unblocked.
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.7b. TUI: kind selection in remaining create forms — repeat the SL.7a pattern across `newJournalFormPane`, `newNoteFormPane`, `newBudgetFormPane`, with sensible per-form default kinds — **depends on SL.7a**
+- [ ] SL.7b. TUI: kind selection in remaining create forms — repeat the SL.7a pattern across `newJournalFormPane`, `newNoteFormPane`, `newBudgetFormPane`, with sensible per-form default kinds — **depends on SL.7a (done)**
 - [ ] SL.7c. TUI: kind selection in edit forms — all four edit constructors pre-populate the kind select with the node's current kind; an unchanged kind leaves kind/stage untouched (the CP.16 clone invariant); a changed kind keeps the stage when it exists in the new kind's group, else resets to the group's first stage (the single-node analogue of SL.14's registry-level remap, deliberately scoped to one node) — **depends on SL.7b, CP.16 (done)**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
@@ -220,6 +220,7 @@ None yet.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.7a. TUI: kind selection in task create form — `newTaskFormPane` accepts `*types.KindRegistry` and `*types.StageGroupRegistry`; a `huh.NewSelect` kind field (options from `kinds.Names()`, default Task) is inserted after Body and before Status; `buildNode` stamps `node.Kind` and initialises `node.Stage` to `group.Stages[0]` on create only (nil-safe; edit mode preserves the clone's existing Kind/Stage via the `f.originalNode == nil` guard, keeping the CP.16 invariant); both registries threaded through the capture-bar dispatch in `app.go` — **depends on SL.6 (done), CP.16 (done)**
 - [x] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group; `kindsOverlay` struct in `internal/tui/kinds_overlay.go`; inline row format (coloured glyph + kind name + stage-group name + ordered stages, loop groups marked `↺`); composited as a centred Lipgloss layer; nil-registry safe — **depends on SL.15 (done)**
 - [x] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; refreshes dashboard and detail pane inline (mirrors `handleEditSubmit`; the codebase uses inline refresh rather than a `nodeUpdatedMsg` message type); `handleStageShift` in `internal/tui/app.go`; routes writes through `StoreFS.UpdateNode` (new interface method) to keep the in-memory index live; `types.StageGroupRegistry`, `types.ResolveStageGroup`, `stage.MergeStageGroups` added; registry threaded through `tui.Config.StageGroups` — **depends on SL.15 (done)**
 - [x] SL.15. TUI: show `Kind` and `Stage` in the detail pane — a kind/stage line renders immediately after the type badges, resolving the node's kind against the merged registry (`DetailRenderer.Kinds`, threaded from `m.kinds`) for glyph and colour; falls back to a plain muted stage string when the kind is empty or unresolved, and omits the line entirely when both fields are empty. `renderKindStageLine` in `internal/tui/detail.go`; nil-registry safe — **depends on SL.5 (done)**
@@ -409,8 +410,8 @@ SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::done
-SL7a["`*SL.7a*<br/>**Lattice**<br/>Kind in task form`"]:::open
-SL7b["`*SL.7b*<br/>**Lattice**<br/>Kind in create forms`"]:::blocked
+SL7a["`*SL.7a*<br/>**Lattice**<br/>Kind in task form`"]:::done
+SL7b["`*SL.7b*<br/>**Lattice**<br/>Kind in create forms`"]:::open
 SL7c["`*SL.7c*<br/>**Lattice**<br/>Kind in edit forms`"]:::blocked
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done

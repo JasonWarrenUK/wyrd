@@ -199,3 +199,37 @@ func TestValidateOptionalFraction(t *testing.T) {
 		}
 	}
 }
+
+// SL.7a: task creation must stamp Kind and Stage from the selected kind's group.
+
+func TestCreateTaskBuildNodeStampsKindAndStage(t *testing.T) {
+	clock := internalTestClock()
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"},
+	})
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "task-flow", Stages: []string{"Open", "Maybe", "Later", "Soon", "Now", "Done"}, Cycle: types.CycleTerminate},
+	})
+
+	f := newTaskFormPane(nil, nil, clock, "", "Buy milk", kinds, groups)
+	got := f.buildNode()
+
+	if got.Kind != "Task" {
+		t.Errorf("Kind = %q, want %q", got.Kind, "Task")
+	}
+	if got.Stage != "Open" {
+		t.Errorf("Stage = %q, want %q (first stage of task-flow)", got.Stage, "Open")
+	}
+}
+
+func TestCreateTaskBuildNodeNilRegistriesLeaveKindStageEmpty(t *testing.T) {
+	f := newTaskFormPane(nil, nil, internalTestClock(), "", "Buy milk", nil, nil)
+	got := f.buildNode() // must not panic
+
+	if got.Kind != "" {
+		t.Errorf("Kind = %q, want empty (nil registry → untriaged)", got.Kind)
+	}
+	if got.Stage != "" {
+		t.Errorf("Stage = %q, want empty (nil registry → untriaged)", got.Stage)
+	}
+}

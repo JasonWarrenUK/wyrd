@@ -829,7 +829,7 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "note":
 			fp = newNoteFormPane(m.theme, m.store, m.clock, selectedID, body)
 		default:
-			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body)
+			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 		}
 		m.rightPane = fp
 		m.focus = FocusRight

@@ -139,7 +139,7 @@ func TestTaskFormPaneViewRenders(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk", nil, nil)
 
 	// Deliver a size message.
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -189,7 +189,7 @@ func TestTaskFormBodyPlaceholder(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -243,7 +243,7 @@ func TestFormKeyBindingsAccurate(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "", nil, nil)
 	bindings := fp.KeyBindings()
 
 	keySet := make(map[string]string)
@@ -266,7 +266,7 @@ func TestFormConfirmFieldPresentWhenLinked(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "abc-123", "Buy milk")
+	fp := tui.NewTaskFormPane(theme, store, clock, "abc-123", "Buy milk", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -283,7 +283,7 @@ func TestFormNoConfirmFieldWhenUnlinked(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -380,7 +380,7 @@ func TestFormPaneHandleFocusLostIsNoop(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "", nil, nil)
 	cmd := fp.HandleFocusLost()
 	if cmd != nil {
 		t.Error("expected nil cmd from HandleFocusLost")

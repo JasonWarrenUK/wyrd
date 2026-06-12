@@ -72,6 +72,14 @@ type formPane struct {
 	selectedNodeID string // used to create a "related" edge on submit
 	linkToSelected bool   // set by huh.Confirm; only meaningful when selectedNodeID != ""
 
+	// kinds and stageGroups are the merged registries used to populate the
+	// kind-select field and, on create, to resolve the selected kind's first
+	// stage. Either may be nil (tests, or app built without registry wiring);
+	// the constructor and buildNode nil-guard before use. `kind` (the formKind
+	// discriminator) is a distinct field — no collision.
+	kinds       *types.KindRegistry
+	stageGroups *types.StageGroupRegistry
+
 	// originalNode is non-nil when editing an existing node. buildNode starts
 	// from a clone of it so everything outside the form's own fields (custom
 	// properties, spend_log, date sub-fields, kind/stage, source) survives the
@@ -90,6 +98,7 @@ type formPane struct {
 	// Field values — written by huh via pointer accessors.
 	title     string
 	body      string
+	nodeKind  string // selected Kind registry name (e.g. "Task"); bound to the kind huh.Select
 	status    string
 	energy    string
 	category  string // budget category
@@ -125,8 +134,10 @@ func NewTaskFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillTitle string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) PaneModel {
-	return newTaskFormPane(theme, store, clock, selectedNodeID, prefillTitle)
+	return newTaskFormPane(theme, store, clock, selectedNodeID, prefillTitle, kinds, stageGroups)
 }
 
 // newTaskFormPane is the internal constructor.
@@ -136,16 +147,21 @@ func newTaskFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillTitle string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) formPane {
 	f := formPane{
 		kind:           formTask,
 		store:          store,
 		clock:          clock,
 		theme:          theme,
+		kinds:          kinds,
+		stageGroups:    stageGroups,
 		selectedNodeID: selectedNodeID,
 		title:          prefillTitle,
 		status:         "inbox",
 		energy:         "medium",
+		nodeKind:       "Task", // default selection; also the value buildNode reads when the select is omitted
 		linkToSelected: true,
 	}
 
@@ -160,7 +176,22 @@ func newTaskFormPane(
 			Value(&f.body).
 			Lines(6).
 			Placeholder("Describe the task (alt+enter for new line, ctrl+e for editor)"),
-
+	}
+	if kinds != nil {
+		names := kinds.Names()
+		if len(names) > 0 {
+			opts := make([]huh.Option[string], len(names))
+			for i, name := range names {
+				opts[i] = huh.NewOption(name, name)
+			}
+			fields = append(fields, huh.NewSelect[string]().
+				Title("Kind").
+				Options(opts...).
+				Value(&f.nodeKind),
+			)
+		}
+	}
+	fields = append(fields,
 		huh.NewSelect[string]().
 			Title("Status").
 			Options(
@@ -178,7 +209,7 @@ func newTaskFormPane(
 				huh.NewOption("Low", "low"),
 			).
 			Value(&f.energy),
-	}
+	)
 	if selectedNodeID != "" {
 		fields = append(fields, huh.NewConfirm().
 			Title("Link to selected node?").
@@ -983,6 +1014,19 @@ func (f formPane) buildNode() *types.Node {
 		}
 		if f.energy != "" {
 			node.Properties["energy"] = f.energy
+		}
+		// On create only, stamp the selected kind and initialise the stage to
+		// the first stage of that kind's group. Edit mode preserves the clone's
+		// existing Kind/Stage (CP.16), so this must not run when editing.
+		if f.originalNode == nil && f.nodeKind != "" && f.kinds != nil {
+			if k, ok := f.kinds.Lookup(f.nodeKind); ok {
+				node.Kind = k.Name
+				if f.stageGroups != nil {
+					if g, ok := f.stageGroups.Lookup(k.StageGroup); ok && len(g.Stages) > 0 {
+						node.Stage = g.Stages[0]
+					}
+				}
+			}
 		}
 
 	case formJournal:
