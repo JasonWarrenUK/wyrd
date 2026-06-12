@@ -15,12 +15,12 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done; rescoped to movement nodes | SP.7         | SP.2, SP.4–SP.6, SP.8–SP.11 |
-| **SL** | SL.1–SL.6, SL.8, SL.8b, SL.9, SL.15 done | SL.7a        | SL.7b–SL.7c, SL.10–SL.14 |
-| **NW** | Not started                         | —            | NW.1 (needs SL.7b), NW.2 (needs NW.1) |
+| **SL** | SL.1–SL.6, SL.7a, SL.7b, SL.7c, SL.8, SL.8b, SL.9, SL.15 done | —        | SL.10–SL.14 |
+| **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 | **TD** | Not started                         | TD.1–TD.3    | —       |
-| **VP** | Not started                         | VP.1, VP.3, VP.4, VP.9 | VP.2 (needs SL.7c), VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
+| **VP** | Not started                         | VP.1, VP.2, VP.3, VP.4, VP.9 | VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
 
@@ -128,7 +128,7 @@ None.
 > **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
 > [!NOTE]
-> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.7c, SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
+> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
@@ -184,11 +184,11 @@ None yet.
 - [ ] SP.2. Bottom-up budgets — effective allocation = sum of stage-`expected` movements drawing from the category in the upcoming period — **depends on SP.8**
 - [ ] SP.4. Surface bottom-up allocation in TUI — budget detail pane and progress bars use the effective allocation; derived allocations visually distinguished from explicitly set ones — **depends on SP.2, SP.3 (done)**
 - [ ] SP.5. Income recording — `wyrd income` CLI subcommand creates a movement node with an `adds_to` edge (mirrors `wyrd spend`); the previous `Direction`-field design is superseded by edge topology — **depends on SP.8**
-- [ ] SP.6. TUI income capture form — `bi:` capture-bar prefix opens a huh movement form (amount, source/note, date); delegates to the SP.5 income path; creates a node, so it carries the SL.7 form pattern — **depends on SP.5, SL.7b**
+- [ ] SP.6. TUI income capture form — `bi:` capture-bar prefix opens a huh movement form (amount, source/note, date); delegates to the SP.5 income path; creates a node, so it carries the SL.7 form pattern — **depends on SP.5, SL.7b (done)**
 - [ ] SP.8. Budget engine over movements — `RecordSpend` creates a movement node plus a `draws_from` edge to the budget instead of appending to `spend_log`; `Compute` derives spent from cleared movements in the current period (net = draws_from − adds_to); the embedded `spend_log` representation is deleted outright — the dual-shape handling in `budget.SpendLog` and the CP.16 spend_log-preservation tests retire with it (pre-production, no migration) — **depends on SP.7**
 - [ ] SP.9. Budget detail pane lists movements — rework SP.3's spend-events section to read movement nodes via edges: amount, date, stage, and counterpart category for transfers — **depends on SP.8**
 - [ ] SP.10. Transfer recording — `wyrd transfer` CLI creates a single movement node with both a `draws_from` and an `adds_to` edge; the unbalanced-transfer state is unrepresentable by construction — **depends on SP.8**
-- [ ] SP.11. TUI transfer capture form — `bt:` capture-bar prefix opens a huh form (from-category, to-category, amount, date); delegates to the SP.10 transfer path — **depends on SP.10, SL.7b**
+- [ ] SP.11. TUI transfer capture form — `bt:` capture-bar prefix opens a huh form (from-category, to-category, amount, date); delegates to the SP.10 transfer path — **depends on SP.10, SL.7b (done)**
 
 <a name="sp-done"><h4>Completed (Milestone G)</h4></a>
 
@@ -206,12 +206,10 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-- [ ] SL.7a. TUI: kind selection in task create form — thread the merged kind and stage-group registries into `formPane`; add a `huh.NewSelect` kind field to `newTaskFormPane` (options from the registry, default Task); `buildNode` sets `Kind` and initialises `Stage` to the first stage of the selected kind's group. Note: `formPane` already has a `kind formKind` discriminator field, so the node-kind value needs a distinct name (e.g. `nodeKind`) — **depends on SL.6 (done), CP.16 (done)**
+None — SL.7a, SL.7b, and SL.7c done. SL.10–SL.14 remain.
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.7b. TUI: kind selection in remaining create forms — repeat the SL.7a pattern across `newJournalFormPane`, `newNoteFormPane`, `newBudgetFormPane`, with sensible per-form default kinds — **depends on SL.7a**
-- [ ] SL.7c. TUI: kind selection in edit forms — all four edit constructors pre-populate the kind select with the node's current kind; an unchanged kind leaves kind/stage untouched (the CP.16 clone invariant); a changed kind keeps the stage when it exists in the new kind's group, else resets to the group's first stage (the single-node analogue of SL.14's registry-level remap, deliberately scoped to one node) — **depends on SL.7b, CP.16 (done)**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
@@ -220,6 +218,9 @@ None yet.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.7c. TUI: kind selection in edit forms — all four `NewEdit*FormPane` constructors accept `kinds`/`stageGroups` registries and pre-populate `nodeKind` from `node.Kind`; a "— none —" sentinel option preserves the untriaged state; `applyKindStage` helper unifies create and edit stamping (replaces four copy-pasted inline blocks); CP.16 invariant: unchanged kind returns early leaving Kind/Stage untouched; changed kind re-stamps Kind and keeps Stage if the new group `Contains` it, else resets to the group's first stage; `StageGroup.Contains` exported (wraps `indexOf`); registries threaded through `handleEditNode` in `app.go` — **depends on SL.7b (done), CP.16 (done)**
+- [x] SL.7b. TUI: kind selection in remaining create forms — `newJournalFormPane`, `newNoteFormPane`, and `newBudgetFormPane` now accept the kind/stage registries, render a `huh.NewSelect` kind field (defaults Journal/Note/Budget respectively), and stamp `node.Kind`/`node.Stage` on create (nil-safe, CP.16 clone invariant preserved); three new baked-in kinds added (Journal→content-flow, Note→content-flow, Budget→budget-flow) plus a new `budget-flow` stage group `[Active, Closed]` (terminate); kind/group counts now 10/6; registries threaded through the three capture-bar dispatch sites in `app.go` — **depends on SL.7a (done)**
+- [x] SL.7a. TUI: kind selection in task create form — `newTaskFormPane` accepts `*types.KindRegistry` and `*types.StageGroupRegistry`; a `huh.NewSelect` kind field (options from `kinds.Names()`, default Task) is inserted after Body and before Status; `buildNode` stamps `node.Kind` and initialises `node.Stage` to `group.Stages[0]` on create only (nil-safe; edit mode preserves the clone's existing Kind/Stage via the `f.originalNode == nil` guard, keeping the CP.16 invariant); both registries threaded through the capture-bar dispatch in `app.go` — **depends on SL.6 (done), CP.16 (done)**
 - [x] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group; `kindsOverlay` struct in `internal/tui/kinds_overlay.go`; inline row format (coloured glyph + kind name + stage-group name + ordered stages, loop groups marked `↺`); composited as a centred Lipgloss layer; nil-registry safe — **depends on SL.15 (done)**
 - [x] SL.6. TUI: advance stage (`]`) and retreat stage (`[`) keypresses on selected node; wraps per kind's cycle behaviour; refreshes dashboard and detail pane inline (mirrors `handleEditSubmit`; the codebase uses inline refresh rather than a `nodeUpdatedMsg` message type); `handleStageShift` in `internal/tui/app.go`; routes writes through `StoreFS.UpdateNode` (new interface method) to keep the in-memory index live; `types.StageGroupRegistry`, `types.ResolveStageGroup`, `stage.MergeStageGroups` added; registry threaded through `tui.Config.StageGroups` — **depends on SL.15 (done)**
 - [x] SL.15. TUI: show `Kind` and `Stage` in the detail pane — a kind/stage line renders immediately after the type badges, resolving the node's kind against the merged registry (`DetailRenderer.Kinds`, threaded from `m.kinds`) for glyph and colour; falls back to a plain muted stage string when the kind is empty or unresolved, and omits the line entirely when both fields are empty. `renderKindStageLine` in `internal/tui/detail.go`; nil-registry safe — **depends on SL.5 (done)**
@@ -240,11 +241,10 @@ None yet.
 
 <a name="mb-todo"><h4>To Do (Milestone B)</h4></a>
 
-None — NW.1 awaits SL.7b.
+- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional; the form carries the SL.7 kind select from birth). `bm:` does not collide with `b:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **depends on SL.7b (done)**
 
 <a name="mb-blocked"><h4>Blocked (Milestone B)</h4></a>
 
-- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional; the form carries the SL.7 kind select from birth). `bm:` does not collide with `b:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **depends on SL.7b**
 - [ ] NW.2. Add `answers` edge type; wire into edge management form (CP.11 done); detail pane renders linked answers under an ANSWERS section — **depends on SL.8 (done), NW.1**
 
 <a name="mb-done"><h4>Completed (Milestone B)</h4></a>
@@ -331,7 +331,7 @@ None yet.
 
 <a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
 
-- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c**
+- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c (done)**
 - [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place`. Sequenced after VP.9 so the compositor re-implementation inherits correct overlay sizing — **depends on VP.9**
 - [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
 - [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17**
@@ -409,9 +409,9 @@ SL3["`*SL.3*<br/>**Lattice**<br/>Default stage groups`"]:::done
 SL4["`*SL.4*<br/>**Lattice**<br/>kinds.jsonc`"]:::done
 SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::done
-SL7a["`*SL.7a*<br/>**Lattice**<br/>Kind in task form`"]:::open
-SL7b["`*SL.7b*<br/>**Lattice**<br/>Kind in create forms`"]:::blocked
-SL7c["`*SL.7c*<br/>**Lattice**<br/>Kind in edit forms`"]:::blocked
+SL7a["`*SL.7a*<br/>**Lattice**<br/>Kind in task form`"]:::done
+SL7b["`*SL.7b*<br/>**Lattice**<br/>Kind in create forms`"]:::done
+SL7c["`*SL.7c*<br/>**Lattice**<br/>Kind in edit forms`"]:::done
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::done
@@ -425,7 +425,7 @@ TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
 TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]:::open
 TD3["`*TD.3*<br/>**Tech Debt**<br/>Edge Modified + DateFields`"]:::open
 
-NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::blocked
+NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
 
 DL1["`*DL.1*<br/>**Backlog**<br/>isBlocked derived`"]:::open

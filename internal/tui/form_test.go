@@ -139,7 +139,7 @@ func TestTaskFormPaneViewRenders(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk", nil, nil)
 
 	// Deliver a size message.
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -156,7 +156,7 @@ func TestJournalFormPaneViewRenders(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewJournalFormPane(theme, store, clock, "", "")
+	fp := tui.NewJournalFormPane(theme, store, clock, "", "", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -172,7 +172,7 @@ func TestNoteFormPaneViewRenders(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note")
+	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -189,7 +189,7 @@ func TestTaskFormBodyPlaceholder(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -209,7 +209,7 @@ func TestJournalFormBodyPlaceholder(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewJournalFormPane(theme, store, clock, "", "")
+	fp := tui.NewJournalFormPane(theme, store, clock, "", "", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -226,7 +226,7 @@ func TestNoteFormBodyPlaceholder(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note")
+	fp := tui.NewNoteFormPane(theme, store, clock, "", "My note", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -243,7 +243,7 @@ func TestFormKeyBindingsAccurate(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "", nil, nil)
 	bindings := fp.KeyBindings()
 
 	keySet := make(map[string]string)
@@ -266,7 +266,7 @@ func TestFormConfirmFieldPresentWhenLinked(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "abc-123", "Buy milk")
+	fp := tui.NewTaskFormPane(theme, store, clock, "abc-123", "Buy milk", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -283,7 +283,7 @@ func TestFormNoConfirmFieldWhenUnlinked(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "Buy milk", nil, nil)
 
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -316,7 +316,7 @@ func TestEditTaskFormPaneViewRenders(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-1", "Buy groceries", "From the list", []string{"task"})
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -332,7 +332,7 @@ func TestEditJournalFormPaneViewRenders(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-2", "2026-01-01", "Today I did things", []string{"journal"})
 
-	fp := tui.NewEditJournalFormPane(theme, store, clock, nil, node)
+	fp := tui.NewEditJournalFormPane(theme, store, clock, nil, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -348,7 +348,7 @@ func TestEditNoteFormPaneViewRenders(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-3", "Architecture notes", "The system uses...", []string{"note"})
 
-	fp := tui.NewEditNoteFormPane(theme, store, clock, nil, node)
+	fp := tui.NewEditNoteFormPane(theme, store, clock, nil, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -365,7 +365,7 @@ func TestEditFormNoLinkField(t *testing.T) {
 	clock := formTestClock()
 	node := seedNode("node-4", "Some task", "", []string{"task"})
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	v := sized.View()
@@ -380,7 +380,7 @@ func TestFormPaneHandleFocusLostIsNoop(t *testing.T) {
 	store := newFormTestStore()
 	clock := formTestClock()
 
-	fp := tui.NewTaskFormPane(theme, store, clock, "", "")
+	fp := tui.NewTaskFormPane(theme, store, clock, "", "", nil, nil)
 	cmd := fp.HandleFocusLost()
 	if cmd != nil {
 		t.Error("expected nil cmd from HandleFocusLost")
@@ -411,7 +411,7 @@ func TestEditFormShowsExistingEdges(t *testing.T) {
 		},
 	}
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -434,7 +434,7 @@ func TestEditFormShowsAddEdgeType(t *testing.T) {
 		nodes: []*types.Node{node},
 	}
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -452,7 +452,7 @@ func TestEditFormNilIndexNoEdgeFields(t *testing.T) {
 
 	node := seedNode("node-a", "Task A", "", []string{"task"})
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, nil, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -489,7 +489,7 @@ func TestEditFormEdgeLabelsShowTargetTitle(t *testing.T) {
 		},
 	}
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -521,7 +521,7 @@ func TestEditFormIncomingEdgeShowsSection(t *testing.T) {
 		},
 	}
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -542,7 +542,7 @@ func TestEditJournalFormShowsEdgeFields(t *testing.T) {
 		nodes: []*types.Node{node},
 	}
 
-	fp := tui.NewEditJournalFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditJournalFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -563,7 +563,7 @@ func TestEditNoteFormShowsEdgeFields(t *testing.T) {
 		nodes: []*types.Node{node},
 	}
 
-	fp := tui.NewEditNoteFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditNoteFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()
@@ -584,7 +584,7 @@ func TestEditFormNoExistingEdgesSection(t *testing.T) {
 		nodes: []*types.Node{node},
 	}
 
-	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node)
+	fp := tui.NewEditTaskFormPane(theme, store, clock, index, node, nil, nil)
 	sized, _ := fp.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
 
 	v := sized.View()

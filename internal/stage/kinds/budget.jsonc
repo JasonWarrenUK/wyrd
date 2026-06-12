@@ -1,0 +1,7 @@
+{
+	// Budget — a spending envelope; Active while live, Closed once retired.
+	"name": "Budget",
+	"stage_group": "budget-flow",
+	"glyph": "❖",
+	"colour": "#b98300"
+}

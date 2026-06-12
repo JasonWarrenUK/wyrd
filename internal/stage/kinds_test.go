@@ -12,8 +12,8 @@ func TestDefaultKindsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultKinds() error: %v", err)
 	}
-	if len(kinds) != 7 {
-		t.Fatalf("expected 7 kinds, got %d", len(kinds))
+	if len(kinds) != 10 {
+		t.Fatalf("expected 10 kinds, got %d", len(kinds))
 	}
 }
 
@@ -39,6 +39,9 @@ func TestDefaultKindsContents(t *testing.T) {
 		{name: "Travel", stageGroup: "event-flow"},
 		{name: "Talk", stageGroup: "task-flow"},
 		{name: "Project", stageGroup: "project-flow"},
+		{name: "Journal", stageGroup: "content-flow"},
+		{name: "Note", stageGroup: "content-flow"},
+		{name: "Budget", stageGroup: "budget-flow"},
 	}
 
 	for _, tc := range cases {

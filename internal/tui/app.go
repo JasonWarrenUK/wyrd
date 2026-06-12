@@ -810,7 +810,7 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if lp, ok := m.leftPane.(nodeListPane); ok {
 				selectedID = lp.SelectedNodeID()
 			}
-			fp := newBudgetFormPane(m.theme, m.store, m.clock, selectedID, body)
+			fp := newBudgetFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 			m.rightPane = fp
 			m.focus = FocusRight
 			m.syncKeyHints()
@@ -825,11 +825,11 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		var fp formPane
 		switch nodeType {
 		case "journal":
-			fp = newJournalFormPane(m.theme, m.store, m.clock, selectedID, body)
+			fp = newJournalFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 		case "note":
-			fp = newNoteFormPane(m.theme, m.store, m.clock, selectedID, body)
+			fp = newNoteFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 		default:
-			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body)
+			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 		}
 		m.rightPane = fp
 		m.focus = FocusRight
@@ -913,13 +913,13 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 	var fp formPane
 	switch primaryType {
 	case "journal":
-		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	case "note":
-		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	case "budget":
-		fp = newEditBudgetFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditBudgetFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	default:
-		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	}
 
 	m.rightPane = fp

@@ -141,3 +141,28 @@ func TestIsTerminal(t *testing.T) {
 		t.Error("IsTerminal(Done) = true; want false for looping group")
 	}
 }
+
+func TestContains(t *testing.T) {
+	task := taskFlow() // stages: Open, Maybe, Later, Soon, Now, Done
+
+	if !task.Contains("Open") {
+		t.Error("Contains(Open) = false; want true (first stage)")
+	}
+	if !task.Contains("Done") {
+		t.Error("Contains(Done) = false; want true (last stage)")
+	}
+	if !task.Contains("Now") {
+		t.Error("Contains(Now) = false; want true (mid stage)")
+	}
+	if task.Contains("Bogus") {
+		t.Error("Contains(Bogus) = true; want false (absent stage)")
+	}
+	if task.Contains("") {
+		t.Error("Contains(\"\") = true; want false (empty string not a stage)")
+	}
+
+	empty := StageGroup{Name: "empty", Stages: []string{}}
+	if empty.Contains("Open") {
+		t.Error("Contains on empty group = true; want false")
+	}
+}

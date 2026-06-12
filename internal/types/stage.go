@@ -53,6 +53,11 @@ func (g StageGroup) indexOf(stage string) int {
 	return -1
 }
 
+// Contains reports whether stage is present in the group.
+func (g StageGroup) Contains(stage string) bool {
+	return g.indexOf(stage) >= 0
+}
+
 // IsTerminal reports whether stage is a terminal stage of the group: one from
 // which advancing cannot move forward. For CycleTerminate groups this is the
 // last stage; looping groups have no terminal stage. An unknown stage is not
