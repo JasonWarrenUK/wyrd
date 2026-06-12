@@ -848,22 +848,22 @@
 
 			<div class="page-header animate" style="--i:0">
 				<h1>Wyrd — Feature Roadmap</h1>
-				<p class="subtitle">status lattice &rarr; node types &rarr; backlog &rarr; skeins</p>
+				<p class="subtitle">status lattice &rarr; spend depth &rarr; node types &rarr; backlog &rarr; skeins</p>
 			</div>
 
 			<!-- ===== SECTION 1: OVERVIEW ===== -->
 			<div id="s1" class="sec-head animate" style="--i:1">1 — Overview</div>
 
 			<div class="hero-kpi animate" style="--i:2">
-				<div class="hero-kpi__value">36 / 84</div>
-				<div class="hero-kpi__label">tasks complete &mdash; 43%</div>
+				<div class="hero-kpi__value">40 / 96</div>
+				<div class="hero-kpi__label">tasks complete &mdash; 42%</div>
 			</div>
 
 			<div class="kpi-grid">
 
 				<div class="kpi-card animate" style="--i:3">
 					<div class="kpi-card__name">M3 &mdash; Capture &amp; Forms</div>
-					<div class="kpi-card__count">14 / 16</div>
+					<div class="kpi-card__count">15 / 17</div>
 					<div class="kpi-card__bar">
 						<div class="kpi-card__fill fill--complete" style="width:88%"></div>
 					</div>
@@ -902,18 +902,18 @@
 				</div>
 
 				<div class="kpi-card animate" style="--i:8">
-					<div class="kpi-card__name">Spend Depth</div>
-					<div class="kpi-card__count">2 / 4</div>
+					<div class="kpi-card__name">MG &mdash; Spend Depth</div>
+					<div class="kpi-card__count">2 / 11</div>
 					<div class="kpi-card__bar">
-						<div class="kpi-card__fill fill--progress" style="width:50%"></div>
+						<div class="kpi-card__fill fill--progress" style="width:18%"></div>
 					</div>
 				</div>
 
 				<div class="kpi-card animate" style="--i:9">
 					<div class="kpi-card__name">MA &mdash; Status Lattice</div>
-					<div class="kpi-card__count">7 / 16</div>
+					<div class="kpi-card__count">10 / 18</div>
 					<div class="kpi-card__bar">
-						<div class="kpi-card__fill fill--progress" style="width:44%"></div>
+						<div class="kpi-card__fill fill--progress" style="width:56%"></div>
 					</div>
 				</div>
 
@@ -943,7 +943,7 @@
 
 				<div class="kpi-card animate" style="--i:13">
 					<div class="kpi-card__name">ME &mdash; Tech Debt</div>
-					<div class="kpi-card__count">0 / 2</div>
+					<div class="kpi-card__count">0 / 3</div>
 					<div class="kpi-card__bar">
 						<div class="kpi-card__fill fill--todo" style="width:2%"></div>
 					</div>
@@ -951,7 +951,7 @@
 
 				<div class="kpi-card animate" style="--i:14">
 					<div class="kpi-card__name">MF &mdash; Visual Polish</div>
-					<div class="kpi-card__count">0 / 8</div>
+					<div class="kpi-card__count">0 / 9</div>
 					<div class="kpi-card__bar">
 						<div class="kpi-card__fill fill--todo" style="width:2%"></div>
 					</div>
@@ -970,7 +970,7 @@
 						<span class="ms-header">
 							<span class="ms-num">Milestone 3</span>
 							<span class="ms-name">Capture &amp; Forms</span>
-							<span class="ms-stats">14 / 16 &mdash; 88%</span>
+							<span class="ms-stats">15 / 17 &mdash; 88%</span>
 						</span>
 					</summary>
 					<div class="ms-body">
@@ -979,13 +979,15 @@
 							<ul class="task-list">
 								<li class="task-item task-item--todo"><span class="task-id">CP.15</span>Rename capture prefixes
 									(<code>s:</code> → <code>bs:</code>, <code>b:</code> → <code>bc:</code>)</li>
-								<li class="task-item task-item--todo"><span class="task-id">CP.16</span>Fix edit-mode node data loss
-									in TUI edit forms</li>
+								<li class="task-item task-item--todo"><span class="task-id">CP.17</span>Dismissable capture-bar messages
+									— restore the key-hint bar after status text (e.g. sync failures)</li>
 							</ul>
 						</div>
 						<div class="task-group">
 							<div class="task-group__label task-group__label--done">✓ Done</div>
 							<ul class="task-list">
+								<li class="task-item task-item--done"><span class="task-id">CP.16</span>Fix edit-mode node data loss
+									— <code>buildNode</code> merges into a clone of the original node</li>
 								<li class="task-item task-item--done"><span class="task-id">CP.14</span>Budget creation form</li>
 								<li class="task-item task-item--done"><span class="task-id">CP.13</span>Add budget.jsonc starter
 									template</li>
@@ -1101,17 +1103,17 @@
 							<div class="task-group__label task-group__label--blocked">✗ Blocked</div>
 							<ul class="task-list">
 								<li class="task-item task-item--blocked"><span class="task-id">DA.2</span>freeze screenshot: main TUI
-									view <span class="task-dep">(needs DA.1, SL.6)</span></li>
+									view <span class="task-dep">(needs DA.1, CP.15, MA+MB+MC+MF complete)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.3</span>freeze screenshot: budget view
-									<span class="task-dep">(needs DA.1)</span></li>
+									<span class="task-dep">(needs DA.1, MF+MG complete)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.4</span>freeze screenshot: schedule
-									view <span class="task-dep">(needs DA.1)</span></li>
+									view <span class="task-dep">(needs DA.1, MF complete)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.5</span>VHS tape: task creation flow
-									<span class="task-dep">(needs DA.1, SL.7)</span></li>
+									<span class="task-dep">(needs DA.1, MA+MF complete)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.6</span>VHS tape: ritual run <span
-										class="task-dep">(needs DA.1)</span></li>
+										class="task-dep">(needs DA.1, M6+MF complete)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.7</span>VHS tape: wyrd sync <span
-										class="task-dep">(needs DA.1)</span></li>
+										class="task-dep">(needs DA.1, MF complete)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.8</span>Integrate screenshots into
 									README <span class="task-dep">(needs DA.2–4)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">DA.9</span>Store VHS tapes + make demo
@@ -1159,24 +1161,40 @@
 				<details class="milestone-card animate" style="--i:19">
 					<summary>
 						<span class="ms-header">
-							<span class="ms-num">Spend Depth</span>
-							<span class="ms-name">Bottom-up Budgeting</span>
-							<span class="ms-stats">2 / 4 &mdash; 50%</span>
+							<span class="ms-num">Milestone G</span>
+							<span class="ms-name">Spend Depth &mdash; Movement Nodes &amp; Bottom-up Budgeting</span>
+							<span class="ms-stats">2 / 11 &mdash; 18%</span>
 						</span>
 					</summary>
 					<div class="ms-body">
 						<div class="task-group">
 							<div class="task-group__label task-group__label--todo">○ To Do</div>
 							<ul class="task-list">
-								<li class="task-item task-item--todo"><span class="task-id">SP.2</span>Bottom-up budgets: allocation =
-									sum of expected spend</li>
+								<li class="task-item task-item--todo"><span class="task-id">SP.7</span>Movement node data model —
+									<code>movement</code> kind, expected → cleared stage group, <code>draws_from</code> /
+									<code>adds_to</code> edge types</li>
 							</ul>
 						</div>
 						<div class="task-group">
 							<div class="task-group__label task-group__label--blocked">✗ Blocked</div>
 							<ul class="task-list">
+								<li class="task-item task-item--blocked"><span class="task-id">SP.8</span>Budget engine over movements —
+									RecordSpend creates a movement node + edge; spend_log retired <span class="task-dep">(needs
+										SP.7)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SP.2</span>Bottom-up budgets: effective
+									allocation from expected movements <span class="task-dep">(needs SP.8)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">SP.4</span>Surface bottom-up allocation
 									in TUI <span class="task-dep">(needs SP.2)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SP.5</span>Income recording — wyrd income
+									CLI creates movement + adds_to edge <span class="task-dep">(needs SP.8)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SP.6</span>TUI income capture form (bi:
+									prefix) <span class="task-dep">(needs SP.5, SL.7b)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SP.9</span>Budget detail pane lists
+									movements via edges <span class="task-dep">(needs SP.8)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SP.10</span>Transfer recording — wyrd
+									transfer CLI; one node, both edges <span class="task-dep">(needs SP.8)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SP.11</span>TUI transfer capture form
+									(bt: prefix) <span class="task-dep">(needs SP.10, SL.7b)</span></li>
 							</ul>
 						</div>
 						<div class="task-group">
@@ -1197,25 +1215,24 @@
 						<span class="ms-header">
 							<span class="ms-num">Milestone A</span>
 							<span class="ms-name">Status Lattice</span>
-							<span class="ms-stats">7 / 16 &mdash; 44%</span>
+							<span class="ms-stats">10 / 18 &mdash; 56%</span>
 						</span>
 					</summary>
 					<div class="ms-body">
 						<div class="task-group">
 							<div class="task-group__label task-group__label--todo">○ To Do</div>
 							<ul class="task-list">
-								<li class="task-item task-item--todo"><span class="task-id">SL.15</span>TUI: show kind and stage in the detail pane</li>
+								<li class="task-item task-item--todo"><span class="task-id">SL.7a</span>TUI: kind selection in task
+									create form</li>
 							</ul>
 						</div>
 						<div class="task-group">
 							<div class="task-group__label task-group__label--blocked">✗ Blocked</div>
 							<ul class="task-list">
-								<li class="task-item task-item--blocked"><span class="task-id">SL.6</span>TUI: ] / [ keypresses to
-									advance/retreat stage <span class="task-dep">(needs SL.15)</span></li>
-								<li class="task-item task-item--blocked"><span class="task-id">SL.7</span>Kind field in capture/edit
-									forms <span class="task-dep">(needs SL.6, CP.16)</span></li>
-								<li class="task-item task-item--blocked"><span class="task-id">SL.9</span>Kind registry view (:kinds)
-									<span class="task-dep">(needs SL.15)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SL.7b</span>Kind selection in remaining
+									create forms (journal, note, budget) <span class="task-dep">(needs SL.7a)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SL.7c</span>Kind selection in edit forms
+									— stage kept if it exists in the new group <span class="task-dep">(needs SL.7b)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">SL.10</span>Create kinds in TUI (:kind
 									new) <span class="task-dep">(needs SL.4)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">SL.11</span>Create stage groups (:stages
@@ -1224,12 +1241,18 @@
 									<span class="task-dep">(needs SL.3)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">SL.13</span>User stage-group registry
 									(stages.jsonc) <span class="task-dep">(needs SL.3)</span></li>
-								<li class="task-item task-item--blocked"><span class="task-id">SL.14</span>Stage remap on group reassignment <span class="task-dep">(needs SL.6, SL.10, SL.13, CP.16)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">SL.14</span>Stage remap on group reassignment <span class="task-dep">(needs SL.10, SL.13)</span></li>
 							</ul>
 						</div>
 						<div class="task-group">
 							<div class="task-group__label task-group__label--done">✓ Done</div>
 							<ul class="task-list">
+								<li class="task-item task-item--done"><span class="task-id">SL.9</span>Kind registry view in TUI (:kinds
+									palette command)</li>
+								<li class="task-item task-item--done"><span class="task-id">SL.6</span>TUI: ] / [ keypresses to
+									advance/retreat stage</li>
+								<li class="task-item task-item--done"><span class="task-id">SL.15</span>Kind and stage shown in the
+									detail pane</li>
 								<li class="task-item task-item--done"><span class="task-id">SL.5</span>Default kinds: Task, Goblin, Habit, Event, Travel, Talk, Project</li>
 								<li class="task-item task-item--done"><span class="task-id">SL.4</span>kinds.jsonc config file + KindRegistry</li>
 								<li class="task-item task-item--done"><span class="task-id">SL.3</span>Baked-in default stage groups (task-flow, event-flow, content-flow)</li>
@@ -1257,17 +1280,12 @@
 					</summary>
 					<div class="ms-body">
 						<div class="task-group">
-							<div class="task-group__label task-group__label--todo">○ To Do</div>
-							<ul class="task-list">
-								<li class="task-item task-item--todo"><span class="task-id">NW.1</span>Bookmark node type with url
-									property, bm: prefix</li>
-							</ul>
-						</div>
-						<div class="task-group">
 							<div class="task-group__label task-group__label--blocked">✗ Blocked</div>
 							<ul class="task-list">
+								<li class="task-item task-item--blocked"><span class="task-id">NW.1</span>Bookmark node type with url
+									property, bm: prefix <span class="task-dep">(needs SL.7b)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">NW.2</span>answers edge type; detail pane
-									renders ANSWERS section <span class="task-dep">(needs SL.8, NW.1)</span></li>
+									renders ANSWERS section <span class="task-dep">(needs NW.1)</span></li>
 							</ul>
 						</div>
 					</div>
@@ -1343,7 +1361,7 @@
 						<span class="ms-header">
 							<span class="ms-num">Milestone E</span>
 							<span class="ms-name">Tech Debt</span>
-							<span class="ms-stats">0 / 2 &mdash; 0%</span>
+							<span class="ms-stats">0 / 3 &mdash; 0%</span>
 						</span>
 					</summary>
 					<div class="ms-body">
@@ -1351,12 +1369,8 @@
 							<div class="task-group__label task-group__label--todo">○ To Do</div>
 							<ul class="task-list">
 								<li class="task-item task-item--todo"><span class="task-id">TD.1</span>Consolidate JSONC parsing — extract duplicated <code>stripComments</code> into a shared <code>internal/jsonc</code> package</li>
-							</ul>
-						</div>
-						<div class="task-group">
-							<div class="task-group__label task-group__label--blocked">✗ Blocked</div>
-							<ul class="task-list">
-								<li class="task-item task-item--blocked"><span class="task-id">TD.2</span>ADR: unify default-asset lifecycle <span class="task-dep">(needs SL.3)</span></li>
+								<li class="task-item task-item--todo"><span class="task-id">TD.2</span>ADR: unify default-asset lifecycle</li>
+								<li class="task-item task-item--todo"><span class="task-id">TD.3</span>Edge <code>Modified</code> timestamp — restructure edge dates into a DateFields-style block</li>
 							</ul>
 						</div>
 					</div>
@@ -1368,7 +1382,7 @@
 						<span class="ms-header">
 							<span class="ms-num">Milestone F</span>
 							<span class="ms-name">Visual Polish</span>
-							<span class="ms-stats">0 / 8 &mdash; 0%</span>
+							<span class="ms-stats">0 / 9 &mdash; 0%</span>
 						</span>
 					</summary>
 					<div class="ms-body">
@@ -1376,18 +1390,19 @@
 							<div class="task-group__label task-group__label--todo">○ To Do</div>
 							<ul class="task-list">
 								<li class="task-item task-item--todo"><span class="task-id">VP.1</span>Logo/title pane atop the detail column</li>
-								<li class="task-item task-item--todo"><span class="task-id">VP.2</span>Wyrd-themed <code>huh</code> forms — derive theme from <code>ActiveTheme</code></li>
 								<li class="task-item task-item--todo"><span class="task-id">VP.3</span>Theme-derived glamour stylesheet for detail pane markdown</li>
 								<li class="task-item task-item--todo"><span class="task-id">VP.4</span>Gradient focus border (accent → accent-secondary)</li>
-								<li class="task-item task-item--todo"><span class="task-id">VP.5</span>Floating modal overlays via lipgloss compositor</li>
-								<li class="task-item task-item--todo"><span class="task-id">VP.7</span>Auto-generated key-hint footer via bubbles help component</li>
-								<li class="task-item task-item--todo"><span class="task-id">VP.8</span>Stepped sync progress bar (stage → commit → pull → push)</li>
+								<li class="task-item task-item--todo"><span class="task-id">VP.9</span>Fix overlay panel overflow — clamp :log / :help / :kinds to the terminal height</li>
 							</ul>
 						</div>
 						<div class="task-group">
 							<div class="task-group__label task-group__label--blocked">✗ Blocked</div>
 							<ul class="task-list">
+								<li class="task-item task-item--blocked"><span class="task-id">VP.2</span>Wyrd-themed <code>huh</code> forms — derive theme from <code>ActiveTheme</code> <span class="task-dep">(needs SL.7c)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">VP.5</span>Floating modal overlays via lipgloss compositor <span class="task-dep">(needs VP.9)</span></li>
 								<li class="task-item task-item--blocked"><span class="task-id">VP.6</span>Spring-eased pane focus transition <span class="task-dep">(needs VP.4)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">VP.7</span>Auto-generated key-hint footer via bubbles help component <span class="task-dep">(needs CP.17)</span></li>
+								<li class="task-item task-item--blocked"><span class="task-id">VP.8</span>Stepped sync progress bar (stage → commit → pull → push) <span class="task-dep">(needs CP.17)</span></li>
 							</ul>
 						</div>
 					</div>
@@ -1424,7 +1439,7 @@ graph TD
 
 subgraph M3["M3 · Capture & Forms"]
   CP15["`*CP.15*<br/>Prefix renames`"]:::open
-  CP16["`*CP.16*<br/>Edit data-loss fix`"]:::open
+  CP17["`*CP.17*<br/>Dismissable messages`"]:::open
 end
 
 subgraph M6["M6 · Rituals"]
@@ -1450,16 +1465,22 @@ subgraph M8["M8 · Compaction"]
   CO3["`*CO.3*<br/>TUI :compact`"]:::blocked
 end
 
-subgraph SP["Spend Depth"]
-  SP2["`*SP.2*<br/>Bottom-up`"]:::open
+subgraph SP["MG · Spend Depth"]
+  SP7["`*SP.7*<br/>Movement model`"]:::open
+  SP8["`*SP.8*<br/>Budget engine`"]:::blocked
+  SP2["`*SP.2*<br/>Bottom-up`"]:::blocked
   SP4["`*SP.4*<br/>TUI alloc`"]:::blocked
+  SP5["`*SP.5*<br/>Income CLI`"]:::blocked
+  SP6["`*SP.6*<br/>Income form bi:`"]:::blocked
+  SP9["`*SP.9*<br/>Movements in pane`"]:::blocked
+  SP10["`*SP.10*<br/>Transfer CLI`"]:::blocked
+  SP11["`*SP.11*<br/>Transfer form bt:`"]:::blocked
 end
 
 subgraph MA["MA · Status Lattice"]
-  SL15["`*SL.15*<br/>Kind/stage detail`"]:::open
-  SL6["`*SL.6*<br/>] / [ keys`"]:::blocked
-  SL7["`*SL.7*<br/>Kind in forms`"]:::blocked
-  SL9["`*SL.9*<br/>:kinds view`"]:::blocked
+  SL7a["`*SL.7a*<br/>Kind in task form`"]:::open
+  SL7b["`*SL.7b*<br/>Kind in create forms`"]:::blocked
+  SL7c["`*SL.7c*<br/>Kind in edit forms`"]:::blocked
   SL10["`*SL.10*<br/>:kind new`"]:::blocked
   SL11["`*SL.11*<br/>:stages new`"]:::blocked
   SL12["`*SL.12*<br/>:stages view`"]:::blocked
@@ -1468,7 +1489,7 @@ subgraph MA["MA · Status Lattice"]
 end
 
 subgraph MB["MB · Node Types"]
-  NW1["`*NW.1*<br/>Bookmark bm:`"]:::open
+  NW1["`*NW.1*<br/>Bookmark bm:`"]:::blocked
   NW2["`*NW.2*<br/>answers edge`"]:::blocked
 end
 
@@ -1489,40 +1510,53 @@ end
 
 subgraph ME["ME · Tech Debt"]
   TD1["`*TD.1*<br/>Consolidate JSONC`"]:::open
-  TD2["`*TD.2*<br/>ADR: asset lifecycle`"]:::blocked
+  TD2["`*TD.2*<br/>ADR: asset lifecycle`"]:::open
+  TD3["`*TD.3*<br/>Edge Modified`"]:::open
 end
 
 subgraph MF["MF · Visual Polish"]
   VP1["`*VP.1*<br/>Logo pane`"]:::open
-  VP2["`*VP.2*<br/>Themed forms`"]:::open
+  VP2["`*VP.2*<br/>Themed forms`"]:::blocked
   VP3["`*VP.3*<br/>Glamour styles`"]:::open
   VP4["`*VP.4*<br/>Gradient border`"]:::open
-  VP5["`*VP.5*<br/>Compositor overlays`"]:::open
+  VP5["`*VP.5*<br/>Compositor overlays`"]:::blocked
   VP6["`*VP.6*<br/>Focus animation`"]:::blocked
-  VP7["`*VP.7*<br/>Key-hint footer`"]:::open
-  VP8["`*VP.8*<br/>Sync progress bar`"]:::open
+  VP7["`*VP.7*<br/>Key-hint footer`"]:::blocked
+  VP8["`*VP.8*<br/>Sync progress bar`"]:::blocked
+  VP9["`*VP.9*<br/>Overlay overflow fix`"]:::open
 end
 
 DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
-SL15 --> SL6 & SL9
-SL6 --> SL7 & DA2
+CP15 --> DA2
+SL7c & SL11 & SL12 & SL14 --> DA2 & DA5
+NW2 --> DA2
+DL2 & DL5 --> DA2
+SP4 & SP6 & SP9 & SP11 --> DA3
+RT6 & RT7 & RT8 --> DA6
+VP1 & VP2 & VP3 & VP5 & VP6 & VP7 & VP8 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
+SL7a --> SL7b
+SL7b --> SL7c & NW1 & SP6 & SP11
+SL7c --> VP2
 SL13 --> SL11
-SL6 & SL10 & SL13 --> SL14
-CP16 --> SL7 & SL14
-SL7 --> DA5
+SL10 & SL13 --> SL14
+SP7 --> SP8
+SP8 --> SP2 & SP5 & SP9 & SP10
+SP2 --> SP4
+SP5 --> SP6
+SP10 --> SP11
 DL1 --> DL2
 DL3 --> DL4
 DL4 --> DL5
 NW1 --> NW2
 CO2 --> CO3
-SP2 --> SP4
 SK1 --> SK2
 SK2 --> SK3
 SK3 --> SK4
-VP1 --> DA2
 VP4 --> VP6
+VP9 --> VP5
+CP17 --> VP7 & VP8
 
 classDef open    fill:#fffbeb44,stroke:#d4ac0d,color:#7a5f00
 classDef blocked fill:#fff7fb44,stroke:#d2008f,color:#4b0030
@@ -1559,7 +1593,8 @@ graph TD
 subgraph M3["M3 · Capture & Forms"]
   CP14["`*CP.14*<br/>Budget form`"]:::done
   CP15["`*CP.15*<br/>Prefix renames`"]:::open
-  CP16["`*CP.16*<br/>Edit data-loss fix`"]:::open
+  CP16["`*CP.16*<br/>Edit data-loss fix`"]:::done
+  CP17["`*CP.17*<br/>Dismissable messages`"]:::open
 end
 
 subgraph M5["M5 · Logging"]
@@ -1593,9 +1628,18 @@ subgraph M8["M8 · Compaction"]
   CO3["`*CO.3*<br/>TUI :compact`"]:::blocked
 end
 
-subgraph SP["Spend Depth"]
-  SP2["`*SP.2*<br/>Bottom-up`"]:::open
+subgraph SP["MG · Spend Depth"]
+  SP1["`*SP.1*<br/>Dated spends`"]:::done
+  SP3["`*SP.3*<br/>Spend events pane`"]:::done
+  SP7["`*SP.7*<br/>Movement model`"]:::open
+  SP8["`*SP.8*<br/>Budget engine`"]:::blocked
+  SP2["`*SP.2*<br/>Bottom-up`"]:::blocked
   SP4["`*SP.4*<br/>TUI alloc`"]:::blocked
+  SP5["`*SP.5*<br/>Income CLI`"]:::blocked
+  SP6["`*SP.6*<br/>Income form bi:`"]:::blocked
+  SP9["`*SP.9*<br/>Movements in pane`"]:::blocked
+  SP10["`*SP.10*<br/>Transfer CLI`"]:::blocked
+  SP11["`*SP.11*<br/>Transfer form bt:`"]:::blocked
 end
 
 subgraph MA["MA · Status Lattice"]
@@ -1604,21 +1648,23 @@ subgraph MA["MA · Status Lattice"]
   SL3["`*SL.3*<br/>Default groups`"]:::done
   SL4["`*SL.4*<br/>kinds.jsonc`"]:::done
   SL5["`*SL.5*<br/>Default kinds`"]:::done
-  SL6["`*SL.6*<br/>] / [ keys`"]:::blocked
-  SL7["`*SL.7*<br/>Kind in forms`"]:::blocked
+  SL6["`*SL.6*<br/>] / [ keys`"]:::done
+  SL7a["`*SL.7a*<br/>Kind in task form`"]:::open
+  SL7b["`*SL.7b*<br/>Kind in create forms`"]:::blocked
+  SL7c["`*SL.7c*<br/>Kind in edit forms`"]:::blocked
   SL8["`*SL.8*<br/>Query props`"]:::done
   SL8b["`*SL.8b*<br/>Kind grouping`"]:::done
-  SL9["`*SL.9*<br/>:kinds view`"]:::blocked
+  SL9["`*SL.9*<br/>:kinds view`"]:::done
   SL10["`*SL.10*<br/>:kind new`"]:::blocked
   SL11["`*SL.11*<br/>:stages new`"]:::blocked
   SL12["`*SL.12*<br/>:stages view`"]:::blocked
   SL13["`*SL.13*<br/>stages.jsonc`"]:::blocked
   SL14["`*SL.14*<br/>Stage remap`"]:::blocked
-  SL15["`*SL.15*<br/>Kind/stage detail`"]:::open
+  SL15["`*SL.15*<br/>Kind/stage detail`"]:::done
 end
 
 subgraph MB["MB · Node Types"]
-  NW1["`*NW.1*<br/>Bookmark bm:`"]:::open
+  NW1["`*NW.1*<br/>Bookmark bm:`"]:::blocked
   NW2["`*NW.2*<br/>answers edge`"]:::blocked
 end
 
@@ -1639,18 +1685,20 @@ end
 
 subgraph ME["ME · Tech Debt"]
   TD1["`*TD.1*<br/>Consolidate JSONC`"]:::open
-  TD2["`*TD.2*<br/>ADR: asset lifecycle`"]:::blocked
+  TD2["`*TD.2*<br/>ADR: asset lifecycle`"]:::open
+  TD3["`*TD.3*<br/>Edge Modified`"]:::open
 end
 
 subgraph MF["MF · Visual Polish"]
   VP1["`*VP.1*<br/>Logo pane`"]:::open
-  VP2["`*VP.2*<br/>Themed forms`"]:::open
+  VP2["`*VP.2*<br/>Themed forms`"]:::blocked
   VP3["`*VP.3*<br/>Glamour styles`"]:::open
   VP4["`*VP.4*<br/>Gradient border`"]:::open
-  VP5["`*VP.5*<br/>Compositor overlays`"]:::open
+  VP5["`*VP.5*<br/>Compositor overlays`"]:::blocked
   VP6["`*VP.6*<br/>Focus animation`"]:::blocked
-  VP7["`*VP.7*<br/>Key-hint footer`"]:::open
-  VP8["`*VP.8*<br/>Sync progress bar`"]:::open
+  VP7["`*VP.7*<br/>Key-hint footer`"]:::blocked
+  VP8["`*VP.8*<br/>Sync progress bar`"]:::blocked
+  VP9["`*VP.9*<br/>Overlay overflow fix`"]:::open
 end
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
@@ -1659,6 +1707,13 @@ RT5 --> DA6
 DA1 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 DA2 & DA3 & DA4 --> DA8
 DA5 & DA6 & DA7 --> DA9
+CP15 --> DA2
+SL7c & SL11 & SL12 & SL14 --> DA2 & DA5
+NW2 --> DA2
+DL2 & DL5 --> DA2
+SP4 & SP6 & SP9 & SP11 --> DA3
+RT6 & RT7 & RT8 --> DA6
+VP1 & VP2 & VP3 & VP5 & VP6 & VP7 & VP8 --> DA2 & DA3 & DA4 & DA5 & DA6 & DA7
 SL1 --> SL2 & SL8
 SL2 --> SL3
 SL3 --> SL4
@@ -1668,24 +1723,31 @@ SL5 --> SL15
 SL15 --> SL6 & SL9
 SL13 --> SL11
 SL6 & SL10 & SL13 --> SL14
-CP16 --> SL7 & SL14
-SL6 --> SL7
-SL6 --> DA2
-SL7 --> DA5
+CP16 --> SL7a & SL7c & SL14
+SL6 --> SL7a
+SL7a --> SL7b
+SL7b --> SL7c & NW1 & SP6 & SP11
+SL7c --> VP2
 SL8 --> SL8b
 SL2 & SL8 --> DL1
 SL8 --> NW2
 NW1 --> NW2
 CO2 --> CO3
+SL3 & SL5 --> SP7
+SP7 --> SP8
+SP8 --> SP2 & SP5 & SP9 & SP10
 SP2 --> SP4
+SP5 --> SP6
+SP10 --> SP11
 DL1 --> DL2
 DL3 & SL8 --> DL4
 DL4 --> DL5
 SK1 --> SK2
 SK2 --> SK3
 SK3 --> SK4
-VP1 --> DA2
 VP4 --> VP6
+VP9 --> VP5
+CP17 --> VP7 & VP8
 
 classDef open    fill:#fffbeb44,stroke:#d4ac0d,color:#7a5f00
 classDef blocked fill:#fff7fb44,stroke:#d2008f,color:#4b0030
@@ -1724,7 +1786,7 @@ classDef mile    fill:#e3f7ff44,stroke:#007590,color:#001f28,font-weight:bold
 					<div class="next-up-card__ms">M3 — Capture &amp; Forms</div>
 					<ul class="next-up-card__tasks">
 						<li><span class="task-id">CP.15</span>Rename capture prefixes</li>
-						<li><span class="task-id">CP.16</span>Fix edit-mode node data loss</li>
+						<li><span class="task-id">CP.17</span>Dismissable capture-bar messages</li>
 					</ul>
 				</div>
 
@@ -1752,27 +1814,20 @@ classDef mile    fill:#e3f7ff44,stroke:#007590,color:#001f28,font-weight:bold
 				</div>
 
 				<div class="next-up-card animate" style="--i:32">
-					<div class="next-up-card__ms">Spend Depth</div>
+					<div class="next-up-card__ms">MG — Spend Depth</div>
 					<ul class="next-up-card__tasks">
-						<li><span class="task-id">SP.2</span>Bottom-up budgets</li>
+						<li><span class="task-id">SP.7</span>Movement node data model</li>
 					</ul>
 				</div>
 
 				<div class="next-up-card animate" style="--i:33">
 					<div class="next-up-card__ms">MA — Status Lattice</div>
 					<ul class="next-up-card__tasks">
-						<li><span class="task-id">SL.15</span>Show kind and stage in the detail pane</li>
+						<li><span class="task-id">SL.7a</span>Kind selection in task create form</li>
 					</ul>
 				</div>
 
 				<div class="next-up-card animate" style="--i:34">
-					<div class="next-up-card__ms">MB — Node Types</div>
-					<ul class="next-up-card__tasks">
-						<li><span class="task-id">NW.1</span>Bookmark node type (bm:)</li>
-					</ul>
-				</div>
-
-				<div class="next-up-card animate" style="--i:35">
 					<div class="next-up-card__ms">MC — Backlog</div>
 					<ul class="next-up-card__tasks">
 						<li><span class="task-id">DL.1</span>Derive isBlocked from graph</li>
@@ -1780,27 +1835,29 @@ classDef mile    fill:#e3f7ff44,stroke:#007590,color:#001f28,font-weight:bold
 					</ul>
 				</div>
 
-				<div class="next-up-card animate" style="--i:36">
+				<div class="next-up-card animate" style="--i:35">
 					<div class="next-up-card__ms">MD — Skeins</div>
 					<ul class="next-up-card__tasks">
 						<li><span class="task-id">SK.1</span>Skein data model</li>
 					</ul>
 				</div>
 
-				<div class="next-up-card animate" style="--i:37">
+				<div class="next-up-card animate" style="--i:36">
 					<div class="next-up-card__ms">ME — Tech Debt</div>
 					<ul class="next-up-card__tasks">
 						<li><span class="task-id">TD.1</span>Consolidate JSONC parsing</li>
+						<li><span class="task-id">TD.2</span>ADR: default-asset lifecycle</li>
+						<li><span class="task-id">TD.3</span>Edge Modified timestamp</li>
 					</ul>
 				</div>
 
-				<div class="next-up-card animate" style="--i:38">
+				<div class="next-up-card animate" style="--i:37">
 					<div class="next-up-card__ms">MF — Visual Polish</div>
 					<ul class="next-up-card__tasks">
 						<li><span class="task-id">VP.1</span>Logo/title pane</li>
-						<li><span class="task-id">VP.2</span>Themed huh forms</li>
 						<li><span class="task-id">VP.3</span>Glamour stylesheet</li>
 						<li><span class="task-id">VP.4</span>Gradient focus border</li>
+						<li><span class="task-id">VP.9</span>Overlay overflow fix</li>
 					</ul>
 				</div>
 
