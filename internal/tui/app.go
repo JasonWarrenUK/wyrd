@@ -913,13 +913,13 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 	var fp formPane
 	switch primaryType {
 	case "journal":
-		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditJournalFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	case "note":
-		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditNoteFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	case "budget":
-		fp = newEditBudgetFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditBudgetFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	default:
-		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node)
+		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	}
 
 	m.rightPane = fp
