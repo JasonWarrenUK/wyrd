@@ -234,8 +234,10 @@ func NewJournalFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillTitle string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) PaneModel {
-	return newJournalFormPane(theme, store, clock, selectedNodeID, prefillTitle)
+	return newJournalFormPane(theme, store, clock, selectedNodeID, prefillTitle, kinds, stageGroups)
 }
 
 // newJournalFormPane is the internal constructor.
@@ -245,6 +247,8 @@ func newJournalFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillTitle string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) formPane {
 	f := formPane{
 		kind:           formJournal,
@@ -253,6 +257,9 @@ func newJournalFormPane(
 		theme:          theme,
 		selectedNodeID: selectedNodeID,
 		linkToSelected: true,
+		nodeKind:       "Journal",
+		kinds:          kinds,
+		stageGroups:    stageGroups,
 	}
 	if prefillTitle != "" {
 		f.title = prefillTitle
@@ -271,6 +278,20 @@ func newJournalFormPane(
 			Lines(12).
 			Placeholder("Write your entry (alt+enter for new line, ctrl+e for editor)").
 			Validate(notEmpty("body")),
+	}
+	if kinds != nil {
+		names := kinds.Names()
+		if len(names) > 0 {
+			opts := make([]huh.Option[string], len(names))
+			for i, name := range names {
+				opts[i] = huh.NewOption(name, name)
+			}
+			fields = append(fields, huh.NewSelect[string]().
+				Title("Kind").
+				Options(opts...).
+				Value(&f.nodeKind),
+			)
+		}
 	}
 	if selectedNodeID != "" {
 		fields = append(fields, huh.NewConfirm().
@@ -296,8 +317,10 @@ func NewNoteFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillTitle string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) PaneModel {
-	return newNoteFormPane(theme, store, clock, selectedNodeID, prefillTitle)
+	return newNoteFormPane(theme, store, clock, selectedNodeID, prefillTitle, kinds, stageGroups)
 }
 
 // newNoteFormPane is the internal constructor.
@@ -307,6 +330,8 @@ func newNoteFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillTitle string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) formPane {
 	f := formPane{
 		kind:           formNote,
@@ -316,6 +341,9 @@ func newNoteFormPane(
 		selectedNodeID: selectedNodeID,
 		title:          prefillTitle,
 		linkToSelected: true,
+		nodeKind:       "Note",
+		kinds:          kinds,
+		stageGroups:    stageGroups,
 	}
 
 	fields := []huh.Field{
@@ -329,6 +357,20 @@ func newNoteFormPane(
 			Value(&f.body).
 			Lines(8).
 			Placeholder("Write your note (alt+enter for new line, ctrl+e for editor)"),
+	}
+	if kinds != nil {
+		names := kinds.Names()
+		if len(names) > 0 {
+			opts := make([]huh.Option[string], len(names))
+			for i, name := range names {
+				opts[i] = huh.NewOption(name, name)
+			}
+			fields = append(fields, huh.NewSelect[string]().
+				Title("Kind").
+				Options(opts...).
+				Value(&f.nodeKind),
+			)
+		}
 	}
 	if selectedNodeID != "" {
 		fields = append(fields, huh.NewConfirm().
@@ -355,8 +397,10 @@ func NewBudgetFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillCategory string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) PaneModel {
-	return newBudgetFormPane(theme, store, clock, selectedNodeID, prefillCategory)
+	return newBudgetFormPane(theme, store, clock, selectedNodeID, prefillCategory, kinds, stageGroups)
 }
 
 // newBudgetFormPane is the internal constructor.
@@ -366,6 +410,8 @@ func newBudgetFormPane(
 	clock types.Clock,
 	selectedNodeID string,
 	prefillCategory string,
+	kinds *types.KindRegistry,
+	stageGroups *types.StageGroupRegistry,
 ) formPane {
 	f := formPane{
 		kind:           formBudget,
@@ -378,6 +424,9 @@ func newBudgetFormPane(
 		warnAt:         "",
 		period:         "month",
 		linkToSelected: true,
+		nodeKind:       "Budget",
+		kinds:          kinds,
+		stageGroups:    stageGroups,
 	}
 
 	fields := []huh.Field{
@@ -385,7 +434,22 @@ func newBudgetFormPane(
 			Title("Category").
 			Value(&f.category).
 			Validate(notEmpty("category")),
-
+	}
+	if kinds != nil {
+		names := kinds.Names()
+		if len(names) > 0 {
+			opts := make([]huh.Option[string], len(names))
+			for i, name := range names {
+				opts[i] = huh.NewOption(name, name)
+			}
+			fields = append(fields, huh.NewSelect[string]().
+				Title("Kind").
+				Options(opts...).
+				Value(&f.nodeKind),
+			)
+		}
+	}
+	fields = append(fields,
 		huh.NewInput().
 			Title("Allocated").
 			Value(&f.allocated).
@@ -407,7 +471,7 @@ func newBudgetFormPane(
 				huh.NewOption("Yearly", "year"),
 			).
 			Value(&f.period),
-	}
+	)
 	if selectedNodeID != "" {
 		fields = append(fields, huh.NewConfirm().
 			Title("Link to selected node?").
@@ -1038,10 +1102,30 @@ func (f formPane) buildNode() *types.Node {
 		if f.originalNode == nil {
 			node.Date.About = &now
 		}
+		if f.originalNode == nil && f.nodeKind != "" && f.kinds != nil {
+			if k, ok := f.kinds.Lookup(f.nodeKind); ok {
+				node.Kind = k.Name
+				if f.stageGroups != nil {
+					if g, ok := f.stageGroups.Lookup(k.StageGroup); ok && len(g.Stages) > 0 {
+						node.Stage = g.Stages[0]
+					}
+				}
+			}
+		}
 
 	case formNote:
 		if len(node.Types) == 0 {
 			node.Types = []string{"note"}
+		}
+		if f.originalNode == nil && f.nodeKind != "" && f.kinds != nil {
+			if k, ok := f.kinds.Lookup(f.nodeKind); ok {
+				node.Kind = k.Name
+				if f.stageGroups != nil {
+					if g, ok := f.stageGroups.Lookup(k.StageGroup); ok && len(g.Stages) > 0 {
+						node.Stage = g.Stages[0]
+					}
+				}
+			}
 		}
 
 	case formBudget:
@@ -1059,6 +1143,16 @@ func (f formPane) buildNode() *types.Node {
 			node.Properties["warn_at"] = 1.0
 		}
 		node.Properties["period"] = f.period
+		if f.originalNode == nil && f.nodeKind != "" && f.kinds != nil {
+			if k, ok := f.kinds.Lookup(f.nodeKind); ok {
+				node.Kind = k.Name
+				if f.stageGroups != nil {
+					if g, ok := f.stageGroups.Lookup(k.StageGroup); ok && len(g.Stages) > 0 {
+						node.Stage = g.Stages[0]
+					}
+				}
+			}
+		}
 	}
 
 	return node
