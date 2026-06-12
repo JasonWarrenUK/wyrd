@@ -15,12 +15,12 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done; rescoped to movement nodes | SP.7         | SP.2, SP.4–SP.6, SP.8–SP.11 |
-| **SL** | SL.1–SL.6, SL.7a, SL.7b, SL.8, SL.8b, SL.9, SL.15 done | SL.7c        | SL.10–SL.14 |
+| **SL** | SL.1–SL.6, SL.7a, SL.7b, SL.7c, SL.8, SL.8b, SL.9, SL.15 done | —        | SL.10–SL.14 |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 | **TD** | Not started                         | TD.1–TD.3    | —       |
-| **VP** | Not started                         | VP.1, VP.3, VP.4, VP.9 | VP.2 (needs SL.7c), VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
+| **VP** | Not started                         | VP.1, VP.2, VP.3, VP.4, VP.9 | VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
 
@@ -128,7 +128,7 @@ None.
 > **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
 > [!NOTE]
-> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.7c, SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
+> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
@@ -206,11 +206,10 @@ None yet.
 
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
-None — SL.7a and SL.7b done; SL.7c now unblocked.
+None — SL.7a, SL.7b, and SL.7c done. SL.10–SL.14 remain.
 
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.7c. TUI: kind selection in edit forms — all four edit constructors pre-populate the kind select with the node's current kind; an unchanged kind leaves kind/stage untouched (the CP.16 clone invariant); a changed kind keeps the stage when it exists in the new kind's group, else resets to the group's first stage (the single-node analogue of SL.14's registry-level remap, deliberately scoped to one node) — **depends on SL.7b (done), CP.16 (done)**
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
 - [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
 - [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
@@ -219,6 +218,7 @@ None — SL.7a and SL.7b done; SL.7c now unblocked.
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.7c. TUI: kind selection in edit forms — all four `NewEdit*FormPane` constructors accept `kinds`/`stageGroups` registries and pre-populate `nodeKind` from `node.Kind`; a "— none —" sentinel option preserves the untriaged state; `applyKindStage` helper unifies create and edit stamping (replaces four copy-pasted inline blocks); CP.16 invariant: unchanged kind returns early leaving Kind/Stage untouched; changed kind re-stamps Kind and keeps Stage if the new group `Contains` it, else resets to the group's first stage; `StageGroup.Contains` exported (wraps `indexOf`); registries threaded through `handleEditNode` in `app.go` — **depends on SL.7b (done), CP.16 (done)**
 - [x] SL.7b. TUI: kind selection in remaining create forms — `newJournalFormPane`, `newNoteFormPane`, and `newBudgetFormPane` now accept the kind/stage registries, render a `huh.NewSelect` kind field (defaults Journal/Note/Budget respectively), and stamp `node.Kind`/`node.Stage` on create (nil-safe, CP.16 clone invariant preserved); three new baked-in kinds added (Journal→content-flow, Note→content-flow, Budget→budget-flow) plus a new `budget-flow` stage group `[Active, Closed]` (terminate); kind/group counts now 10/6; registries threaded through the three capture-bar dispatch sites in `app.go` — **depends on SL.7a (done)**
 - [x] SL.7a. TUI: kind selection in task create form — `newTaskFormPane` accepts `*types.KindRegistry` and `*types.StageGroupRegistry`; a `huh.NewSelect` kind field (options from `kinds.Names()`, default Task) is inserted after Body and before Status; `buildNode` stamps `node.Kind` and initialises `node.Stage` to `group.Stages[0]` on create only (nil-safe; edit mode preserves the clone's existing Kind/Stage via the `f.originalNode == nil` guard, keeping the CP.16 invariant); both registries threaded through the capture-bar dispatch in `app.go` — **depends on SL.6 (done), CP.16 (done)**
 - [x] SL.9. Kind registry view in TUI — `:kinds` palette command lists registered kinds with glyph, colour, and stage group; `kindsOverlay` struct in `internal/tui/kinds_overlay.go`; inline row format (coloured glyph + kind name + stage-group name + ordered stages, loop groups marked `↺`); composited as a centred Lipgloss layer; nil-registry safe — **depends on SL.15 (done)**
@@ -331,7 +331,7 @@ None yet.
 
 <a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
 
-- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c**
+- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c (done)**
 - [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place`. Sequenced after VP.9 so the compositor re-implementation inherits correct overlay sizing — **depends on VP.9**
 - [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
 - [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17**
@@ -411,7 +411,7 @@ SL5["`*SL.5*<br/>**Lattice**<br/>Default kinds`"]:::done
 SL6["`*SL.6*<br/>**Lattice**<br/>Stage keypresses`"]:::done
 SL7a["`*SL.7a*<br/>**Lattice**<br/>Kind in task form`"]:::done
 SL7b["`*SL.7b*<br/>**Lattice**<br/>Kind in create forms`"]:::done
-SL7c["`*SL.7c*<br/>**Lattice**<br/>Kind in edit forms`"]:::open
+SL7c["`*SL.7c*<br/>**Lattice**<br/>Kind in edit forms`"]:::done
 SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::done
