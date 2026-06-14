@@ -45,13 +45,14 @@ func (lo *logOverlay) Open(width, height int) {
 	content := lo.readLogTail(100)
 
 	vpWidth := width * 3 / 4
-	vpHeight := height - 6 // borders + title + padding
 	if vpWidth < 40 {
 		vpWidth = 40
 	}
-	if vpHeight < 5 {
-		vpHeight = 5
-	}
+	// Size the viewport to the actual log line count, clamped so the box never
+	// overflows the terminal. Chrome is 6 rows: border (2) + padding (2) +
+	// title (1) + divider (1).
+	contentLines := strings.Count(content, "\n") + 1
+	vpHeight := overlayVPHeight(contentLines, height, 6)
 
 	lo.vp = viewport.New(viewport.WithWidth(vpWidth), viewport.WithHeight(vpHeight))
 	if lo.theme != nil {

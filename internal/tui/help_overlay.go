@@ -37,13 +37,13 @@ func (ho *helpOverlay) Open(width, height int, bindings []KeyBinding) {
 	}
 
 	vpWidth := width * 3 / 4
-	vpHeight := height - 6
 	if vpWidth < 40 {
 		vpWidth = 40
 	}
-	if vpHeight < 5 {
-		vpHeight = 5
-	}
+	// Size the viewport to the actual content line count (one per binding),
+	// clamped so the box never exceeds the terminal height. Chrome is 6 rows:
+	// border (2) + padding (2) + title (1) + divider (1).
+	vpHeight := overlayVPHeight(len(bindings), height, 6)
 
 	ho.vp = viewport.New(viewport.WithWidth(vpWidth), viewport.WithHeight(vpHeight))
 	if ho.theme != nil {
