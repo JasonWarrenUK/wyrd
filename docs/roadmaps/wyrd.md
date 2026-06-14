@@ -20,7 +20,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 | **TD** | Not started                         | TD.1–TD.3    | —       |
-| **VP** | Not started                         | VP.1, VP.2, VP.3, VP.4, VP.9 | VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
+| **VP** | VP.2 done                           | VP.1, VP.3, VP.4, VP.9 | VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
 
@@ -330,8 +330,6 @@ None yet.
 - [ ] VP.9. Fix overlay panel overflow — the `:log`, `:help`, and `:kinds` overlays extend past the bottom of the visible TUI; clamp the rendered panel to the terminal height. Each overlay computes its own `vpHeight = height - 6` (`log_overlay.go`, `help_overlay.go`, `kinds_overlay.go`), so the chrome allowance or outer-box clamp is wrong in all three — fix once, consistently — **no blockers**
 
 <a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
-
-- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c (done)**
 - [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place`. Sequenced after VP.9 so the compositor re-implementation inherits correct overlay sizing — **depends on VP.9**
 - [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
 - [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17**
@@ -339,7 +337,7 @@ None yet.
 
 <a name="mf-done"><h4>Completed (Milestone F)</h4></a>
 
-None yet.
+- [x] VP.2. Wyrd-themed `huh` forms — `wyrdHuhTheme` fully derives from `ActiveTheme`: all focused/blurred/multi-select/button/help-footer styles carry the Cairn palette and `BgPrimary` on every style to prevent background bleed; the `Blurred` block is set explicitly (huh's `ThemeCharm` copies `Focused → Blurred` before our overrides run, so each field must be set in both blocks) — **depends on SL.7c (done)**
 
 ---
 
@@ -440,7 +438,7 @@ SK3["`*SK.3*<br/>**Skeins**<br/>Query resolution`"]:::blocked
 SK4["`*SK.4*<br/>**Skeins**<br/>Palette commands`"]:::blocked
 
 VP1["`*VP.1*<br/>**Visual Polish**<br/>Logo pane`"]:::open
-VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::blocked
+VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::done
 VP3["`*VP.3*<br/>**Visual Polish**<br/>Glamour stylesheet`"]:::open
 VP4["`*VP.4*<br/>**Visual Polish**<br/>Gradient focus border`"]:::open
 VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::blocked
