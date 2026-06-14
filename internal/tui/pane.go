@@ -86,17 +86,28 @@ func NewEmptyPane(theme *ActiveTheme) PaneModel {
 // edge lists, and budget sections can be scrolled with j/k, arrow keys,
 // Page Up, and Page Down.
 type viewportPane struct {
-	vp         viewport.Model
-	bg         color.Color
-	rawContent string // unpadded source content; re-padded on resize
+	vp           viewport.Model
+	bg           color.Color
+	rawContent   string // unpadded source content; re-padded on resize
+	heightOffset int    // rows already consumed above this pane (e.g. logo height)
 }
 
 // newViewportPane creates a viewportPane sized to the given dimensions and
 // pre-loaded with the provided content string. bg is the theme background
-// colour. Content is padded via PadLines before being set so every line
-// reaches the viewport width; this prevents terminal-colour bleed at ANSI
-// reset boundaries regardless of what the container component does.
+// colour. heightOffset is the number of rows consumed by sibling panes above
+// this one (e.g. the logo pane height); it is subtracted from WindowSizeMsg
+// heights on resize so the viewport never exceeds its allocated space.
+// Content is padded via PadLines before being set so every line reaches the
+// viewport width; this prevents terminal-colour bleed at ANSI reset
+// boundaries regardless of what the container component does.
 func newViewportPane(width, height int, content string, bg color.Color) viewportPane {
+	return newViewportPaneWithOffset(width, height, content, bg, 0)
+}
+
+// newViewportPaneWithOffset is like newViewportPane but also sets heightOffset
+// so that subsequent WindowSizeMsg events correctly reserve that many rows for
+// sibling panes (e.g. the logo) when recomputing the viewport height.
+func newViewportPaneWithOffset(width, height int, content string, bg color.Color, heightOffset int) viewportPane {
 	vp := viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
 	vp.Style = lipgloss.NewStyle().Background(bg)
 	vp.SetContent(PadLines(content, width, bg))
@@ -112,7 +123,7 @@ func newViewportPane(width, height int, content string, bg color.Color) viewport
 	vp.KeyMap.Left.SetKeys("left")
 	vp.KeyMap.Right.SetKeys("right")
 
-	return viewportPane{vp: vp, bg: bg, rawContent: content}
+	return viewportPane{vp: vp, bg: bg, rawContent: content, heightOffset: heightOffset}
 }
 
 // Update handles scroll key messages forwarded from the root model when the
@@ -122,11 +133,17 @@ func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// Borders consume 2 columns and 2 rows from the layout dimensions.
+		// heightOffset reserves rows for sibling panes above this one (e.g. the
+		// logo pane). Recompute it from LogoHeight so the figlet/text fallback
+		// threshold is respected when the terminal width changes.
 		newWidth := msg.Width/2 - 2
-		newHeight := msg.Height - 4 // status bar (2) + top border (1) + bottom border (1)
 		if newWidth < 1 {
 			newWidth = 1
 		}
+		// Update the offset based on the new right-column width so the height
+		// calculation is always consistent with what RenderLogo will produce.
+		d.heightOffset = LogoHeight(newWidth + 2) // +2 to account for the column borders
+		newHeight := msg.Height - 4 - d.heightOffset // status bar (2) + borders (2) + logo
 		if newHeight < 1 {
 			newHeight = 1
 		}
