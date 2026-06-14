@@ -3,8 +3,9 @@ package tui
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"image/color"
 	"strconv"
+	"strings"
 
 	huh "charm.land/huh/v2"
 	tea "charm.land/bubbletea/v2"
@@ -1000,8 +1001,11 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 
 	if wmsg, ok := msg.(tea.WindowSizeMsg); ok {
 		f.width = wmsg.Width/2 - 2
-		f.height = wmsg.Height - 3
-		f.form.WithWidth(f.width).WithHeight(f.height)
+		// Width only: leave the form height unset (0) so huh's own auto-sizing
+		// sets each group to min(naturalContentHeight, windowHeight), scrolling
+		// only on genuine overflow. The outer paneStyle (layout.go) fills the
+		// region below a short form with the themed background.
+		f.form.WithWidth(f.width)
 	}
 
 	model, cmd := f.form.Update(msg)
@@ -1105,14 +1109,19 @@ func (f formPane) applyEdgeChanges() {
 	_ = f.store.WriteEdge(edge) // non-fatal
 }
 
-// View renders the huh form, padded to fill the pane.
+// View renders the huh form, padded to the pane width and repainted so the
+// primary background extends through every interior cell. PadLines squares
+// each line to f.width (including the right-margin run); FillBackground then
+// repaints the backgroundless padding cells that the bubbles viewport and
+// huh's field separator emit inside the already-rendered string, which
+// PadLines alone cannot reach.
 func (f formPane) View() string {
 	content := f.form.View()
 	if content == "" {
 		content = "Submitting…"
 	}
 	bg := f.theme.BgPrimary()
-	return PadLines(content, f.width, bg)
+	return FillBackground(PadLines(content, f.width, bg), bg)
 }
 
 // KeyBindings returns the help hints shown in the command palette.
@@ -1291,8 +1300,14 @@ func validateOptionalFraction(fieldName string) func(string) error {
 	}
 }
 
-// wyrdHuhTheme returns a huh.Theme derived from the active Wyrd theme.
-// This is a minimal mapping — full polish is deferred to VS.8.
+// wyrdHuhTheme derives a huh.Theme from the active Wyrd theme so every form
+// field, button, and the help footer use the Cairn palette. Every style carries
+// both a foreground and the primary background to avoid background bleed when the
+// form is padded in View.
+//
+// Important: huh.ThemeCharm copies Focused → Blurred before this function runs,
+// so Blurred carries Charm colours at entry. Every Blurred field must be set
+// explicitly here; edits to Focused do not propagate.
 func wyrdHuhTheme(t *ActiveTheme) huh.Theme {
 	if t == nil {
 		return huh.ThemeFunc(func(isDark bool) *huh.Styles { return huh.ThemeCharm(isDark) })
@@ -1302,17 +1317,27 @@ func wyrdHuhTheme(t *ActiveTheme) huh.Theme {
 		base := huh.ThemeCharm(isDark)
 
 		bg := t.BgPrimary()
+		bg2 := t.BgSecondary()
 		fg := t.FgPrimary()
 		muted := t.FgMuted()
 		accent := t.AccentPrimary()
+		accent2 := t.AccentSecondary()
 		errCol := t.OverflowCritical()
 
-		// Form base container.
+		// themed returns a fresh lipgloss style with the given foreground and the
+		// primary background. Use for styles that carry no inherited metadata
+		// (glyph strings, padding, border). For fields that do, use the chained
+		// .Foreground(...).Background(...) form on the existing base.X.Y value.
+		themed := func(fg color.Color) lipgloss.Style {
+			return lipgloss.NewStyle().Foreground(fg).Background(bg)
+		}
+
+		// Form / group chrome.
 		base.Form.Base = base.Form.Base.
 			Background(bg).
 			Foreground(fg)
-
-		// Group titles.
+		base.Group.Base = base.Group.Base.
+			Background(bg)
 		base.Group.Title = base.Group.Title.
 			Foreground(accent).
 			Background(bg)
@@ -1320,8 +1345,16 @@ func wyrdHuhTheme(t *ActiveTheme) huh.Theme {
 			Foreground(muted).
 			Background(bg)
 
-		// Focused field styles.
+		// Field separator (ThemeBase sets "\n\n" string; preserve it).
+		base.FieldSeparator = base.FieldSeparator.Background(bg)
+
+		// ── Focused ──────────────────────────────────────────────────────────
+		// ThemeCharm sets Focused.Card = Focused.Base before our overrides, so
+		// update Card explicitly after Base.
 		base.Focused.Base = base.Focused.Base.
+			Background(bg).
+			BorderForeground(accent)
+		base.Focused.Card = base.Focused.Card.
 			Background(bg).
 			BorderForeground(accent)
 		base.Focused.Title = base.Focused.Title.
@@ -1342,21 +1375,50 @@ func wyrdHuhTheme(t *ActiveTheme) huh.Theme {
 		base.Focused.Option = base.Focused.Option.
 			Foreground(fg).
 			Background(bg)
-		base.Focused.TextInput.Text = lipgloss.NewStyle().
-			Foreground(fg).
-			Background(bg)
-		base.Focused.TextInput.Placeholder = lipgloss.NewStyle().
-			Foreground(muted).
-			Background(bg)
-		base.Focused.TextInput.Cursor = lipgloss.NewStyle().
+		base.Focused.NextIndicator = base.Focused.NextIndicator.
 			Foreground(accent).
 			Background(bg)
+		base.Focused.PrevIndicator = base.Focused.PrevIndicator.
+			Foreground(accent).
+			Background(bg)
+		// Multi-select: cursor purple, checked rows orange, unchecked normal/muted.
+		base.Focused.MultiSelectSelector = base.Focused.MultiSelectSelector.
+			Foreground(accent).
+			Background(bg)
+		base.Focused.SelectedOption = base.Focused.SelectedOption.
+			Foreground(accent2).
+			Background(bg)
+		base.Focused.SelectedPrefix = base.Focused.SelectedPrefix.
+			Foreground(accent2).
+			Background(bg)
+		base.Focused.UnselectedOption = base.Focused.UnselectedOption.
+			Foreground(fg).
+			Background(bg)
+		base.Focused.UnselectedPrefix = base.Focused.UnselectedPrefix.
+			Foreground(muted).
+			Background(bg)
+		// Text input.
+		base.Focused.TextInput.Text = themed(fg)
+		base.Focused.TextInput.Placeholder = themed(muted)
+		base.Focused.TextInput.Cursor = themed(accent)
+		base.Focused.TextInput.Prompt = themed(accent)
+		// Buttons: active = accent fill, inactive = fg on secondary bg.
 		base.Focused.FocusedButton = base.Focused.FocusedButton.
 			Background(accent).
 			Foreground(bg)
+		base.Focused.Next = base.Focused.Next.
+			Background(accent).
+			Foreground(bg)
+		base.Focused.BlurredButton = base.Focused.BlurredButton.
+			Foreground(fg).
+			Background(bg2)
 
-		// Blurred field styles.
+		// ── Blurred ───────────────────────────────────────────────────────────
+		// Blurred = recession: everything muted-on-bg. Errors stay red even when
+		// a field is blurred so validation is never visually hidden.
 		base.Blurred.Base = base.Blurred.Base.
+			Background(bg)
+		base.Blurred.Card = base.Blurred.Card.
 			Background(bg)
 		base.Blurred.Title = base.Blurred.Title.
 			Foreground(muted).
@@ -1364,12 +1426,56 @@ func wyrdHuhTheme(t *ActiveTheme) huh.Theme {
 		base.Blurred.Description = base.Blurred.Description.
 			Foreground(muted).
 			Background(bg)
+		base.Blurred.ErrorIndicator = base.Blurred.ErrorIndicator.
+			Foreground(errCol).
+			Background(bg)
+		base.Blurred.ErrorMessage = base.Blurred.ErrorMessage.
+			Foreground(errCol).
+			Background(bg)
+		base.Blurred.SelectSelector = base.Blurred.SelectSelector.
+			Foreground(muted).
+			Background(bg)
 		base.Blurred.Option = base.Blurred.Option.
 			Foreground(muted).
 			Background(bg)
-		base.Blurred.TextInput.Text = lipgloss.NewStyle().
+		base.Blurred.MultiSelectSelector = base.Blurred.MultiSelectSelector.
 			Foreground(muted).
 			Background(bg)
+		base.Blurred.SelectedOption = base.Blurred.SelectedOption.
+			Foreground(muted).
+			Background(bg)
+		base.Blurred.SelectedPrefix = base.Blurred.SelectedPrefix.
+			Foreground(muted).
+			Background(bg)
+		base.Blurred.UnselectedOption = base.Blurred.UnselectedOption.
+			Foreground(muted).
+			Background(bg)
+		base.Blurred.UnselectedPrefix = base.Blurred.UnselectedPrefix.
+			Foreground(muted).
+			Background(bg)
+		base.Blurred.TextInput.Text = themed(muted)
+		base.Blurred.TextInput.Placeholder = themed(muted)
+		base.Blurred.TextInput.Cursor = themed(muted)
+		base.Blurred.TextInput.Prompt = themed(muted)
+		base.Blurred.FocusedButton = base.Blurred.FocusedButton.
+			Foreground(fg).
+			Background(bg)
+		base.Blurred.BlurredButton = base.Blurred.BlurredButton.
+			Foreground(muted).
+			Background(bg)
+
+		// ── Help footer ───────────────────────────────────────────────────────
+		// WithShowHelp(true) renders key hints below the form. Default styles are
+		// foreground-only, causing a terminal-bg stripe inside the padded pane.
+		// Keys get accent (matches the palette command-hint convention), everything
+		// else muted; all carry bg.
+		base.Help.ShortKey = themed(accent)
+		base.Help.FullKey = themed(accent)
+		base.Help.ShortDesc = themed(muted)
+		base.Help.FullDesc = themed(muted)
+		base.Help.ShortSeparator = themed(muted)
+		base.Help.FullSeparator = themed(muted)
+		base.Help.Ellipsis = themed(muted)
 
 		return base
 	})

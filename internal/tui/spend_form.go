@@ -167,8 +167,11 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 
 	if wmsg, ok := msg.(tea.WindowSizeMsg); ok {
 		f.width = wmsg.Width/2 - 2
-		f.height = wmsg.Height - 3
-		f.form.WithWidth(f.width).WithHeight(f.height)
+		// Width only: leave the form height unset (0) so huh's own auto-sizing
+		// sets each group to min(naturalContentHeight, windowHeight), scrolling
+		// only on genuine overflow. The outer paneStyle (layout.go) fills the
+		// region below a short form with the themed background.
+		f.form.WithWidth(f.width)
 	}
 
 	model, cmd := f.form.Update(msg)
@@ -200,14 +203,17 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	return f, cmd
 }
 
-// View renders the huh form, padded to fill the pane.
+// View renders the huh form, padded to the pane width and repainted so the
+// primary background extends through every interior cell. PadLines squares
+// each line to f.width; FillBackground repaints the backgroundless padding
+// cells emitted inside the bubbles viewport and huh's field separator.
 func (f spendFormPane) View() string {
 	content := f.form.View()
 	if content == "" {
 		content = "Submitting…"
 	}
 	bg := f.theme.BgPrimary()
-	return PadLines(content, f.width, bg)
+	return FillBackground(PadLines(content, f.width, bg), bg)
 }
 
 // KeyBindings returns the help hints shown in the status bar.
