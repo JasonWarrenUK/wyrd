@@ -108,12 +108,20 @@ func (l *Layout) paneStyle(width int, focused bool) lipgloss.Style {
 	return style
 }
 
-// logoStyle returns a fixed-height Lipgloss style for the logo pane that sits
-// atop the right-hand detail column.
+// logoStyle returns the bordered Lipgloss style for the logo box that sits atop
+// the right-hand detail column. height is the OUTER box height (LogoHeight),
+// which includes the 2 border rows; the wordmark content is centred vertically
+// and horizontally within the box. The box uses a rounded border in the flat
+// Border() colour to match an unfocused pane — the logo never holds focus.
 func (l *Layout) logoStyle(width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Height(height).
+		MaxHeight(height).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(l.theme.Border()).
+		BorderBackground(l.theme.BgPrimary()).
 		Background(l.theme.BgPrimary()).
 		Foreground(l.theme.AccentPrimary())
 }
