@@ -142,8 +142,10 @@ func (d viewportPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		}
 		// Update the offset based on the new right-column width so the height
 		// calculation is always consistent with what RenderLogo will produce.
+		// LogoHeight returns the OUTER logo box height (content + 2 border rows).
 		d.heightOffset = LogoHeight(newWidth + 2) // +2 to account for the column borders
-		newHeight := msg.Height - 4 - d.heightOffset // status bar (2) + borders (2) + logo
+		// status bar (2) + detail box borders (2) + logo outer height.
+		newHeight := msg.Height - 4 - d.heightOffset
 		if newHeight < 1 {
 			newHeight = 1
 		}

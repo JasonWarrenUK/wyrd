@@ -167,11 +167,17 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 
 	if wmsg, ok := msg.(tea.WindowSizeMsg); ok {
 		f.width = wmsg.Width/2 - 2
-		// Width only: leave the form height unset (0) so huh's own auto-sizing
-		// sets each group to min(naturalContentHeight, windowHeight), scrolling
-		// only on genuine overflow. The outer paneStyle (layout.go) fills the
-		// region below a short form with the themed background.
-		f.form.WithWidth(f.width)
+		if f.width < 1 {
+			f.width = 1
+		}
+		// Bound the form to the detail box's inner content height so huh scrolls
+		// within the pane instead of overflowing past the status/capture bar.
+		// status bar (2) + detail box borders (2) + outer logo box height.
+		f.height = wmsg.Height - 4 - LogoHeight(f.width+2)
+		if f.height < 1 {
+			f.height = 1
+		}
+		f.form = f.form.WithWidth(f.width).WithHeight(f.height)
 	}
 
 	model, cmd := f.form.Update(msg)

@@ -797,10 +797,15 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					return captureConfirmClearMsg{}
 				})
 			}
-			m.rightPane = sp
+			initCmd := sp.form.Init()
+			sized, _ := sp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.rightPane = sized
 			m.focus = FocusRight
 			m.syncKeyHints()
-			return m, sp.form.Init()
+			return m, initCmd
 		}
 
 		// Budget form: dispatches to the budget creation form.
@@ -810,10 +815,15 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				selectedID = lp.SelectedNodeID()
 			}
 			fp := newBudgetFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
-			m.rightPane = fp
+			initCmd := fp.form.Init()
+			sized, _ := fp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.rightPane = sized
 			m.focus = FocusRight
 			m.syncKeyHints()
-			return m, fp.form.Init()
+			return m, initCmd
 		}
 
 		var selectedID string
@@ -830,10 +840,15 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		default:
 			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 		}
-		m.rightPane = fp
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
 		m.focus = FocusRight
 		m.syncKeyHints()
-		return m, fp.form.Init()
+		return m, initCmd
 
 	case "backspace":
 		m.captureBar.Backspace()
@@ -921,10 +936,15 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	}
 
-	m.rightPane = fp
+	initCmd := fp.form.Init()
+	sized, _ := fp.Update(tea.WindowSizeMsg{
+		Width:  m.layout.TotalWidth(),
+		Height: m.layout.TotalHeight(),
+	})
+	m.rightPane = sized
 	m.focus = FocusRight
 	m.syncKeyHints()
-	return m, fp.form.Init()
+	return m, initCmd
 }
 
 // handleEditSubmit refreshes the dashboard and detail pane after a node is
@@ -1317,14 +1337,15 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	// Size the viewport to the right pane's inner dimensions. Borders consume
 	// 2 columns (left+right). The logo pane sits above the detail box, so
-	// vpHeight reserves LogoHeight(rw) rows for it (plus borders within the
-	// detailPaneStyle which lipgloss accounts for in the Height dimension).
+	// vpHeight is the detail box's inner content height. PaneHeight() is the
+	// outer height available for the whole right column. Subtract the outer logo
+	// box (logoH) and the detail box's own 2 border rows to get the inner height.
 	// heightOffset is stored on the viewport so subsequent WindowSizeMsg
 	// events can keep the logo reservation in sync across terminal resizes.
 	rw := m.layout.RightWidth()
 	logoH := LogoHeight(rw)
 	vpWidth := rw - 2
-	vpHeight := m.layout.PaneHeight() - logoH
+	vpHeight := m.layout.PaneHeight() - logoH - 2
 	if vpWidth < 1 {
 		vpWidth = 1
 	}
