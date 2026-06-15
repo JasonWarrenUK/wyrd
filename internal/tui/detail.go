@@ -305,7 +305,13 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 	if err != nil {
 		return plainStyle.Render(body)
 	}
-	return strings.TrimRight(out, "\n")
+	// Glamour emits foreground escapes but no background, so interior cells
+	// (blank lines, inter-block padding) inherit the terminal default and bleed
+	// through. FillBackground repaints every line start and post-reset cell with
+	// the pane background, matching the treatment every other detail block gets
+	// via its lipgloss style.
+	out = strings.TrimRight(out, "\n")
+	return FillBackground(out, r.bg())
 }
 
 // isColourDark returns true when c is a dark colour (perceived luminance < 0.5).
