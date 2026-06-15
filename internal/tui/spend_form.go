@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	huh "charm.land/huh/v2"
@@ -173,7 +174,8 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		// Bound the form to the detail box's inner content height so huh scrolls
 		// within the pane instead of overflowing past the status/capture bar.
 		// status bar (2) + detail box borders (2) + outer logo box height.
-		f.height = wmsg.Height - 4 - LogoHeight(f.width+2)
+		// Subtract 1 extra: huh v2 renders one line more than the height given.
+		f.height = wmsg.Height - 4 - LogoHeight(f.width+2) - 1
 		if f.height < 1 {
 			f.height = 1
 		}
@@ -214,7 +216,7 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 // each line to f.width; FillBackground repaints the backgroundless padding
 // cells emitted inside the bubbles viewport and huh's field separator.
 func (f spendFormPane) View() string {
-	content := f.form.View()
+	content := strings.TrimRight(f.form.View(), "\n")
 	if content == "" {
 		content = "Submitting…"
 	}
