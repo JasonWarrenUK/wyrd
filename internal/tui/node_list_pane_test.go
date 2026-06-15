@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // ---------------------------------------------------------------------------
@@ -325,3 +327,44 @@ func TestNodeListItem_NodeID_Empty(t *testing.T) {
 		t.Errorf("expected empty NodeID, got %q", got)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// selection preservation across resize
+// ---------------------------------------------------------------------------
+
+// TestNodeListPane_ResizePreservesSelection verifies that sending a
+// WindowSizeMsg does not reset the list cursor to the first data row.
+// Previously, skipInitialHeaders ran unconditionally after SetItems and yanked
+// any valid mid-list selection back to index 0.
+func TestNodeListPane_ResizePreservesSelection(t *testing.T) {
+	rows := []map[string]interface{}{
+		{"id": "n1", "title": "Alpha", "category": "task"},
+		{"id": "n2", "title": "Beta", "category": "task"},
+		{"id": "n3", "title": "Gamma", "category": "task"},
+	}
+	result := types.QueryResult{
+		Columns: []string{"category", "title"},
+		Rows:    rows,
+	}
+	theme := testThemeVP2()
+	p := newNodeListPane(result, theme)
+
+	// Move the cursor to the second data row (index 1 in an ungrouped list).
+	p.list.Select(1)
+	wantID := p.SelectedNodeID()
+	if wantID == "" {
+		t.Fatal("expected a non-empty SelectedNodeID after Select(1)")
+	}
+
+	// Send a resize — this must not reset the selection.
+	updated, _ := p.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	pAfter, ok := updated.(nodeListPane)
+	if !ok {
+		t.Fatalf("Update returned unexpected type %T", updated)
+	}
+
+	if got := pAfter.SelectedNodeID(); got != wantID {
+		t.Errorf("selection changed after resize: want %q, got %q", wantID, got)
+	}
+}
+
