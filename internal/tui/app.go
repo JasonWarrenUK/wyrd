@@ -684,6 +684,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key.Matches(msg, m.keyMap.Quit) || msg.String() == "esc" {
 				return m, func() tea.Msg { return formCancelMsg{} }
 			}
+			// tab / shift+tab navigate between fields inside the form. Without this
+			// guard, FocusLeft (shift+tab) would call handleSwitchPane and move focus
+			// to the list pane before huh ever sees the key.
+			if m.focus == FocusRight {
+				if key.Matches(msg, m.keyMap.FocusRight) || key.Matches(msg, m.keyMap.FocusLeft) {
+					return m.updateFocusedPane(msg)
+				}
+			}
 		}
 
 		switch {

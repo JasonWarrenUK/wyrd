@@ -802,3 +802,33 @@ func TestArrowKeysWorkBeforeReady(t *testing.T) {
 	// Down arrow should be forwarded to the pane without panicking.
 	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 }
+
+// --- Form key routing tests ---
+
+// TestShiftTabInsideFormStaysFocusedOnRight verifies that pressing shift+tab
+// when an edit form is active in the right pane does NOT switch focus to the
+// left pane. Without the form guard, the app's FocusLeft binding (shift+tab)
+// would call handleSwitchPane before huh ever received the key.
+func TestShiftTabInsideFormStaysFocusedOnRight(t *testing.T) {
+	m, _ := newTestModelWithNode(t)
+	m = sendWindowSize(t, m, 120, 40)
+
+	// Open the edit form — focus moves to the right pane.
+	m = pressModKey(t, m, 'o', tea.ModCtrl)
+
+	// Mount a spy on the left pane so we can detect an unwanted focus switch.
+	spy := &spyPane{}
+	m.MountLeft(spy)
+
+	// Send shift+tab — should navigate to the previous form field, not switch
+	// panes. HandleFocusLost on the left spy must NOT be called.
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	_, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("Update returned unexpected type %T", updated)
+	}
+
+	if spy.focusLostCalled {
+		t.Error("shift+tab while a form is focused should not switch panes (HandleFocusLost was called on the left pane)")
+	}
+}
