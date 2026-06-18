@@ -9,7 +9,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
 	clog "github.com/charmbracelet/log"
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
@@ -685,6 +684,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key.Matches(msg, m.keyMap.Quit) || msg.String() == "esc" {
 				return m, func() tea.Msg { return formCancelMsg{} }
 			}
+			// tab / shift+tab navigate between fields inside the form. Without this
+			// guard, FocusLeft (shift+tab) would call handleSwitchPane and move focus
+			// to the list pane before huh ever sees the key.
+			if m.focus == FocusRight {
+				if key.Matches(msg, m.keyMap.FocusRight) || key.Matches(msg, m.keyMap.FocusLeft) {
+					return m.updateFocusedPane(msg)
+				}
+			}
 		}
 
 		switch {
@@ -798,10 +805,15 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					return captureConfirmClearMsg{}
 				})
 			}
-			m.rightPane = sp
+			initCmd := sp.form.Init()
+			sized, _ := sp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.rightPane = sized
 			m.focus = FocusRight
 			m.syncKeyHints()
-			return m, sp.form.Init()
+			return m, initCmd
 		}
 
 		// Budget form: dispatches to the budget creation form.
@@ -811,10 +823,15 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				selectedID = lp.SelectedNodeID()
 			}
 			fp := newBudgetFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
-			m.rightPane = fp
+			initCmd := fp.form.Init()
+			sized, _ := fp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.rightPane = sized
 			m.focus = FocusRight
 			m.syncKeyHints()
-			return m, fp.form.Init()
+			return m, initCmd
 		}
 
 		var selectedID string
@@ -831,10 +848,15 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		default:
 			fp = newTaskFormPane(m.theme, m.store, m.clock, selectedID, body, m.kinds, m.stageGroups)
 		}
-		m.rightPane = fp
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
 		m.focus = FocusRight
 		m.syncKeyHints()
-		return m, fp.form.Init()
+		return m, initCmd
 
 	case "backspace":
 		m.captureBar.Backspace()
@@ -922,10 +944,15 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 		fp = newEditTaskFormPane(m.theme, m.store, m.clock, m.index, node, m.kinds, m.stageGroups)
 	}
 
-	m.rightPane = fp
+	initCmd := fp.form.Init()
+	sized, _ := fp.Update(tea.WindowSizeMsg{
+		Width:  m.layout.TotalWidth(),
+		Height: m.layout.TotalHeight(),
+	})
+	m.rightPane = sized
 	m.focus = FocusRight
 	m.syncKeyHints()
-	return m, fp.form.Init()
+	return m, initCmd
 }
 
 // handleEditSubmit refreshes the dashboard and detail pane after a node is
@@ -1192,87 +1219,27 @@ func (m Model) View() tea.View {
 		leftView := m.leftPane.View()
 		rightView := m.rightPane.View()
 		statusView := m.statusBar.View()
+		logoView := RenderLogo(m.layout.RightWidth(), m.theme)
 
-		frame = m.layout.Render(leftView, rightView, statusView, m.focus)
+		frame = m.layout.Render(leftView, rightView, logoView, statusView, m.focus)
 
-		// If the palette is active, composite it on top of the frame using the
-		// lipgloss v2 Compositor so there is no brittle line-manipulation.
-		if m.palette.IsActive() {
-			overlay := m.palette.View(m.layout.totalWidth, m.layout.totalHeight)
-			if overlay != "" {
-				overlayWidth := lipgloss.Width(overlay)
-				centreX := (m.layout.totalWidth - overlayWidth) / 2
-				if centreX < 0 {
-					centreX = 0
-				}
-				frameLayer := lipgloss.NewLayer(frame).Z(0)
-				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
-				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
-			}
-		}
-
-		// If the log overlay is active, composite it on top using the same
-		// pattern as the palette.
-		if m.logOverlay.IsActive() {
-			overlay := m.logOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
-			if overlay != "" {
-				overlayWidth := lipgloss.Width(overlay)
-				centreX := (m.layout.totalWidth - overlayWidth) / 2
-				if centreX < 0 {
-					centreX = 0
-				}
-				frameLayer := lipgloss.NewLayer(frame).Z(0)
-				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
-				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
-			}
-		}
-
-		// If the help overlay is active, composite it on top.
-		if m.helpOverlay.IsActive() {
-			overlay := m.helpOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
-			if overlay != "" {
-				overlayWidth := lipgloss.Width(overlay)
-				centreX := (m.layout.totalWidth - overlayWidth) / 2
-				if centreX < 0 {
-					centreX = 0
-				}
-				frameLayer := lipgloss.NewLayer(frame).Z(0)
-				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
-				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
-			}
-		}
-
-		// If the kinds overlay is active, composite it on top.
-		if m.kindsOverlay.IsActive() {
-			overlay := m.kindsOverlay.View(m.layout.totalWidth, m.layout.totalHeight)
-			if overlay != "" {
-				overlayWidth := lipgloss.Width(overlay)
-				centreX := (m.layout.totalWidth - overlayWidth) / 2
-				if centreX < 0 {
-					centreX = 0
-				}
-				frameLayer := lipgloss.NewLayer(frame).Z(0)
-				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
-				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
-			}
-		}
-
-		// If the ritual overlay is active, composite it on top using the same
-		// pattern as the palette. Unlike the palette and log overlay, the ritual
-		// overlay already holds its own width/height (set in Open), so View
-		// takes no size arguments.
-		if m.ritualOvl.IsActive() {
-			overlay := m.ritualOvl.View()
-			if overlay != "" {
-				overlayWidth := lipgloss.Width(overlay)
-				centreX := (m.layout.totalWidth - overlayWidth) / 2
-				if centreX < 0 {
-					centreX = 0
-				}
-				frameLayer := lipgloss.NewLayer(frame).Z(0)
-				overlayLayer := lipgloss.NewLayer(overlay).X(centreX).Y(2).Z(1)
-				frame = lipgloss.NewCompositor(frameLayer, overlayLayer).Render()
-			}
+		// Composite whichever overlay is active, horizontally and vertically
+		// centred, over the base frame using lipgloss.Place. Only one overlay
+		// is active at a time, so a switch is used to make that explicit and
+		// avoid double-compositing. The ritual overlay holds its own width/height
+		// from Open, so its View takes no size arguments.
+		w, h := m.layout.totalWidth, m.layout.totalHeight
+		switch {
+		case m.palette.IsActive():
+			frame = compositeOverlay(frame, m.palette.View(w, h), w, h)
+		case m.logOverlay.IsActive():
+			frame = compositeOverlay(frame, m.logOverlay.View(w, h), w, h)
+		case m.helpOverlay.IsActive():
+			frame = compositeOverlay(frame, m.helpOverlay.View(w, h), w, h)
+		case m.kindsOverlay.IsActive():
+			frame = compositeOverlay(frame, m.kindsOverlay.View(w, h), w, h)
+		case m.ritualOvl.IsActive():
+			frame = compositeOverlay(frame, m.ritualOvl.View(), w, h)
 		}
 	}
 
@@ -1376,15 +1343,24 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 	content := renderer.Render(node, edges, nodesByID, nil, now)
 
-	// Size the viewport to the right pane's inner dimensions.
-	// Borders consume 2 columns (left+right) and the layout accounts for
-	// the status bar; paneHeight gives usable inner rows.
-	vpWidth := m.layout.RightWidth() - 2
-	vpHeight := m.layout.PaneHeight()
+	// Size the viewport to the right pane's inner dimensions. Borders consume
+	// 2 columns (left+right). The logo pane sits above the detail box, so
+	// vpHeight is the detail box's inner content height. PaneHeight() is the
+	// outer height available for the whole right column. Subtract the outer logo
+	// box (logoH) and the detail box's own 2 border rows to get the inner height.
+	// heightOffset is stored on the viewport so subsequent WindowSizeMsg
+	// events can keep the logo reservation in sync across terminal resizes.
+	rw := m.layout.RightWidth()
+	logoH := LogoHeight(rw)
+	vpWidth := rw - 2
+	vpHeight := m.layout.PaneHeight() - logoH - 2
 	if vpWidth < 1 {
 		vpWidth = 1
 	}
-	return newViewportPane(vpWidth, vpHeight, content, m.theme.BgPrimary())
+	if vpHeight < 1 {
+		vpHeight = 1
+	}
+	return newViewportPaneWithOffset(vpWidth, vpHeight, content, m.theme.BgPrimary(), logoH)
 }
 
 

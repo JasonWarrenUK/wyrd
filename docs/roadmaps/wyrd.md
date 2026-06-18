@@ -20,7 +20,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 | **TD** | Not started                         | TD.1–TD.3    | —       |
-| **VP** | Not started                         | VP.1, VP.2, VP.3, VP.4, VP.9 | VP.5 (needs VP.9), VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
+| **VP** | VP.2, VP.5, VP.9 done                | VP.1, VP.3, VP.4 | VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
 
@@ -128,7 +128,7 @@ None.
 > **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
 > [!NOTE]
-> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
+> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.3, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
@@ -327,19 +327,17 @@ None yet.
 - [ ] VP.1. Logo/title pane atop the detail column — split the right column vertically into a fixed-height logo/title pane (top) and the existing detail pane (below). Add a `wyrd` wordmark asset (none exists today); rework `layout.go` `Render` to stack the logo box and detail box with `JoinVertical`, add a height calc reserving the logo's rows, and wire a `logoPane` alongside `rightPane` in `app.go`. Must honour the background-bleed rules (`PadLines`, both fg+bg on every style) — **no blockers**
 - [ ] VP.3. Theme-derived glamour stylesheet — build a glamour `ansi.StyleConfig` from theme colours (headings → accent, code → muted bg, links → accent-secondary) so rendered markdown in the detail pane is visually continuous with its container — **no blockers**
 - [ ] VP.4. Gradient focus border — replace the flat accent border on the focused pane with a subtle `BorderForegroundBlend` gradient (accent → accent-secondary, both already in theme) so focus is unmistakable — **no blockers**
-- [ ] VP.9. Fix overlay panel overflow — the `:log`, `:help`, and `:kinds` overlays extend past the bottom of the visible TUI; clamp the rendered panel to the terminal height. Each overlay computes its own `vpHeight = height - 6` (`log_overlay.go`, `help_overlay.go`, `kinds_overlay.go`), so the chrome allowance or outer-box clamp is wrong in all three — fix once, consistently — **no blockers**
 
 <a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
-
-- [ ] VP.2. Wyrd-themed `huh` forms — derive a `*huh.Theme` from the active `ActiveTheme` tiers so capture/edit/spend forms match the Cairn palette instead of huh's default theme (closes the current visible style break between forms and the rest of the TUI). Sequenced after the SL.7 form work so theming applies to the settled field set — **depends on SL.7c (done)**
-- [ ] VP.5. Floating modal overlays via compositor — re-implement the command palette, help, and ritual overlays as composited lipgloss `Layer`s floating over a dimmed main frame, instead of replacing the whole frame; centre via `Place`. Sequenced after VP.9 so the compositor re-implementation inherits correct overlay sizing — **depends on VP.9**
 - [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
 - [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17**
 - [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync`; the bar's terminal failure state is displayed through the CP.17 dismissable-message mechanism — **depends on CP.17**
 
 <a name="mf-done"><h4>Completed (Milestone F)</h4></a>
 
-None yet.
+- [x] VP.5. Floating modal overlays via compositor — overlays are composited via `lipgloss.Place` + `Layer`/`Compositor`, floating over the main frame and centred horizontally and vertically, with content-driven height rather than a fixed clamp; the log, help, and kinds overlays inherit correct sizing from the VP.9 height work — **depends on VP.9 (done)**
+- [x] VP.9. Fix overlay panel overflow — resolved as part of VP.5: content-driven viewport height clamping was added to all three overlays (`log_overlay.go`, `help_overlay.go`, `kinds_overlay.go`), so they no longer extend past the bottom of the visible TUI — **no blockers**
+- [x] VP.2. Wyrd-themed `huh` forms — `wyrdHuhTheme` fully derives from `ActiveTheme`: all focused/blurred/multi-select/button/help-footer styles carry the Cairn palette and `BgPrimary` on every style to prevent background bleed; the `Blurred` block is set explicitly (huh's `ThemeCharm` copies `Focused → Blurred` before our overrides run, so each field must be set in both blocks) — **depends on SL.7c (done)**
 
 ---
 
@@ -440,14 +438,14 @@ SK3["`*SK.3*<br/>**Skeins**<br/>Query resolution`"]:::blocked
 SK4["`*SK.4*<br/>**Skeins**<br/>Palette commands`"]:::blocked
 
 VP1["`*VP.1*<br/>**Visual Polish**<br/>Logo pane`"]:::open
-VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::blocked
+VP2["`*VP.2*<br/>**Visual Polish**<br/>Themed huh forms`"]:::done
 VP3["`*VP.3*<br/>**Visual Polish**<br/>Glamour stylesheet`"]:::open
 VP4["`*VP.4*<br/>**Visual Polish**<br/>Gradient focus border`"]:::open
-VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::blocked
+VP5["`*VP.5*<br/>**Visual Polish**<br/>Compositor overlays`"]:::done
 VP6["`*VP.6*<br/>**Visual Polish**<br/>Focus animation`"]:::blocked
 VP7["`*VP.7*<br/>**Visual Polish**<br/>Key-hint footer`"]:::blocked
 VP8["`*VP.8*<br/>**Visual Polish**<br/>Sync progress bar`"]:::blocked
-VP9["`*VP.9*<br/>**Visual Polish**<br/>Overlay overflow fix`"]:::open
+VP9["`*VP.9*<br/>**Visual Polish**<br/>Overlay overflow fix`"]:::done
 
 RT2 --> RT3 & RT4 & RT5 & RT7 & RT8
 RT5 --> RT6
@@ -499,7 +497,6 @@ SK2 --> SK3
 SK3 --> SK4
 
 VP4 --> VP6
-VP9 --> VP5
 CP17 --> VP7 & VP8
 
 mCP --> CP14 & CP15 & CP16 & CP17

@@ -81,38 +81,101 @@ func (l *Layout) RightWidth() int {
 }
 
 // paneStyle builds the Lipgloss style for a pane box, highlighting it
-// differently based on whether it has focus.
+// differently based on whether it has focus. The focused pane uses a
+// wrapping-set gradient blend (AccentPrimary → AccentSecondary → AccentPrimary)
+// so the gradient closes seamlessly at the top-left corner where the perimeter
+// ends, per the BorderForegroundBlend docstring guidance for closed borders.
 func (l *Layout) paneStyle(width int, focused bool) lipgloss.Style {
-	borderColour := l.theme.Border()
-	if focused {
-		borderColour = l.theme.AccentPrimary()
-	}
-
-	return lipgloss.NewStyle().
+	style := lipgloss.NewStyle().
 		Width(width).
 		Height(l.PaneHeight()).
 		MaxHeight(l.PaneHeight()).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(borderColour).
 		BorderBackground(l.theme.BgPrimary()).
 		Background(l.theme.BgPrimary()).
 		Foreground(l.theme.FgPrimary())
+
+	if focused {
+		style = style.BorderForegroundBlend(
+			l.theme.AccentPrimary(),
+			l.theme.AccentSecondary(),
+			l.theme.AccentPrimary(),
+		)
+	} else {
+		style = style.BorderForeground(l.theme.Border())
+	}
+
+	return style
 }
 
-// Render assembles the full TUI frame from the two rendered pane strings and
-// the status bar string. leftView and rightView should already be the content
-// returned by PaneModel.View(); they are placed inside their respective boxes
-// here.
+// logoStyle returns the bordered Lipgloss style for the logo box that sits atop
+// the right-hand detail column. height is the OUTER box height (LogoHeight),
+// which includes the 2 border rows; the wordmark content is centred vertically
+// and horizontally within the box. The box uses a rounded border in the flat
+// Border() colour to match an unfocused pane — the logo never holds focus.
+func (l *Layout) logoStyle(width, height int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		MaxHeight(height).
+		Align(lipgloss.Center, lipgloss.Center).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(l.theme.Border()).
+		BorderBackground(l.theme.BgPrimary()).
+		Background(l.theme.BgPrimary()).
+		Foreground(l.theme.AccentPrimary())
+}
+
+// detailPaneStyle returns the pane style for the right-hand detail column,
+// sized to PaneHeight() minus the logo height so that logo + detail together
+// fill the full pane height.
+func (l *Layout) detailPaneStyle(width int, focused bool, logoH int) lipgloss.Style {
+	h := l.PaneHeight() - logoH
+	if h < 1 {
+		h = 1
+	}
+	style := lipgloss.NewStyle().
+		Width(width).
+		Height(h).
+		MaxHeight(h).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderBackground(l.theme.BgPrimary()).
+		Background(l.theme.BgPrimary()).
+		Foreground(l.theme.FgPrimary())
+
+	if focused {
+		style = style.BorderForegroundBlend(
+			l.theme.AccentPrimary(),
+			l.theme.AccentSecondary(),
+			l.theme.AccentPrimary(),
+		)
+	} else {
+		style = style.BorderForeground(l.theme.Border())
+	}
+
+	return style
+}
+
+// Render assembles the full TUI frame from the rendered pane strings and the
+// status bar. leftView and rightView should already be the content returned by
+// PaneModel.View(). logoView sits above rightView in the right column; it is
+// produced by RenderLogo(RightWidth(), theme).
 func (l *Layout) Render(
 	leftView string,
 	rightView string,
+	logoView string,
 	statusBarView string,
 	focus FocusedPane,
 ) string {
-	leftBox := l.paneStyle(l.LeftWidth(), focus == FocusLeft).Render(leftView)
-	rightBox := l.paneStyle(l.RightWidth(), focus == FocusRight).Render(rightView)
+	rw := l.RightWidth()
+	logoH := LogoHeight(rw)
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightBox)
+	leftBox    := l.paneStyle(l.LeftWidth(), focus == FocusLeft).Render(leftView)
+	logoBox    := l.logoStyle(rw, logoH).Render(logoView)
+	detailBox  := l.detailPaneStyle(rw, focus == FocusRight, logoH).Render(rightView)
+
+	rightColumn := lipgloss.JoinVertical(lipgloss.Left, logoBox, detailBox)
+	row := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightColumn)
 
 	return lipgloss.JoinVertical(lipgloss.Left, row, statusBarView)
 }

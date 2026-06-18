@@ -211,7 +211,8 @@ func (o *ritualOverlay) afterRunnerAction() (tea.Cmd, bool) {
 	}
 }
 
-// syncViewport rebuilds the viewport content from the runner's current state.
+// syncViewport rebuilds the viewport content from the runner's current state
+// and resizes the viewport to fit the content, clamped to the terminal height.
 func (o *ritualOverlay) syncViewport() {
 	bg := o.theme.BgSecondary()
 	w := o.boxInnerWidth()
@@ -232,6 +233,18 @@ func (o *ritualOverlay) syncViewport() {
 	}
 
 	padded := PadLines(content, w, bg)
+
+	// Resize the viewport to fit the content each time the step changes.
+	// Chrome is 7 rows: border (2) + padding (2) + title (1) + divider (1) +
+	// footer (1). A minimum of 3 keeps prompt steps readable.
+	const chromeRows = 7
+	const minHeight = 3
+	contentLines := strings.Count(padded, "\n") + 1
+	if contentLines < minHeight {
+		contentLines = minHeight
+	}
+	o.vp.SetHeight(overlayVPHeight(contentLines, o.height, chromeRows))
+
 	o.vp.SetContent(padded)
 }
 
@@ -433,13 +446,16 @@ func (o *ritualOverlay) boxInnerWidth() int {
 	return w
 }
 
-// boxInnerHeight returns the content height for the viewport, leaving room
-// for the title, divider, and footer.
+// boxInnerHeight returns a fallback content height for the viewport when
+// content is not yet available (e.g. before the first syncViewport call).
+// The real height is set content-driven in syncViewport. Chrome is 7 rows:
+// border (2) + padding (2) + title (1) + divider (1) + footer (1).
 func (o *ritualOverlay) boxInnerHeight() int {
-	// Title (1) + divider (1) + footer (1) + padding (2) + border (2) = 7.
-	h := o.height/2 - 7
-	if h < 4 {
-		h = 4
+	const chromeRows = 7
+	const minHeight = 3
+	h := overlayVPHeight(minHeight, o.height, chromeRows)
+	if h < minHeight {
+		h = minHeight
 	}
 	return h
 }

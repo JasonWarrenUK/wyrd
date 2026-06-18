@@ -51,10 +51,6 @@ func (ko *kindsOverlay) Open(width, height int) {
 	if vpWidth < 40 {
 		vpWidth = 40
 	}
-	vpHeight := height - 6
-	if vpHeight < 5 {
-		vpHeight = 5
-	}
 
 	// Build content lines.
 	var lines []string
@@ -132,6 +128,11 @@ func (ko *kindsOverlay) Open(width, height int) {
 			lines = append(lines, line)
 		}
 	}
+
+	// Size the viewport to the actual content line count, clamped so the box
+	// never overflows the terminal. Chrome is 6 rows: border (2) + padding (2)
+	// + title (1) + divider (1).
+	vpHeight := overlayVPHeight(len(lines), height, 6)
 
 	content := PadLines(strings.Join(lines, "\n"), vpWidth, bg)
 

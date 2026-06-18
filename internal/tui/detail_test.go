@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -663,5 +664,27 @@ func TestRender_KindStage_NilRegistry(t *testing.T) {
 	// Stage should still render; no panic.
 	if !strings.Contains(output, "todo") {
 		t.Errorf("expected stage 'todo' in output with nil registry, got:\n%s", output)
+	}
+}
+
+// --- Body background tests ---
+
+// TestRender_BodyMarkdown_NoDefaultBgEscape verifies that the glamour-rendered
+// body does not contain a raw default-background SGR escape (\x1b[49m) when
+// BgPrimary is set. Without FillBackground, glamour emits \x1b[49m at ANSI
+// reset boundaries, causing the terminal default to bleed through the body
+// while every other detail block carries the theme background.
+func TestRender_BodyMarkdown_NoDefaultBgEscape(t *testing.T) {
+	node := simpleNode("bg1", "Header line\n\nPlain paragraph body.", []string{"note"})
+	r := newRenderer()
+	// Set a non-nil BgPrimary so FillBackground can repaint the body.
+	r.Colours.BgPrimary = lipgloss.Color("#000000")
+
+	output := r.Render(node, nil, nil, nil, testNow)
+
+	// The raw default-background SGR (\x1b[49m) must not appear: FillBackground
+	// replaces it with the theme background on every line.
+	if strings.Contains(output, "\x1b[49m") {
+		t.Error("body markdown output contains \\x1b[49m (default-bg escape); expected FillBackground to have repainted it")
 	}
 }

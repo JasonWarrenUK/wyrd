@@ -282,10 +282,17 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		p.width = msg.Width / 2
 		p.height = msg.Height
 		p.list.SetSize(p.width, listHeight(msg.Height))
+		// Capture the selected node before rebuilding so we can restore it below.
+		prevID := p.SelectedNodeID()
 		// Recompute column widths for the new inner pane width and rebuild items.
 		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
 		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol))
-		skipInitialHeaders(&p.list)
+		// Restore the previously-selected row rather than resetting to the first
+		// data row. Fall back to skipInitialHeaders only when nothing was selected
+		// (empty list, or the selected node no longer exists after a reload).
+		if prevID == "" || !p.selectByNodeID(prevID) {
+			skipInitialHeaders(&p.list)
+		}
 		return p, nil
 
 	}
@@ -419,6 +426,21 @@ func (p nodeListPane) SelectedNodeID() string {
 }
 
 // --- helpers -----------------------------------------------------------------
+
+// selectByNodeID moves the list cursor to the item whose node id matches id.
+// Returns true when a matching row was found and selected, false otherwise.
+// Used during resize to restore the previously-selected node after SetItems
+// rebuilds the items slice (which the bubbles library preserves by absolute
+// index, but skipInitialHeaders would then reset to the first data row).
+func (p *nodeListPane) selectByNodeID(id string) bool {
+	for i, item := range p.list.Items() {
+		if n, ok := item.(nodeListItem); ok && n.NodeID() == id {
+			p.list.Select(i)
+			return true
+		}
+	}
+	return false
+}
 
 // skipInitialHeaders advances the list cursor past any leading groupHeaderItem
 // entries so that the first selected item is always a data row. This is called

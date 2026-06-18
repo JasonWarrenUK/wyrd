@@ -57,10 +57,11 @@ type DetailRenderer struct {
 	Kinds *types.KindRegistry
 
 	// glamRenderer caches the Glamour terminal renderer so it is only created
-	// once (or recreated when Width or theme light/dark character changes).
+	// once (or recreated when Width, dark/light mode, or the active theme changes).
 	glamRenderer *glamour.TermRenderer
 	glamWidth    int
-	glamDark     bool // tracks whether the last renderer was built for a dark theme
+	glamDark     bool   // tracks whether the last renderer was built for a dark theme
+	glamTheme    string // hex fingerprint of AccentPrimary — invalidates cache on theme switch
 }
 
 // NewDetailRenderer creates a DetailRenderer with default colours and a sensible width.
@@ -239,17 +240,24 @@ func (r *DetailRenderer) bg() color.Color {
 }
 
 // renderMarkdown renders body text as markdown using Glamour. The Glamour
-// renderer is created once and reused for subsequent calls (recreated only
-// when Width changes). On error it falls back to plainStyle.Render(body).
-// Trailing newlines from Glamour output are trimmed so the caller controls
-// surrounding spacing.
+// renderer is created once and reused for subsequent calls (recreated when
+// Width, dark/light mode, or the active theme changes). On error it falls
+// back to plainStyle.Render(body). Trailing newlines from Glamour output are
+// trimmed so the caller controls surrounding spacing.
 func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) string {
 	dark := isColourDark(r.Colours.BgPrimary)
-	if r.glamRenderer == nil || r.glamWidth != r.Width || r.glamDark != dark {
+	themeKey := colourHex(r.Colours.AccentPrimary) // changes when the theme changes
+
+	if r.glamRenderer == nil || r.glamWidth != r.Width || r.glamDark != dark || r.glamTheme != themeKey {
 		// Pick the glamour base style to match the active theme's background.
 		// Glamour's default configs set Document.Margin and various BackgroundColor
 		// fields that bleed through the pane; clear them so the terminal background
 		// colour is always inherited from the pane rather than overridden.
+		//
+		// IMPORTANT: glamourStyles.DarkStyleConfig is a package-level value whose
+		// *string fields are shared pointers. We copy by value here (struct
+		// assignment), then assign *new* *string values via hexPtr — never mutate
+		// through existing pointers or we corrupt the package global.
 		style := glamourStyles.DarkStyleConfig
 		if !dark {
 			style = glamourStyles.LightStyleConfig
@@ -257,9 +265,28 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 		var zero uint = 0
 		style.Document.Margin = &zero
 		style.Document.BackgroundColor = nil
-		style.Document.Color = nil       // let pane theme foreground govern body text
+		style.Document.Color = hexPtr(r.Colours.FGPrimary)
+
+		// Headings: H1 in primary accent, H2/H3 in secondary accent.
+		// BackgroundColor left nil so the pane background shows through.
+		style.H1.Color = hexPtr(r.Colours.AccentPrimary)
 		style.H1.BackgroundColor = nil
-		style.Code.BackgroundColor = nil // inline code inherits pane background
+		style.H2.Color = hexPtr(r.Colours.AccentSecondary)
+		style.H2.BackgroundColor = nil
+		style.H3.Color = hexPtr(r.Colours.AccentSecondary)
+		style.H3.BackgroundColor = nil
+
+		// Links in secondary accent.
+		style.Link.Color = hexPtr(r.Colours.AccentSecondary)
+		style.LinkText.Color = hexPtr(r.Colours.FGPrimary)
+
+		// Emphasis: emph (italic) in muted; strong (bold) in primary.
+		style.Emph.Color = hexPtr(r.Colours.FGMuted)
+		style.Strong.Color = hexPtr(r.Colours.FGPrimary)
+
+		// Inline code in primary accent, no background (inherits pane).
+		style.Code.Color = hexPtr(r.Colours.AccentPrimary)
+		style.Code.BackgroundColor = nil
 		style.CodeBlock.BackgroundColor = nil
 
 		renderer, err := glamour.NewTermRenderer(
@@ -272,12 +299,19 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 		r.glamRenderer = renderer
 		r.glamWidth = r.Width
 		r.glamDark = dark
+		r.glamTheme = themeKey
 	}
 	out, err := r.glamRenderer.Render(body)
 	if err != nil {
 		return plainStyle.Render(body)
 	}
-	return strings.TrimRight(out, "\n")
+	// Glamour emits foreground escapes but no background, so interior cells
+	// (blank lines, inter-block padding) inherit the terminal default and bleed
+	// through. FillBackground repaints every line start and post-reset cell with
+	// the pane background, matching the treatment every other detail block gets
+	// via its lipgloss style.
+	out = strings.TrimRight(out, "\n")
+	return FillBackground(out, r.bg())
 }
 
 // isColourDark returns true when c is a dark colour (perceived luminance < 0.5).
@@ -291,6 +325,30 @@ func isColourDark(c color.Color) bool {
 	// Relative luminance approximation (ITU-R BT.709 coefficients).
 	lum := (0.2126*float64(r16) + 0.7152*float64(g16) + 0.0722*float64(b16)) / 65535.0
 	return lum < 0.5
+}
+
+// colourHex converts a color.Color to a "#rrggbb" hex string for use in
+// glamour's StylePrimitive.Color / BackgroundColor fields. Returns "" for nil
+// or fully-transparent colours so callers can use hexPtr to skip nil fields.
+func colourHex(c color.Color) string {
+	if c == nil {
+		return ""
+	}
+	// RGBA returns pre-multiplied 16-bit channels (0–65535); shift down to 8-bit.
+	r16, g16, b16, _ := c.RGBA()
+	return fmt.Sprintf("#%02x%02x%02x", r16>>8, g16>>8, b16>>8)
+}
+
+// hexPtr converts a color.Color to the *string form required by glamour's
+// StylePrimitive.Color field. Returns nil when the colour is nil or transparent
+// so that glamour falls back to its own defaults rather than receiving an empty
+// string (which it would interpret as "no colour").
+func hexPtr(c color.Color) *string {
+	s := colourHex(c)
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // ---- Internal helpers ----

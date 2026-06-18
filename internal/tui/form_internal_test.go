@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"image/color"
 	"testing"
 	"time"
 
@@ -435,3 +436,59 @@ func TestEditTaskNilRegistriesPreservesKindStage(t *testing.T) {
 		t.Errorf("Stage = %q, want Now (nil registry must not wipe Stage)", got.Stage)
 	}
 }
+
+// --- VP.2: wyrdHuhTheme tests -------------------------------------------------
+
+// testTheme builds an *ActiveTheme directly from the builtin palette, which
+// is available to internal-package tests without touching the filesystem.
+func testThemeVP2() *ActiveTheme {
+	t := builtinTheme()
+	return &ActiveTheme{raw: t, tier: t.Tiers.Truecolor}
+}
+
+// TestWyrdHuhThemeNilFallback verifies that wyrdHuhTheme(nil) returns a usable
+// theme rather than panicking or returning nil.
+func TestWyrdHuhThemeNilFallback(t *testing.T) {
+	th := wyrdHuhTheme(nil)
+	if th == nil {
+		t.Fatal("wyrdHuhTheme(nil) returned nil Theme")
+	}
+	styles := th.Theme(true)
+	if styles == nil {
+		t.Fatal("wyrdHuhTheme(nil).Theme(true) returned nil *huh.Styles")
+	}
+}
+
+// TestWyrdHuhThemeNoBackgroundBleed asserts that the bg-critical styles all
+// carry the primary background colour. These are the fields most likely to
+// bleed the terminal background through the padded form pane.
+func TestWyrdHuhThemeNoBackgroundBleed(t *testing.T) {
+	theme := testThemeVP2()
+	want := theme.BgPrimary()
+
+	styles := wyrdHuhTheme(theme).Theme(true)
+
+	assertBg := func(name string, got color.Color) {
+		t.Helper()
+		if got != want {
+			t.Errorf("%s: GetBackground() = %v, want %v (bg bleed)", name, got, want)
+		}
+	}
+
+	assertBg("Help.ShortKey", styles.Help.ShortKey.GetBackground())
+	assertBg("Help.FullKey", styles.Help.FullKey.GetBackground())
+	assertBg("Help.ShortDesc", styles.Help.ShortDesc.GetBackground())
+	assertBg("Help.ShortSeparator", styles.Help.ShortSeparator.GetBackground())
+	assertBg("Help.Ellipsis", styles.Help.Ellipsis.GetBackground())
+	assertBg("Focused.SelectedOption", styles.Focused.SelectedOption.GetBackground())
+	assertBg("Focused.UnselectedOption", styles.Focused.UnselectedOption.GetBackground())
+	assertBg("Focused.MultiSelectSelector", styles.Focused.MultiSelectSelector.GetBackground())
+	assertBg("Blurred.Option", styles.Blurred.Option.GetBackground())
+	assertBg("Blurred.SelectedOption", styles.Blurred.SelectedOption.GetBackground())
+	assertBg("Blurred.TextInput.Text", styles.Blurred.TextInput.Text.GetBackground())
+	assertBg("FieldSeparator", styles.FieldSeparator.GetBackground())
+	assertBg("Group.Base", styles.Group.Base.GetBackground())
+	assertBg("Focused.Card", styles.Focused.Card.GetBackground())
+	assertBg("Blurred.Card", styles.Blurred.Card.GetBackground())
+}
+

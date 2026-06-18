@@ -1,4 +1,4 @@
-.PHONY: build test vet lint lint-tui clean install demo screenshots
+.PHONY: build test vet lint lint-tui clean refresh install demo screenshots
 
 BINARY_DIR := bin
 WYRD        := $(BINARY_DIR)/wyrd
@@ -40,6 +40,8 @@ lint-tui:
 
 clean:
 	rm -rf $(BINARY_DIR)
+
+refresh: clean build
 
 # Run tests with coverage report
 coverage:
