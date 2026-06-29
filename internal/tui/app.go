@@ -12,6 +12,7 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
 	clog "github.com/charmbracelet/log"
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -31,6 +32,9 @@ type openHelpOverlayMsg struct{}
 
 // openKindsOverlayMsg is emitted when the :kinds command is invoked.
 type openKindsOverlayMsg struct{}
+
+// openStageFormMsg is emitted when the :stages new command is invoked.
+type openStageFormMsg struct{}
 
 // syncResultMsg carries the outcome of a background sync operation.
 type syncResultMsg struct {
@@ -353,6 +357,20 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
+	// Wire up the "stages" command. ":stages new" opens the stage-group
+	// creation form (SL.11). ":stages" alone returns nil to keep the palette
+	// open — bare ":stages" will become the list view in SL.12.
+	palette.Register(Command{
+		Name:        "stages",
+		Description: "Create a stage group (stages new)",
+		Execute: func(args []string) tea.Cmd {
+			if len(args) > 0 && args[0] == "new" {
+				return func() tea.Msg { return openStageFormMsg{} }
+			}
+			return nil
+		},
+	})
+
 	m := Model{
 		theme:          theme,
 		storePath:      storePath,
@@ -499,6 +517,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case openKindsOverlayMsg:
 		m.kindsOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
+
+	case openStageFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		fp := newStageFormPane(m.theme, m.store, m.stageGroups)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
 
 	case syncResultMsg:
 		if msg.output == "__trigger__" {
@@ -654,6 +688,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.leftPane = sized
 			}
 		}
+		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+			return captureConfirmClearMsg{}
+		})
+
+	case stageFormSubmitMsg:
+		m.rightPane = NewEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		// Rebuild the in-memory stage-group registry so the new group is
+		// usable in-session without restarting. DefaultStageGroups is
+		// sync.Once-cached, so re-calling it is cheap.
+		if m.store != nil {
+			if defaults, err := stage.DefaultStageGroups(); err == nil {
+				if userReg, err := m.store.ReadStages(); err == nil {
+					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
+					m.kindsOverlay.stageGroups = m.stageGroups
+				}
+			}
+		}
+		m.statusBar.SetCaptureText(fmt.Sprintf("Created stage group %q", msg.name))
 		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
 			return captureConfirmClearMsg{}
 		})
