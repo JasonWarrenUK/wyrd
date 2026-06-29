@@ -366,6 +366,36 @@ func (s *Store) ReadKinds() (*types.KindRegistry, error) {
 	return types.NewKindRegistry(valid), nil
 }
 
+// ReadStages reads the user's stage-group registry from stages.jsonc in the
+// store's parent directory (alongside config.jsonc). A missing file yields an
+// empty registry and no error — first run is not a failure. Individual groups
+// that fail structural validation (StageGroup.Validate) are skipped with a
+// warning (lenient, like ReadKinds). A whole-file JSON parse failure is a
+// ParseError. Writing stage groups is SL.11.
+func (s *Store) ReadStages() (*types.StageGroupRegistry, error) {
+	path := filepath.Join(s.path, "..", "stages.jsonc")
+	data, err := readJSONC(path)
+	if err != nil {
+		if isNotExist(err) {
+			return types.NewStageGroupRegistry(nil), nil
+		}
+		return nil, fmt.Errorf("reading stages: %w", err)
+	}
+	var groups []types.StageGroup
+	if err := unmarshalJSON(data, &groups); err != nil {
+		return nil, &types.ParseError{Source: "stages.jsonc", Message: err.Error()}
+	}
+	valid := make([]types.StageGroup, 0, len(groups))
+	for _, g := range groups {
+		if verr := g.Validate(); verr != nil {
+			s.logWarn("skipping invalid stage group", "name", g.Name, "err", verr)
+			continue
+		}
+		valid = append(valid, g)
+	}
+	return types.NewStageGroupRegistry(valid), nil
+}
+
 // ReadPluginManifest reads a plugin's manifest by plugin name.
 func (s *Store) ReadPluginManifest(name string) (*types.PluginManifest, error) {
 	path := filepath.Join(s.path, "plugins", name, "manifest.jsonc")

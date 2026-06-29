@@ -85,6 +85,11 @@ type StoreFS interface {
 	// empty registry and no error. Writing is SL.10.
 	ReadKinds() (*KindRegistry, error)
 
+	// ReadStages reads the user's stage-group registry from stages.jsonc in
+	// the store's parent directory (alongside config.jsonc). A missing file
+	// returns an empty registry and no error. Writing is SL.11.
+	ReadStages() (*StageGroupRegistry, error)
+
 	// StorePath returns the absolute path to the /store root.
 	StorePath() string
 }
