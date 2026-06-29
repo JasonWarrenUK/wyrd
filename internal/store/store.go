@@ -396,6 +396,15 @@ func (s *Store) ReadStages() (*types.StageGroupRegistry, error) {
 	return types.NewStageGroupRegistry(valid), nil
 }
 
+// WriteStages persists the user-defined stage groups to stages.jsonc in the
+// store's parent directory (alongside config.jsonc), overwriting any existing
+// file. The slice is written as a JSON array; existing JSONC comments are not
+// preserved (consistent with WriteConfig). SL.11.
+func (s *Store) WriteStages(groups []types.StageGroup) error {
+	path := filepath.Join(s.path, "..", "stages.jsonc")
+	return writeJSONC(path, groups)
+}
+
 // ReadPluginManifest reads a plugin's manifest by plugin name.
 func (s *Store) ReadPluginManifest(name string) (*types.PluginManifest, error) {
 	path := filepath.Join(s.path, "plugins", name, "manifest.jsonc")

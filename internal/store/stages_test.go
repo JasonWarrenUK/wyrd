@@ -190,3 +190,112 @@ func TestReadStagesParseError(t *testing.T) {
 		t.Errorf("ParseError.Source = %q, want %q", pe.Source, "stages.jsonc")
 	}
 }
+
+func TestWriteStagesRoundTrip(t *testing.T) {
+	s, parent := newStagesTestStore(t)
+
+	groups := []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Review", "Approved"}, Cycle: types.CycleTerminate},
+		{Name: "habit-flow", Stages: []string{"Pending", "Done"}, Cycle: types.CycleLoop},
+	}
+
+	if err := s.WriteStages(groups); err != nil {
+		t.Fatalf("WriteStages() error = %v", err)
+	}
+
+	// Confirm the file is at the parent location, not the store root.
+	parentPath := filepath.Join(parent, "stages.jsonc")
+	if _, err := os.Stat(parentPath); err != nil {
+		t.Fatalf("stages.jsonc not at parent dir: %v", err)
+	}
+	storePath := filepath.Join(s.path, "stages.jsonc")
+	if _, err := os.Stat(storePath); err == nil {
+		t.Error("stages.jsonc unexpectedly written to store root; expected parent only")
+	}
+
+	reg, err := s.ReadStages()
+	if err != nil {
+		t.Fatalf("ReadStages() after WriteStages: error = %v", err)
+	}
+	if all := reg.All(); len(all) != 2 {
+		t.Fatalf("len(All()) = %d, want 2", len(all))
+	}
+
+	review, ok := reg.Lookup("review-flow")
+	if !ok {
+		t.Fatal("Lookup(review-flow) ok = false after write+read round-trip")
+	}
+	if review.Cycle != types.CycleTerminate {
+		t.Errorf("review-flow cycle = %q, want terminate", review.Cycle)
+	}
+	if len(review.Stages) != 3 || review.Stages[0] != "Draft" {
+		t.Errorf("review-flow stages = %v, want [Draft Review Approved]", review.Stages)
+	}
+
+	_, ok = reg.Lookup("habit-flow")
+	if !ok {
+		t.Error("Lookup(habit-flow) ok = false after write+read round-trip")
+	}
+}
+
+func TestWriteStagesOverwrite(t *testing.T) {
+	s, _ := newStagesTestStore(t)
+
+	// Write an initial set.
+	initial := []types.StageGroup{
+		{Name: "flow-a", Stages: []string{"X", "Y"}, Cycle: types.CycleTerminate},
+	}
+	if err := s.WriteStages(initial); err != nil {
+		t.Fatalf("WriteStages() initial: error = %v", err)
+	}
+
+	// Overwrite with a different set — flow-a should be gone, flow-b present.
+	updated := []types.StageGroup{
+		{Name: "flow-b", Stages: []string{"P", "Q", "R"}, Cycle: types.CycleLoop},
+	}
+	if err := s.WriteStages(updated); err != nil {
+		t.Fatalf("WriteStages() overwrite: error = %v", err)
+	}
+
+	reg, err := s.ReadStages()
+	if err != nil {
+		t.Fatalf("ReadStages() after overwrite: error = %v", err)
+	}
+	if _, ok := reg.Lookup("flow-a"); ok {
+		t.Error("Lookup(flow-a) ok = true after overwrite: old group should be gone")
+	}
+	if _, ok := reg.Lookup("flow-b"); !ok {
+		t.Error("Lookup(flow-b) ok = false: new group should be present")
+	}
+}
+
+func TestWriteStagesLoopToStage(t *testing.T) {
+	s, _ := newStagesTestStore(t)
+
+	group := types.StageGroup{
+		Name:       "sprint-flow",
+		Stages:     []string{"Backlog", "In Progress", "Review", "Done"},
+		Cycle:      types.CycleLoopToStage,
+		LoopTarget: "Backlog",
+	}
+
+	if err := s.WriteStages([]types.StageGroup{group}); err != nil {
+		t.Fatalf("WriteStages() loop-to-stage: error = %v", err)
+	}
+
+	reg, err := s.ReadStages()
+	if err != nil {
+		t.Fatalf("ReadStages() after WriteStages: error = %v", err)
+	}
+
+	g, ok := reg.Lookup("sprint-flow")
+	if !ok {
+		t.Fatal("Lookup(sprint-flow) ok = false")
+	}
+	if g.Cycle != types.CycleLoopToStage {
+		t.Errorf("cycle = %q, want loop-to-stage", g.Cycle)
+	}
+	if g.LoopTarget != "Backlog" {
+		t.Errorf("loop_target = %q, want Backlog", g.LoopTarget)
+	}
+}

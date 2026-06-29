@@ -60,6 +60,7 @@ func (s *captureStore) ReadConfig() (*types.Config, error)               { retur
 func (s *captureStore) WriteConfig(_ *types.Config) error                { return nil }
 func (s *captureStore) ReadKinds() (*types.KindRegistry, error)          { return types.NewKindRegistry(nil), nil }
 func (s *captureStore) ReadStages() (*types.StageGroupRegistry, error)   { return types.NewStageGroupRegistry(nil), nil }
+func (s *captureStore) WriteStages(_ []types.StageGroup) error           { return nil }
 func (s *captureStore) ArchiveNode(id string) error                      { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
 func (s *captureStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	n := s.nodes[id]

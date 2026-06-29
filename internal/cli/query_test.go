@@ -59,6 +59,7 @@ func (m *mockStore) ReadConfig() (*types.Config, error) {
 func (m *mockStore) WriteConfig(_ *types.Config) error { return nil }
 func (m *mockStore) ReadKinds() (*types.KindRegistry, error)  { return types.NewKindRegistry(nil), nil }
 func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error) { return types.NewStageGroupRegistry(nil), nil }
+func (m *mockStore) WriteStages(_ []types.StageGroup) error         { return nil }
 func (m *mockStore) StorePath() string                 { return "/tmp/mock-store" }
 
 // ---------------------------------------------------------------------------

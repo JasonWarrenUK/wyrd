@@ -85,6 +85,7 @@ func (m *mockStore) ReadConfig() (*types.Config, error)               { return n
 func (m *mockStore) WriteConfig(_ *types.Config) error                { return nil }
 func (m *mockStore) ReadKinds() (*types.KindRegistry, error)          { return types.NewKindRegistry(nil), nil }
 func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error)   { return types.NewStageGroupRegistry(nil), nil }
+func (m *mockStore) WriteStages(_ []types.StageGroup) error           { return nil }
 func (m *mockStore) ArchiveNode(id string) error                      { n := m.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
 func (m *mockStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	n := m.nodes[id]
