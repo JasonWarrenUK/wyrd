@@ -142,6 +142,108 @@ func TestIsTerminal(t *testing.T) {
 	}
 }
 
+func TestStageGroupValidate(t *testing.T) {
+	t.Run("valid terminate group", func(t *testing.T) {
+		if err := taskFlow().Validate(); err != nil {
+			t.Fatalf("Validate() error = %v; want nil for a well-formed terminate group", err)
+		}
+	})
+
+	t.Run("valid loop group", func(t *testing.T) {
+		if err := habitFlow().Validate(); err != nil {
+			t.Fatalf("Validate() error = %v; want nil for a well-formed loop group", err)
+		}
+	})
+
+	t.Run("valid loop-to-stage group", func(t *testing.T) {
+		if err := intakeFlow().Validate(); err != nil {
+			t.Fatalf("Validate() error = %v; want nil for a well-formed loop-to-stage group", err)
+		}
+	})
+
+	t.Run("empty name", func(t *testing.T) {
+		g := taskFlow()
+		g.Name = ""
+		err := g.Validate()
+		if err == nil {
+			t.Fatal("Validate() = nil; want error for empty name")
+		}
+		var ve *ValidationError
+		if !asValidationError(err, &ve) {
+			t.Fatalf("error type = %T; want *ValidationError", err)
+		}
+		if ve.Field != "name" {
+			t.Errorf("ValidationError.Field = %q; want %q", ve.Field, "name")
+		}
+	})
+
+	t.Run("zero stages", func(t *testing.T) {
+		g := StageGroup{Name: "empty-flow", Stages: nil, Cycle: CycleTerminate}
+		err := g.Validate()
+		if err == nil {
+			t.Fatal("Validate() = nil; want error for nil stages")
+		}
+		var ve *ValidationError
+		if !asValidationError(err, &ve) {
+			t.Fatalf("error type = %T; want *ValidationError", err)
+		}
+		if ve.Field != "stages" {
+			t.Errorf("ValidationError.Field = %q; want %q", ve.Field, "stages")
+		}
+	})
+
+	t.Run("loop-to-stage with present target", func(t *testing.T) {
+		g := intakeFlow() // LoopTarget = "Active", which is in Stages
+		if err := g.Validate(); err != nil {
+			t.Fatalf("Validate() error = %v; want nil when loop_target is present in stages", err)
+		}
+	})
+
+	t.Run("loop-to-stage with absent target", func(t *testing.T) {
+		g := intakeFlow()
+		g.LoopTarget = "Nonexistent"
+		err := g.Validate()
+		if err == nil {
+			t.Fatal("Validate() = nil; want error when loop_target names a stage absent from stages")
+		}
+		var ve *ValidationError
+		if !asValidationError(err, &ve) {
+			t.Fatalf("error type = %T; want *ValidationError", err)
+		}
+		if ve.Field != "loop_target" {
+			t.Errorf("ValidationError.Field = %q; want %q", ve.Field, "loop_target")
+		}
+	})
+
+	t.Run("loop-to-stage with empty target", func(t *testing.T) {
+		g := intakeFlow()
+		g.LoopTarget = ""
+		if err := g.Validate(); err == nil {
+			t.Fatal("Validate() = nil; want error when loop_target is empty for loop-to-stage group")
+		}
+	})
+
+	t.Run("terminate group ignores loop_target", func(t *testing.T) {
+		// A terminate group with a nonsense loop_target should still pass —
+		// Validate only checks loop_target for CycleLoopToStage groups.
+		g := taskFlow()
+		g.LoopTarget = "Nonexistent"
+		if err := g.Validate(); err != nil {
+			t.Fatalf("Validate() error = %v; want nil (loop_target irrelevant for terminate group)", err)
+		}
+	})
+}
+
+// asValidationError is a helper that avoids an errors import in the test file.
+// It checks whether err wraps a *ValidationError and, if so, sets *target.
+func asValidationError(err error, target **ValidationError) bool {
+	e, ok := err.(*ValidationError)
+	if ok {
+		*target = e
+	}
+	return ok
+}
+
 func TestContains(t *testing.T) {
 	task := taskFlow() // stages: Open, Maybe, Later, Soon, Now, Done
 
