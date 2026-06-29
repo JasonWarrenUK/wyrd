@@ -143,13 +143,21 @@ property graph. Run without arguments to launch the TUI.`,
 			}
 			kinds := stage.MergeKinds(kindDefaults, userKindReg.All())
 
-			// Build the merged stage-group registry: baked-in defaults (SL.13
-			// will add user groups from stages.jsonc as the second argument).
+			// Build the merged stage-group registry: baked-in defaults shadowed
+			// by any user-defined groups in stages.jsonc (SL.13).
 			groupDefaults, err := stage.DefaultStageGroups()
 			if err != nil {
 				return fmt.Errorf("loading built-in stage-group defaults: %w", err)
 			}
-			stageGroups := stage.MergeStageGroups(groupDefaults, nil)
+			userGroupReg, err := s.ReadStages()
+			if err != nil {
+				// Non-fatal: log and continue without user stage groups.
+				if appLogger != nil {
+					appLogger.Warn("could not load stages.jsonc; using defaults only", "err", err)
+				}
+				userGroupReg = types.NewStageGroupRegistry(nil)
+			}
+			stageGroups := stage.MergeStageGroups(groupDefaults, userGroupReg.All())
 
 			var engineOpts []query.EngineOption
 			if appLogger != nil {
