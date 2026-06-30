@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	huh "charm.land/huh/v2"
 	tea "charm.land/bubbletea/v2"
+	huh "charm.land/huh/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
