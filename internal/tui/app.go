@@ -36,6 +36,9 @@ type openKindsOverlayMsg struct{}
 // openStageFormMsg is emitted when the :stages new command is invoked.
 type openStageFormMsg struct{}
 
+// openStagesOverlayMsg is emitted when the bare :stages command is invoked.
+type openStagesOverlayMsg struct{}
+
 // syncResultMsg carries the outcome of a background sync operation.
 type syncResultMsg struct {
 	err    error
@@ -144,6 +147,9 @@ type Model struct {
 
 	// kindsOverlay is the kind registry viewer overlay (SL.9).
 	kindsOverlay kindsOverlay
+
+	// stagesOverlay is the stage-group list overlay (SL.12).
+	stagesOverlay stagesOverlay
 
 	// ready is set to true once the first WindowSizeMsg has been received.
 	ready bool
@@ -357,17 +363,16 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
-	// Wire up the "stages" command. ":stages new" opens the stage-group
-	// creation form (SL.11). ":stages" alone returns nil to keep the palette
-	// open — bare ":stages" will become the list view in SL.12.
+	// Wire up the "stages" command. ":stages" lists all stage groups (SL.12);
+	// ":stages new" opens the stage-group creation form (SL.11).
 	palette.Register(Command{
 		Name:        "stages",
-		Description: "Create a stage group (stages new)",
+		Description: "List stage groups (stages new to create)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openStageFormMsg{} }
 			}
-			return nil
+			return func() tea.Msg { return openStagesOverlayMsg{} }
 		},
 	})
 
@@ -395,6 +400,7 @@ func New(cfg Config) (Model, error) {
 		logOverlay:     newLogOverlay(theme),
 		helpOverlay:    newHelpOverlay(theme),
 		kindsOverlay:   newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
+		stagesOverlay:  newStagesOverlay(theme, cfg.StageGroups),
 		ready:          false,
 	}
 
@@ -491,6 +497,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// When the stages overlay is active, route input to it.
+	if m.stagesOverlay.IsActive() {
+		cmd, consumed := m.stagesOverlay.Update(msg)
+		if consumed {
+			return m, cmd
+		}
+	}
+
 	// When the node list is actively filtering, key input goes exclusively to
 	// it — same pattern as the capture bar. ctrl+c is checked first so the
 	// user can always quit, even mid-filter.
@@ -516,6 +530,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openKindsOverlayMsg:
 		m.kindsOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
+		return m, nil
+
+	case openStagesOverlayMsg:
+		m.stagesOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
 	case openStageFormMsg:
@@ -704,6 +722,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if userReg, err := m.store.ReadStages(); err == nil {
 					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
 					m.kindsOverlay.stageGroups = m.stageGroups
+					m.stagesOverlay.stageGroups = m.stageGroups
 				}
 			}
 		}
@@ -1235,6 +1254,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	m.logOverlay.theme = t
 	m.helpOverlay.theme = t
 	m.kindsOverlay.theme = t
+	m.stagesOverlay.theme = t
 
 	// Rebuild the node list pane so the delegate's baked-in Lipgloss styles
 	// (section headers, row colours) repaint with the new theme.
@@ -1292,6 +1312,8 @@ func (m Model) View() tea.View {
 			frame = compositeOverlay(frame, m.helpOverlay.View(w, h), w, h)
 		case m.kindsOverlay.IsActive():
 			frame = compositeOverlay(frame, m.kindsOverlay.View(w, h), w, h)
+		case m.stagesOverlay.IsActive():
+			frame = compositeOverlay(frame, m.stagesOverlay.View(w, h), w, h)
 		case m.ritualOvl.IsActive():
 			frame = compositeOverlay(frame, m.ritualOvl.View(), w, h)
 		}
