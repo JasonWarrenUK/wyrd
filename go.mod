@@ -8,10 +8,10 @@ require (
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/charmbracelet/glamour v1.0.0
+	github.com/charmbracelet/log v1.0.0
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/google/uuid v1.6.0
-	github.com/charmbracelet/log v1.0.0
 	github.com/spf13/cobra v1.9.1
 )
 
