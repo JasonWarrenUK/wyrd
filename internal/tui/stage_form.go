@@ -15,6 +15,12 @@ type stageFormSubmitMsg struct {
 	name string
 }
 
+// stageFormErrorMsg is emitted when a stage group cannot be saved. The form
+// closes and the reason is surfaced in the status bar; nothing is written.
+type stageFormErrorMsg struct {
+	err error
+}
+
 // stageFormPane wraps a huh.Form for creating user-defined stage groups. It
 // satisfies both PaneModel and formActivePane. Unlike formPane, it does not
 // create a new node — it writes a StageGroup to the user stage-group registry
@@ -215,17 +221,23 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 
 		// Final structural validation — belt-and-braces after huh field validators.
 		if err := group.Validate(); err != nil {
-			return f, tea.Batch(cmd, func() tea.Msg { return formCancelMsg{} })
+			e := err
+			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
 
-		// Read existing user groups, append the new one, and write the full slice.
-		var existing []types.StageGroup
-		if reg, err := f.store.ReadStages(); err == nil {
-			existing = reg.All()
+		// Read existing user groups. A failed read is treated as fatal rather
+		// than silently falling back to an empty slice — WriteStages overwrites
+		// the whole file, so proceeding on an empty base would destroy every
+		// existing user group. Surface the error and abort the write.
+		reg, err := f.store.ReadStages()
+		if err != nil {
+			e := fmt.Errorf("reading existing stage groups: %w", err)
+			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
-		existing = append(existing, group)
+		existing := append(reg.All(), group)
 		if err := f.store.WriteStages(existing); err != nil {
-			return f, tea.Batch(cmd, func() tea.Msg { return formCancelMsg{} })
+			e := err
+			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
 
 		name := group.Name

@@ -68,31 +68,34 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
-		// Measure name column width (min 12, longest name + 2).
+		// Measure name column width (min 12, longest display width + 2).
+		// Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
+		// cell width, not byte length.
 		nameColWidth := 12
 		for _, g := range groups {
-			if len(g.Name)+2 > nameColWidth {
-				nameColWidth = len(g.Name) + 2
+			if w := lipgloss.Width(g.Name) + 2; w > nameColWidth {
+				nameColWidth = w
 			}
 		}
 
-		// Fixed provenance column width — "(custom)" is 8 chars + 2 padding.
+		// Fixed provenance column width — "(custom)" is 8 display cells + 2 padding.
 		const provenanceColWidth = 10
 
 		// Measure cycle column width from the possible rendered strings.
-		// Longest possible: "loop→<target> ↺" — measure all actual values.
+		// cycleString may contain "→" and "↺" (multi-byte but single-cell), so
+		// use lipgloss.Width for accurate measurement.
 		cycleColWidth := 12
 		for _, g := range groups {
 			cs := cycleString(g)
-			if len(cs)+2 > cycleColWidth {
-				cycleColWidth = len(cs) + 2
+			if w := lipgloss.Width(cs) + 2; w > cycleColWidth {
+				cycleColWidth = w
 			}
 		}
 
 		for _, g := range groups {
 			// Name column.
 			nameSeg := primaryStyle.Render(g.Name)
-			namePad := nameColWidth - len(g.Name)
+			namePad := nameColWidth - lipgloss.Width(g.Name)
 			if namePad < 1 {
 				namePad = 1
 			}
@@ -102,7 +105,7 @@ func (so *stagesOverlay) Open(width, height int) {
 			provLen := 0
 			if !defaultNames[g.Name] {
 				provSeg = mutedStyle.Render("(custom)")
-				provLen = len("(custom)")
+				provLen = lipgloss.Width("(custom)")
 			}
 			provPad := provenanceColWidth - provLen
 			if provPad < 1 {
@@ -112,7 +115,7 @@ func (so *stagesOverlay) Open(width, height int) {
 			// Cycle column.
 			cs := cycleString(g)
 			cycleSeg := mutedStyle.Render(cs)
-			cyclePad := cycleColWidth - len(cs)
+			cyclePad := cycleColWidth - lipgloss.Width(cs)
 			if cyclePad < 1 {
 				cyclePad = 1
 			}

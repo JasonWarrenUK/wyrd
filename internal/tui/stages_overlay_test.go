@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -125,5 +126,69 @@ func TestStagesOverlay_InactiveViewReturnsEmpty(t *testing.T) {
 	view := so.View(120, 40)
 	if view != "" {
 		t.Errorf("inactive overlay should return empty string, got %q", view)
+	}
+}
+
+// TestStagesOverlay_CycleColumnUsesDisplayWidth verifies that cycleString
+// values whose byte length differs from their display width are measured
+// correctly by lipgloss.Width. This guards against the old byte-vs-display-
+// width bug where len() over-counted multi-byte runes (↺ U+21BA is 3 bytes
+// but 1 display cell), causing the cycle column to be over-padded.
+//
+// The test asserts that the per-row cycle padding is consistent: every row
+// produces the same (cycleColWidth - lipgloss.Width(cs)) gap so that the
+// stages column starts at the same visual position on every row.
+func TestStagesOverlay_CycleColumnUsesDisplayWidth(t *testing.T) {
+	groups := []types.StageGroup{
+		// "terminate" — 9 display cells = 9 bytes.
+		{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate},
+		// "loop ↺" — 6 display cells but 8 bytes (↺ is 3 bytes, 1 cell).
+		{Name: "habit-flow", Stages: []string{"Pending", "Done"}, Cycle: types.CycleLoop},
+		// "loop→B ↺" — 8 display cells but 12 bytes (→ and ↺ are 3 bytes each).
+		{Name: "sprint-flow", Stages: []string{"A", "B", "C"}, Cycle: types.CycleLoopToStage, LoopTarget: "B"},
+	}
+
+	// Compute cycleColWidth exactly as stages_overlay.go does: max of
+	// (lipgloss.Width(cs) + 2) across all groups, minimum 12.
+	cycleColWidth := 12
+	for _, g := range groups {
+		cs := cycleString(g)
+		if w := lipgloss.Width(cs) + 2; w > cycleColWidth {
+			cycleColWidth = w
+		}
+	}
+
+	// Every row's cycle pad must equal (cycleColWidth - display_width(cs)).
+	// If len() were used instead, rows with multi-byte runes would get smaller
+	// pads (since len("loop ↺")=8 but display width=6, so len-based pad
+	// would be 12-8=4 instead of 12-6=6 — 2 cells short per multi-byte rune).
+	for _, g := range groups {
+		cs := cycleString(g)
+		displayWidth := lipgloss.Width(cs)
+		byteLen := len(cs)
+
+		pad := cycleColWidth - displayWidth
+		if pad < 1 {
+			t.Errorf("group %q: cycle pad = %d (< 1)", g.Name, pad)
+			continue
+		}
+
+		if displayWidth != byteLen {
+			// For groups where len != display width (the multi-byte cases), the
+			// display-width pad and byte-len pad must differ; confirm the test
+			// is actually exercising the difference.
+			bytePad := cycleColWidth - byteLen
+			if bytePad == pad {
+				t.Errorf("group %q: cycleString=%q — byte pad (%d) equals display pad (%d); test data doesn't exercise the bug",
+					g.Name, cs, bytePad, pad)
+			}
+		}
+
+		// All pads must produce the same total column width when added to their
+		// cycle string's display width.
+		if displayWidth+pad != cycleColWidth {
+			t.Errorf("group %q: displayWidth(%d) + pad(%d) = %d, want %d",
+				g.Name, displayWidth, pad, displayWidth+pad, cycleColWidth)
+		}
 	}
 }

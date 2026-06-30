@@ -731,6 +731,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return captureConfirmClearMsg{}
 		})
 
+	case stageFormErrorMsg:
+		m.rightPane = NewEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
+		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+			return captureConfirmClearMsg{}
+		})
+
 	case filterStateChangedMsg:
 		m.syncKeyHints()
 		return m, nil
