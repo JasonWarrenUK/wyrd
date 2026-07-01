@@ -43,6 +43,24 @@ type StageGroup struct {
 	LoopTarget string `json:"loop_target,omitempty"`
 }
 
+// Validate checks the minimal structural invariants for a usable stage group:
+// non-empty Name, at least one stage in Stages, and — for CycleLoopToStage
+// groups — a LoopTarget that is present in Stages. The loop_target check
+// catches a common config typo at load time rather than silently falling back
+// to the first stage at runtime in StageGroup.Next.
+func (g StageGroup) Validate() error {
+	if g.Name == "" {
+		return &ValidationError{Field: "name", Message: "stage group name is required"}
+	}
+	if len(g.Stages) == 0 {
+		return &ValidationError{Field: "stages", Message: "stage group must have at least one stage"}
+	}
+	if g.Cycle == CycleLoopToStage && !g.Contains(g.LoopTarget) {
+		return &ValidationError{Field: "loop_target", Message: "loop_target must name a stage present in stages"}
+	}
+	return nil
+}
+
 // indexOf returns the position of stage in the group, or -1 if absent.
 func (g StageGroup) indexOf(stage string) int {
 	for i, s := range g.Stages {

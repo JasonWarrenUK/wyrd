@@ -200,7 +200,22 @@ func (s *Store) WriteNode(node *types.Node) error {
 	for k, v := range node.Properties {
 		raw[k] = v
 	}
-	return writeJSONC(s.nodePath(node.ID), raw)
+	if err := writeJSONC(s.nodePath(node.ID), raw); err != nil {
+		return err
+	}
+	// Update the in-memory index synchronously so callers can read back the
+	// written node immediately without racing the async fsnotify watcher.
+	// Re-read from disk (matching CreateNode's pattern) so the indexed value
+	// is exactly what was persisted, not the caller's in-memory pointer.
+	if fresh, err := s.ReadNode(node.ID); err == nil {
+		s.index.upsertNode(fresh)
+	} else {
+		// Should not happen — we just wrote the file — but fall back to the
+		// caller's node so the index is not left stale. The watcher will
+		// correct it on the next fs event.
+		s.index.upsertNode(node)
+	}
+	return nil
 }
 
 // WriteEdge persists an edge to disk atomically.
@@ -216,7 +231,16 @@ func (s *Store) WriteEdge(edge *types.Edge) error {
 	for k, v := range edge.Properties {
 		raw[k] = v
 	}
-	return writeJSONC(s.edgePath(edge.ID), raw)
+	if err := writeJSONC(s.edgePath(edge.ID), raw); err != nil {
+		return err
+	}
+	// Update the in-memory index synchronously — same rationale as WriteNode.
+	if fresh, err := s.ReadEdge(edge.ID); err == nil {
+		s.index.upsertEdge(fresh)
+	} else {
+		s.index.upsertEdge(edge)
+	}
+	return nil
 }
 
 // ReadView reads a saved view by name from disk.
@@ -364,6 +388,45 @@ func (s *Store) ReadKinds() (*types.KindRegistry, error) {
 		valid = append(valid, k)
 	}
 	return types.NewKindRegistry(valid), nil
+}
+
+// ReadStages reads the user's stage-group registry from stages.jsonc in the
+// store's parent directory (alongside config.jsonc). A missing file yields an
+// empty registry and no error — first run is not a failure. Individual groups
+// that fail structural validation (StageGroup.Validate) are skipped with a
+// warning (lenient, like ReadKinds). A whole-file JSON parse failure is a
+// ParseError. Writing stage groups is SL.11.
+func (s *Store) ReadStages() (*types.StageGroupRegistry, error) {
+	path := filepath.Join(s.path, "..", "stages.jsonc")
+	data, err := readJSONC(path)
+	if err != nil {
+		if isNotExist(err) {
+			return types.NewStageGroupRegistry(nil), nil
+		}
+		return nil, fmt.Errorf("reading stages: %w", err)
+	}
+	var groups []types.StageGroup
+	if err := unmarshalJSON(data, &groups); err != nil {
+		return nil, &types.ParseError{Source: "stages.jsonc", Message: err.Error()}
+	}
+	valid := make([]types.StageGroup, 0, len(groups))
+	for _, g := range groups {
+		if verr := g.Validate(); verr != nil {
+			s.logWarn("skipping invalid stage group", "name", g.Name, "err", verr)
+			continue
+		}
+		valid = append(valid, g)
+	}
+	return types.NewStageGroupRegistry(valid), nil
+}
+
+// WriteStages persists the user-defined stage groups to stages.jsonc in the
+// store's parent directory (alongside config.jsonc), overwriting any existing
+// file. The slice is written as a JSON array; existing JSONC comments are not
+// preserved (consistent with WriteConfig). SL.11.
+func (s *Store) WriteStages(groups []types.StageGroup) error {
+	path := filepath.Join(s.path, "..", "stages.jsonc")
+	return writeJSONC(path, groups)
 }
 
 // ReadPluginManifest reads a plugin's manifest by plugin name.

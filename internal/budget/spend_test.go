@@ -34,6 +34,8 @@ func (m *mockStore) ReadTheme(name string) (*types.Theme, error)       { return 
 func (m *mockStore) ReadConfig() (*types.Config, error)                { return nil, nil }
 func (m *mockStore) WriteConfig(cfg *types.Config) error               { return nil }
 func (m *mockStore) ReadKinds() (*types.KindRegistry, error)           { return types.NewKindRegistry(nil), nil }
+func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error)    { return types.NewStageGroupRegistry(nil), nil }
+func (m *mockStore) WriteStages(_ []types.StageGroup) error            { return nil }
 func (m *mockStore) StorePath() string                                 { return "/tmp/test-store" }
 
 // mockIndex implements types.GraphIndex for testing.

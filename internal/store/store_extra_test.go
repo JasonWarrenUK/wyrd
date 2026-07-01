@@ -696,6 +696,70 @@ func TestBuildIndex_WithEdges(t *testing.T) {
 	}
 }
 
+// TestWriteNode_UpdatesIndex asserts that WriteNode updates the in-memory index
+// synchronously, so callers can read back the written node via Index().GetNode
+// immediately after WriteNode returns — with no sleep or watcher wait. This
+// encodes the invariant that WriteNode must mirror CreateNode's
+// write-then-reread-then-upsert pattern.
+func TestWriteNode_UpdatesIndex(t *testing.T) {
+	s := newTestStore(t)
+	defer s.Close()
+
+	node := &types.Node{
+		ID:       "cccccccc-0000-0000-0000-000000000001",
+		Body:     "Index-update test",
+		Types:    []string{"task"},
+		Title:    "Buy milk",
+		Created:  s.clock.Now(),
+		Modified: s.clock.Now(),
+	}
+
+	if err := s.WriteNode(node); err != nil {
+		t.Fatalf("WriteNode: %v", err)
+	}
+
+	// Index must reflect the write without any watcher race.
+	got, err := s.Index().GetNode(node.ID)
+	if err != nil {
+		t.Fatalf("GetNode immediately after WriteNode: %v", err)
+	}
+	if got.Title != "Buy milk" {
+		t.Errorf("Title = %q, want %q — WriteNode did not update the index synchronously", got.Title, "Buy milk")
+	}
+}
+
+// TestWriteEdge_UpdatesIndex asserts that WriteEdge updates the in-memory index
+// synchronously, matching the invariant above for nodes.
+func TestWriteEdge_UpdatesIndex(t *testing.T) {
+	s := newTestStore(t)
+	defer s.Close()
+
+	n1, _ := s.CreateNode("Source", []string{"task"})
+	n2, _ := s.CreateNode("Target", []string{"task"})
+
+	edge := &types.Edge{
+		ID:      "dddddddd-0000-0000-0000-000000000001",
+		Type:    "blocks",
+		From:    n1.ID,
+		To:      n2.ID,
+		Created: s.clock.Now(),
+	}
+
+	if err := s.WriteEdge(edge); err != nil {
+		t.Fatalf("WriteEdge: %v", err)
+	}
+
+	// Index must reflect the write without any watcher race.
+	got, err := s.Index().GetEdge(edge.ID)
+	if err != nil {
+		t.Fatalf("GetEdge immediately after WriteEdge: %v", err)
+	}
+	if got.Type != "blocks" || got.From != n1.ID || got.To != n2.ID {
+		t.Errorf("edge mismatch: type=%q from=%q to=%q — WriteEdge did not update the index synchronously",
+			got.Type, got.From, got.To)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

@@ -15,11 +15,11 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
 | **CO** | CO.1 done                           | CO.2         | CO.3 (needs CO.2) |
 | **SP** | SP.1, SP.3 done; rescoped to movement nodes | SP.7         | SP.2, SP.4–SP.6, SP.8–SP.11 |
-| **SL** | SL.1–SL.6, SL.7a, SL.7b, SL.7c, SL.8, SL.8b, SL.9, SL.15 done | SL.10, SL.12, SL.13 | SL.11, SL.14 |
+| **SL** | SL.1–SL.6, SL.7a, SL.7b, SL.7c, SL.8, SL.8b, SL.9, SL.11, SL.12, SL.13, SL.15 done | SL.10 | SL.14 |
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
-| **TD** | Not started                         | TD.1–TD.3    | —       |
+| **TD** | Not started                         | TD.1–TD.4    | —       |
 | **VP** | VP.2, VP.5, VP.9 done                | VP.1, VP.3, VP.4 | VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
@@ -128,7 +128,7 @@ None.
 > **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
 > [!NOTE]
-> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.11, SL.12, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.3, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
+> DA.2–DA.7 capture the finished product, so they depend on whole milestones. Milestone-level dependencies are expressed task-to-task via the milestone's leaf tasks (the open tasks nothing else in that milestone depends on); completing the leaves transitively implies the rest. Current leaf sets: MA = SL.10, SL.14 · MB = NW.2 · MC = DL.2, DL.5 · MF = VP.1, VP.3, VP.6, VP.7, VP.8 · MG = SP.4, SP.6, SP.9, SP.11 · M6 = RT.6, RT.7, RT.8.
 
 <a name="m7-todo"><h4>To Do (Milestone 7)</h4></a>
 
@@ -136,10 +136,10 @@ None.
 
 <a name="m7-blocked"><h4>Blocked (Milestone 7)</h4></a>
 
-- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, CP.15, Milestone A (SL.7c, SL.11, SL.12, SL.14), Milestone B (NW.2), Milestone C (DL.2, DL.5), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, CP.15, Milestone A (SL.7c, SL.11 (done), SL.12 (done), SL.14), Milestone B (NW.2), Milestone C (DL.2, DL.5), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8), Milestone G (SP.4, SP.6, SP.9, SP.11)**
 - [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
-- [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, Milestone A (SL.7c, SL.11, SL.12, SL.14), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, Milestone A (SL.7c, SL.11 (done), SL.12 (done), SL.14), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.6. Write VHS tape for ritual run (startup prompt → steps → gate → completion) — **depends on RT.5 (done), DA.1, Milestone 6 (RT.6, RT.7, RT.8), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.7. Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) — **depends on NV.8 (done), DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.8. Integrate screenshots and gifs into README.md under a "Screenshots" section — **depends on DA.2, DA.3, DA.4**
@@ -207,16 +207,15 @@ None yet.
 <a name="ma-todo"><h4>To Do (Milestone A)</h4></a>
 
 - [ ] SL.10. Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` — **depends on SL.4 (done)**
-- [ ] SL.12. Stage group view in TUI — `:stages` palette command lists all stage groups (baked-in and user-defined) with their stages and cycle behaviour, independent of any kind — **depends on SL.3 (done)**
-- [ ] SL.13. User stage-group registry — `stages.jsonc` holds user-defined stage groups, loaded at startup and merged with the baked-in defaults; stage groups exist independently of kinds so multiple kinds can reference one group; kind stage-group references resolve against the merged set — **depends on SL.3 (done)**
-
 <a name="ma-blocked"><h4>Blocked (Milestone A)</h4></a>
 
-- [ ] SL.11. Create stage groups in TUI — `:stages new` palette command opens a huh form (name, ordered stages, cycle behaviour select); writes to the user stage-group registry — **depends on SL.13**
-- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.13), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via `UpdateNode` (the SL.6 stage-write path); until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.6 (done), SL.10, SL.13, CP.16 (done)**
+- [ ] SL.14. Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.11), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via `UpdateNode` (the SL.6 stage-write path); until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) — **depends on SL.6 (done), SL.10, SL.11 (done), SL.13 (done), CP.16 (done)**
 
 <a name="ma-done"><h4>Completed (Milestone A)</h4></a>
 
+- [x] SL.12. Stage group view in TUI — bare `:stages` palette command opens a read-only modal overlay listing every stage group (baked-in and user-defined); each row shows the group name, a `(custom)` provenance marker for user-defined groups, the cycle behaviour (`terminate` / `loop ↺` / `loop→<target> ↺`), and the full ordered stage progression (`A → B → C`); scrollable viewport, `esc`/`q` closes; `stagesOverlay` struct in `internal/tui/stages_overlay.go` mirroring `kindsOverlay`; composited via `compositeOverlay`; registry refreshed in-session after `:stages new` submits — **depends on SL.3 (done)**
+- [x] SL.11. Create stage groups in TUI — `:stages new` palette command opens a two-group `huh` form: group 1 collects name (validated against the merged registry to prevent collision), ordered stages (one per line, `huh.NewText`), and cycle behaviour select; group 2 (hidden unless `loop-to-stage`) offers a loop-target select whose options are dynamically populated from the stages entered in group 1 via `huh.Select.OptionsFunc`; on submit, the form reads existing user groups via `store.ReadStages()`, appends the new `types.StageGroup`, and writes the full slice via a new `store.WriteStages([]types.StageGroup)` (mirrors `WriteConfig`); the in-memory registry is rebuilt in-session by re-merging via `stage.MergeStageGroups`, reassigning `m.stageGroups` and `m.kindsOverlay.stageGroups`; `StoreFS` interface extended with `WriteStages`; 6 test-mock stubs updated; `stage_form.go` is a new non-node form pane modelled on `spend_form.go`; status-bar confirmation with 2s auto-clear; `parseStages` helper; `NewStageFormPane` exported for tests — **depends on SL.13 (done)**
+- [x] SL.13. User stage-group registry — `stages.jsonc` in the store's parent directory (sibling of `config.jsonc`) holds user-defined stage groups, loaded at startup and merged with the baked-in defaults (user groups shadow defaults of the same name via `MergeStageGroups`); `StageGroup.Validate` added to `internal/types/stage.go` (non-empty name, ≥1 stage, `loop-to-stage` requires a valid `loop_target`); `(*Store).ReadStages()` in `internal/store/store.go` mirrors `ReadKinds` (missing file → empty registry, lenient per-entry skip, whole-file failure → `ParseError`); `StoreFS` interface extended with `ReadStages`; 6 test-mock stubs updated; `main.go` now calls `s.ReadStages()` non-fatally and passes user groups to `MergeStageGroups`; `ResolveStageGroup` and all TUI consumers required no changes — the merged registry was already threaded through — **depends on SL.3 (done)**
 - [x] SL.7c. TUI: kind selection in edit forms — all four `NewEdit*FormPane` constructors accept `kinds`/`stageGroups` registries and pre-populate `nodeKind` from `node.Kind`; a "— none —" sentinel option preserves the untriaged state; `applyKindStage` helper unifies create and edit stamping (replaces four copy-pasted inline blocks); CP.16 invariant: unchanged kind returns early leaving Kind/Stage untouched; changed kind re-stamps Kind and keeps Stage if the new group `Contains` it, else resets to the group's first stage; `StageGroup.Contains` exported (wraps `indexOf`); registries threaded through `handleEditNode` in `app.go` — **depends on SL.7b (done), CP.16 (done)**
 - [x] SL.7b. TUI: kind selection in remaining create forms — `newJournalFormPane`, `newNoteFormPane`, and `newBudgetFormPane` now accept the kind/stage registries, render a `huh.NewSelect` kind field (defaults Journal/Note/Budget respectively), and stamp `node.Kind`/`node.Stage` on create (nil-safe, CP.16 clone invariant preserved); three new baked-in kinds added (Journal→content-flow, Note→content-flow, Budget→budget-flow) plus a new `budget-flow` stage group `[Active, Closed]` (terminate); kind/group counts now 10/6; registries threaded through the three capture-bar dispatch sites in `app.go` — **depends on SL.7a (done)**
 - [x] SL.7a. TUI: kind selection in task create form — `newTaskFormPane` accepts `*types.KindRegistry` and `*types.StageGroupRegistry`; a `huh.NewSelect` kind field (options from `kinds.Names()`, default Task) is inserted after Body and before Status; `buildNode` stamps `node.Kind` and initialises `node.Stage` to `group.Stages[0]` on create only (nil-safe; edit mode preserves the clone's existing Kind/Stage via the `f.originalNode == nil` guard, keeping the CP.16 invariant); both registries threaded through the capture-bar dispatch in `app.go` — **depends on SL.6 (done), CP.16 (done)**
@@ -305,6 +304,7 @@ None yet.
 - [ ] TD.1. Consolidate JSONC parsing — four duplicated `stripComments` scanners exist across `internal/store/jsonc.go`, `internal/tui/theme.go`, `internal/tui/views/loader.go`, and `internal/tui/ritual/loader.go` (SL.3 adds a fourth in `internal/stage/`); only the store variant strips trailing commas; extract into a shared `internal/jsonc` package, repoint all consumers, add a trailing-comma test — **no blockers**
 - [ ] TD.2. ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` — **depends on SL.3 (done)**
 - [ ] TD.3. Edge `Modified` timestamp — restructure `types.Edge` date properties into an embedded `DateFields`-style block holding the existing `Created` plus a new `Modified`; store write paths stamp `Modified` on every edge update; serialisation changes freely (pre-production, no back-compat constraint). Implementation question to settle: whether `Node`'s top-level `Created`/`Modified` should move into its date block for symmetry — **no blockers**
+- [ ] TD.4. `gofmt` cleanup of `cmd/wyrd/main.go` — pre-existing import-ordering drift (charmbracelet/log alphabetically displaced relative to charm.land imports) and a trailing-space alignment nit on the `query` command's `Args:` field; neither was introduced by a feature branch; run `gofmt -w cmd/wyrd/main.go` — **no blockers**
 
 <a name="me-blocked"><h4>Blocked (Milestone E)</h4></a>
 
@@ -413,14 +413,15 @@ SL8["`*SL.8*<br/>**Lattice**<br/>Query properties`"]:::done
 SL8b["`*SL.8b*<br/>**Lattice**<br/>Kind/stage grouping`"]:::done
 SL9["`*SL.9*<br/>**Lattice**<br/>Kinds view`"]:::done
 SL10["`*SL.10*<br/>**Lattice**<br/>Create kinds in TUI`"]:::open
-SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::blocked
-SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::open
-SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::open
+SL11["`*SL.11*<br/>**Lattice**<br/>Create stage groups`"]:::done
+SL12["`*SL.12*<br/>**Lattice**<br/>Stage groups view`"]:::done
+SL13["`*SL.13*<br/>**Lattice**<br/>Stage group registry`"]:::done
 SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]:::blocked
 
 TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
 TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]:::open
 TD3["`*TD.3*<br/>**Tech Debt**<br/>Edge Modified + DateFields`"]:::open
+TD4["`*TD.4*<br/>**Tech Debt**<br/>gofmt cmd/wyrd/main.go`"]:::open
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked
@@ -508,7 +509,7 @@ mSL --> SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL
 mNW --> NW1 & NW2
 mDL --> DL1 & DL2 & DL3 & DL4 & DL5
 mSK --> SK1 & SK2 & SK3 & SK4
-mTE --> TD1 & TD2 & TD3
+mTE --> TD1 & TD2 & TD3 & TD4
 mVP --> VP1 & VP2 & VP3 & VP4 & VP5 & VP6 & VP7 & VP8 & VP9
 
 classDef default fill:#fff7fb,stroke:#ccc;

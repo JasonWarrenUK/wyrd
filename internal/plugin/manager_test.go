@@ -63,6 +63,8 @@ func (s *mockStore) ReadTheme(_ string) (*types.Theme, error)             { retu
 func (s *mockStore) ReadConfig() (*types.Config, error)                   { return &types.Config{}, nil }
 func (s *mockStore) WriteConfig(_ *types.Config) error                    { return nil }
 func (s *mockStore) ReadKinds() (*types.KindRegistry, error)              { return types.NewKindRegistry(nil), nil }
+func (s *mockStore) ReadStages() (*types.StageGroupRegistry, error)       { return types.NewStageGroupRegistry(nil), nil }
+func (s *mockStore) WriteStages(_ []types.StageGroup) error               { return nil }
 func (s *mockStore) ReadPluginManifest(name string) (*types.PluginManifest, error) {
 	manifestPath := filepath.Join(s.storePath, "plugins", name, "plugin.jsonc")
 	data, err := os.ReadFile(manifestPath)
