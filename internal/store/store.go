@@ -200,7 +200,22 @@ func (s *Store) WriteNode(node *types.Node) error {
 	for k, v := range node.Properties {
 		raw[k] = v
 	}
-	return writeJSONC(s.nodePath(node.ID), raw)
+	if err := writeJSONC(s.nodePath(node.ID), raw); err != nil {
+		return err
+	}
+	// Update the in-memory index synchronously so callers can read back the
+	// written node immediately without racing the async fsnotify watcher.
+	// Re-read from disk (matching CreateNode's pattern) so the indexed value
+	// is exactly what was persisted, not the caller's in-memory pointer.
+	if fresh, err := s.ReadNode(node.ID); err == nil {
+		s.index.upsertNode(fresh)
+	} else {
+		// Should not happen — we just wrote the file — but fall back to the
+		// caller's node so the index is not left stale. The watcher will
+		// correct it on the next fs event.
+		s.index.upsertNode(node)
+	}
+	return nil
 }
 
 // WriteEdge persists an edge to disk atomically.
@@ -216,7 +231,16 @@ func (s *Store) WriteEdge(edge *types.Edge) error {
 	for k, v := range edge.Properties {
 		raw[k] = v
 	}
-	return writeJSONC(s.edgePath(edge.ID), raw)
+	if err := writeJSONC(s.edgePath(edge.ID), raw); err != nil {
+		return err
+	}
+	// Update the in-memory index synchronously — same rationale as WriteNode.
+	if fresh, err := s.ReadEdge(edge.ID); err == nil {
+		s.index.upsertEdge(fresh)
+	} else {
+		s.index.upsertEdge(edge)
+	}
+	return nil
 }
 
 // ReadView reads a saved view by name from disk.
