@@ -17,6 +17,14 @@ type StatusBar struct {
 	// captureText is the capture-bar placeholder on the left side.
 	captureText string
 
+	// captureGen increments on every SetCaptureText call so a scheduled
+	// clear tick can be gen-guarded against clearing a newer message.
+	captureGen int
+
+	// captureSticky marks the current message persistent: no auto-clear
+	// tick, dismissed only by esc. Reset to false on every SetCaptureText.
+	captureSticky bool
+
 	// trackerText is the time-tracker placeholder on the right side.
 	trackerText string
 
@@ -63,9 +71,31 @@ func (sb *StatusBar) SetWidth(w int) {
 	sb.width = w
 }
 
-// SetCaptureText updates the left-hand capture bar placeholder.
+// SetCaptureText updates the left-hand capture bar placeholder. Every call
+// bumps the generation counter (invalidating any in-flight clear tick) and
+// resets the message to transient (non-sticky).
 func (sb *StatusBar) SetCaptureText(s string) {
 	sb.captureText = s
+	sb.captureGen++
+	sb.captureSticky = false
+}
+
+// MarkCaptureSticky flags the current capture message as persistent so it
+// is not auto-cleared and can only be dismissed with esc.
+func (sb *StatusBar) MarkCaptureSticky() {
+	sb.captureSticky = true
+}
+
+// CaptureGen returns the current capture-message generation, used to guard
+// scheduled clear ticks against clearing a newer message.
+func (sb *StatusBar) CaptureGen() int {
+	return sb.captureGen
+}
+
+// CaptureSticky reports whether the current capture message is persistent
+// (esc-dismissable) rather than an auto-clearing transient confirmation.
+func (sb *StatusBar) CaptureSticky() bool {
+	return sb.captureSticky
 }
 
 // SetTrackerText updates the right-hand time tracker placeholder.
