@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	huh "charm.land/huh/v2"
 	tea "charm.land/bubbletea/v2"
+	huh "charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
 	"github.com/jasonwarrenuk/wyrd/internal/budget"

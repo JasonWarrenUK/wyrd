@@ -26,8 +26,8 @@ func (i *spendTestIndex) GetNode(id string) (*types.Node, error) {
 func (i *spendTestIndex) GetEdge(id string) (*types.Edge, error) {
 	return nil, &types.NotFoundError{Kind: "edge", ID: id}
 }
-func (i *spendTestIndex) AllNodes() []*types.Node  { return i.nodes }
-func (i *spendTestIndex) AllEdges() []*types.Edge  { return nil }
+func (i *spendTestIndex) AllNodes() []*types.Node          { return i.nodes }
+func (i *spendTestIndex) AllEdges() []*types.Edge          { return nil }
 func (i *spendTestIndex) EdgesFrom(_ string) []*types.Edge { return nil }
 func (i *spendTestIndex) EdgesTo(_ string) []*types.Edge   { return nil }
 func (i *spendTestIndex) NodesByType(typeName string) []*types.Node {

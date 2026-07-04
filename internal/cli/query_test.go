@@ -45,22 +45,24 @@ func (m *mockStore) ReadView(name string) (*types.SavedView, error) {
 	}
 	return v, nil
 }
-func (m *mockStore) AllViews() ([]*types.SavedView, error)    { return nil, nil }
+func (m *mockStore) AllViews() ([]*types.SavedView, error) { return nil, nil }
 func (m *mockStore) ReadRitual(_ string) (*types.Ritual, error) {
 	return nil, &types.NotFoundError{Kind: "ritual", ID: ""}
 }
-func (m *mockStore) AllRituals() ([]*types.Ritual, error)     { return nil, nil }
+func (m *mockStore) AllRituals() ([]*types.Ritual, error) { return nil, nil }
 func (m *mockStore) ReadTheme(_ string) (*types.Theme, error) {
 	return nil, &types.NotFoundError{Kind: "theme", ID: ""}
 }
 func (m *mockStore) ReadConfig() (*types.Config, error) {
 	return &types.Config{MaxTraversalDepth: 5}, nil
 }
-func (m *mockStore) WriteConfig(_ *types.Config) error { return nil }
-func (m *mockStore) ReadKinds() (*types.KindRegistry, error)  { return types.NewKindRegistry(nil), nil }
-func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error) { return types.NewStageGroupRegistry(nil), nil }
-func (m *mockStore) WriteStages(_ []types.StageGroup) error         { return nil }
-func (m *mockStore) StorePath() string                 { return "/tmp/mock-store" }
+func (m *mockStore) WriteConfig(_ *types.Config) error       { return nil }
+func (m *mockStore) ReadKinds() (*types.KindRegistry, error) { return types.NewKindRegistry(nil), nil }
+func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error) {
+	return types.NewStageGroupRegistry(nil), nil
+}
+func (m *mockStore) WriteStages(_ []types.StageGroup) error { return nil }
+func (m *mockStore) StorePath() string                      { return "/tmp/mock-store" }
 
 // ---------------------------------------------------------------------------
 // RunQuery tests

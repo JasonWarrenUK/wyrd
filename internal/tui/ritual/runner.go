@@ -36,10 +36,10 @@ const DeferSequence = "Esc Esc d"
 // makes no direct I/O calls. The TUI layer drives it by calling Step methods
 // and reading output via CurrentOutput.
 type Runner struct {
-	ritual  *types.Ritual
-	store   types.StoreFS
-	query   types.QueryRunner
-	clock   types.Clock
+	ritual *types.Ritual
+	store  types.StoreFS
+	query  types.QueryRunner
+	clock  types.Clock
 
 	// stepIndex is the 0-based index of the step currently being executed.
 	stepIndex int

@@ -92,8 +92,8 @@ func TestRender_MetadataKeyValue(t *testing.T) {
 func TestRender_MetadataSkipsNil(t *testing.T) {
 	node := simpleNode("n4", "Node", []string{"task"})
 	node.Properties = map[string]interface{}{
-		"present":  "value",
-		"absent":   nil,
+		"present": "value",
+		"absent":  nil,
 	}
 	r := newRenderer()
 	output := stripANSI(r.Render(node, nil, nil, nil, testNow))

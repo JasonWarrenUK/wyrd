@@ -230,4 +230,3 @@ func scoreEdge(edge *types.Edge, query string, index types.GraphIndex) (int, boo
 
 	return best, best > 0, title, description
 }
-

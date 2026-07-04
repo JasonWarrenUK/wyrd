@@ -187,4 +187,3 @@ func TestFillBackground_EmptyStringReturnsEmpty(t *testing.T) {
 		t.Errorf("expected empty string, got %q", result)
 	}
 }
-

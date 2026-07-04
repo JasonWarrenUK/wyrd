@@ -68,8 +68,8 @@ func (m *mockStore) DeleteEdge(id string) error {
 	delete(m.edges, id)
 	return nil
 }
-func (m *mockStore) ReadTemplate(_ string) (*types.Template, error)  { return nil, nil }
-func (m *mockStore) AllTemplates() ([]*types.Template, error)         { return nil, nil }
+func (m *mockStore) ReadTemplate(_ string) (*types.Template, error) { return nil, nil }
+func (m *mockStore) AllTemplates() ([]*types.Template, error)       { return nil, nil }
 func (m *mockStore) ReadView(name string) (*types.SavedView, error) {
 	v, ok := m.views[name]
 	if !ok {
@@ -77,16 +77,24 @@ func (m *mockStore) ReadView(name string) (*types.SavedView, error) {
 	}
 	return v, nil
 }
-func (m *mockStore) AllViews() ([]*types.SavedView, error)            { return nil, nil }
-func (m *mockStore) ReadRitual(_ string) (*types.Ritual, error)       { return nil, nil }
-func (m *mockStore) AllRituals() ([]*types.Ritual, error)             { return nil, nil }
-func (m *mockStore) ReadTheme(_ string) (*types.Theme, error)         { return nil, nil }
-func (m *mockStore) ReadConfig() (*types.Config, error)               { return nil, nil }
-func (m *mockStore) WriteConfig(_ *types.Config) error                { return nil }
-func (m *mockStore) ReadKinds() (*types.KindRegistry, error)          { return types.NewKindRegistry(nil), nil }
-func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error)   { return types.NewStageGroupRegistry(nil), nil }
-func (m *mockStore) WriteStages(_ []types.StageGroup) error           { return nil }
-func (m *mockStore) ArchiveNode(id string) error                      { n := m.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
+func (m *mockStore) AllViews() ([]*types.SavedView, error)      { return nil, nil }
+func (m *mockStore) ReadRitual(_ string) (*types.Ritual, error) { return nil, nil }
+func (m *mockStore) AllRituals() ([]*types.Ritual, error)       { return nil, nil }
+func (m *mockStore) ReadTheme(_ string) (*types.Theme, error)   { return nil, nil }
+func (m *mockStore) ReadConfig() (*types.Config, error)         { return nil, nil }
+func (m *mockStore) WriteConfig(_ *types.Config) error          { return nil }
+func (m *mockStore) ReadKinds() (*types.KindRegistry, error)    { return types.NewKindRegistry(nil), nil }
+func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error) {
+	return types.NewStageGroupRegistry(nil), nil
+}
+func (m *mockStore) WriteStages(_ []types.StageGroup) error { return nil }
+func (m *mockStore) ArchiveNode(id string) error {
+	n := m.nodes[id]
+	if n != nil {
+		n.Properties["status"] = "archived"
+	}
+	return nil
+}
 func (m *mockStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	n := m.nodes[id]
 	if n == nil {
@@ -104,7 +112,7 @@ func (m *mockStore) UpdateNode(id string, updates map[string]interface{}) (*type
 	}
 	return n, nil
 }
-func (m *mockStore) StorePath() string                                 { return "/tmp/store" }
+func (m *mockStore) StorePath() string { return "/tmp/store" }
 
 // ---- Fixtures --------------------------------------------------------------
 

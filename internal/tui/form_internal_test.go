@@ -491,4 +491,3 @@ func TestWyrdHuhThemeNoBackgroundBleed(t *testing.T) {
 	assertBg("Focused.Card", styles.Focused.Card.GetBackground())
 	assertBg("Blurred.Card", styles.Blurred.Card.GetBackground())
 }
-

@@ -90,7 +90,7 @@ func (sb *StatusBar) SetNodeInfo(id string, nodeTypes []string, edgeCount int) {
 	if len(id) > 8 {
 		id = id[:8]
 	}
-	sb.nodeID    = id
+	sb.nodeID = id
 	sb.nodeTypes = nodeTypes
 	sb.edgeCount = edgeCount
 }

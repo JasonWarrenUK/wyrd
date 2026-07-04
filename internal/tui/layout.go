@@ -18,10 +18,10 @@ const (
 // Layout holds the dimensions and styles used to render the two-pane split.
 // It is recalculated whenever the terminal window is resized.
 type Layout struct {
-	totalWidth    int
-	totalHeight   int
+	totalWidth      int
+	totalHeight     int
 	statusBarHeight int
-	theme         *ActiveTheme
+	theme           *ActiveTheme
 }
 
 // NewLayout creates a Layout for the given terminal dimensions and theme.
@@ -170,9 +170,9 @@ func (l *Layout) Render(
 	rw := l.RightWidth()
 	logoH := LogoHeight(rw)
 
-	leftBox    := l.paneStyle(l.LeftWidth(), focus == FocusLeft).Render(leftView)
-	logoBox    := l.logoStyle(rw, logoH).Render(logoView)
-	detailBox  := l.detailPaneStyle(rw, focus == FocusRight, logoH).Render(rightView)
+	leftBox := l.paneStyle(l.LeftWidth(), focus == FocusLeft).Render(leftView)
+	logoBox := l.logoStyle(rw, logoH).Render(logoView)
+	detailBox := l.detailPaneStyle(rw, focus == FocusRight, logoH).Render(rightView)
 
 	rightColumn := lipgloss.JoinVertical(lipgloss.Left, logoBox, detailBox)
 	row := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightColumn)

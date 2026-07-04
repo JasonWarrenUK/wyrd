@@ -15,28 +15,33 @@ type mockStore struct {
 	written []*types.Node
 }
 
-func (m *mockStore) ReadNode(id string) (*types.Node, error)           { return nil, nil }
-func (m *mockStore) WriteNode(node *types.Node) error                  { m.written = append(m.written, node); return nil }
-func (m *mockStore) ReadEdge(id string) (*types.Edge, error)           { return nil, nil }
-func (m *mockStore) WriteEdge(edge *types.Edge) error                  { return nil }
-func (m *mockStore) DeleteEdge(id string) error                        { return nil }
-func (m *mockStore) ArchiveNode(_ string) error                        { return nil }
+func (m *mockStore) ReadNode(id string) (*types.Node, error) { return nil, nil }
+func (m *mockStore) WriteNode(node *types.Node) error {
+	m.written = append(m.written, node)
+	return nil
+}
+func (m *mockStore) ReadEdge(id string) (*types.Edge, error) { return nil, nil }
+func (m *mockStore) WriteEdge(edge *types.Edge) error        { return nil }
+func (m *mockStore) DeleteEdge(id string) error              { return nil }
+func (m *mockStore) ArchiveNode(_ string) error              { return nil }
 func (m *mockStore) UpdateNode(_ string, _ map[string]interface{}) (*types.Node, error) {
 	return nil, nil
 }
 func (m *mockStore) ReadTemplate(typeName string) (*types.Template, error) { return nil, nil }
-func (m *mockStore) AllTemplates() ([]*types.Template, error)           { return nil, nil }
-func (m *mockStore) ReadView(name string) (*types.SavedView, error)    { return nil, nil }
-func (m *mockStore) AllViews() ([]*types.SavedView, error)             { return nil, nil }
-func (m *mockStore) ReadRitual(name string) (*types.Ritual, error)     { return nil, nil }
-func (m *mockStore) AllRituals() ([]*types.Ritual, error)              { return nil, nil }
-func (m *mockStore) ReadTheme(name string) (*types.Theme, error)       { return nil, nil }
-func (m *mockStore) ReadConfig() (*types.Config, error)                { return nil, nil }
-func (m *mockStore) WriteConfig(cfg *types.Config) error               { return nil }
-func (m *mockStore) ReadKinds() (*types.KindRegistry, error)           { return types.NewKindRegistry(nil), nil }
-func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error)    { return types.NewStageGroupRegistry(nil), nil }
-func (m *mockStore) WriteStages(_ []types.StageGroup) error            { return nil }
-func (m *mockStore) StorePath() string                                 { return "/tmp/test-store" }
+func (m *mockStore) AllTemplates() ([]*types.Template, error)              { return nil, nil }
+func (m *mockStore) ReadView(name string) (*types.SavedView, error)        { return nil, nil }
+func (m *mockStore) AllViews() ([]*types.SavedView, error)                 { return nil, nil }
+func (m *mockStore) ReadRitual(name string) (*types.Ritual, error)         { return nil, nil }
+func (m *mockStore) AllRituals() ([]*types.Ritual, error)                  { return nil, nil }
+func (m *mockStore) ReadTheme(name string) (*types.Theme, error)           { return nil, nil }
+func (m *mockStore) ReadConfig() (*types.Config, error)                    { return nil, nil }
+func (m *mockStore) WriteConfig(cfg *types.Config) error                   { return nil }
+func (m *mockStore) ReadKinds() (*types.KindRegistry, error)               { return types.NewKindRegistry(nil), nil }
+func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error) {
+	return types.NewStageGroupRegistry(nil), nil
+}
+func (m *mockStore) WriteStages(_ []types.StageGroup) error { return nil }
+func (m *mockStore) StorePath() string                      { return "/tmp/test-store" }
 
 // mockIndex implements types.GraphIndex for testing.
 type mockIndex struct {
@@ -67,7 +72,7 @@ func (m *mockIndex) AllNodes() []*types.Node {
 	}
 	return out
 }
-func (m *mockIndex) AllEdges() []*types.Edge      { return nil }
+func (m *mockIndex) AllEdges() []*types.Edge               { return nil }
 func (m *mockIndex) EdgesFrom(nodeID string) []*types.Edge { return nil }
 func (m *mockIndex) EdgesTo(nodeID string) []*types.Edge   { return nil }
 

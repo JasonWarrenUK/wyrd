@@ -231,8 +231,8 @@ func (*FunctionCall) exprNode() {}
 
 // IsNullExpr tests whether an expression evaluates to null.
 type IsNullExpr struct {
-	Operand  Expression
-	Negated  bool // true for IS NOT NULL
+	Operand Expression
+	Negated bool // true for IS NOT NULL
 }
 
 func (*IsNullExpr) exprNode() {}

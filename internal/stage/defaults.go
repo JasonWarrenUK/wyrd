@@ -19,9 +19,9 @@ import (
 var defaultsFS embed.FS
 
 var (
-	defaultsOnce   sync.Once
-	defaultsCache  []types.StageGroup
-	defaultsErr    error
+	defaultsOnce  sync.Once
+	defaultsCache []types.StageGroup
+	defaultsErr   error
 )
 
 // DefaultStageGroups returns the five baked-in stage groups: task-flow,

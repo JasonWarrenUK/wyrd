@@ -17,8 +17,8 @@ import (
 type colourCapability int
 
 const (
-	capability16       colourCapability = 16
-	capability256      colourCapability = 256
+	capability16        colourCapability = 16
+	capability256       colourCapability = 256
 	capabilityTruecolor colourCapability = 16777216
 )
 

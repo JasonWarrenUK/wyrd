@@ -9,10 +9,10 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
 	clog "github.com/charmbracelet/log"
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
 	"github.com/jasonwarrenuk/wyrd/internal/stage"
+	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -1410,16 +1410,16 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	renderer := m.detailRenderer
 	renderer.Width = m.layout.totalWidth / 2
 	renderer.Kinds = m.kinds
-	renderer.Colours.BgPrimary       = m.theme.BgPrimary()
-	renderer.Colours.FGPrimary       = m.theme.FgPrimary()
-	renderer.Colours.FGMuted         = m.theme.FgMuted()
-	renderer.Colours.AccentPrimary   = m.theme.AccentPrimary()
+	renderer.Colours.BgPrimary = m.theme.BgPrimary()
+	renderer.Colours.FGPrimary = m.theme.FgPrimary()
+	renderer.Colours.FGMuted = m.theme.FgMuted()
+	renderer.Colours.AccentPrimary = m.theme.AccentPrimary()
 	renderer.Colours.AccentSecondary = m.theme.AccentSecondary()
-	renderer.Colours.BudgetOK        = m.theme.BudgetOK()
-	renderer.Colours.BudgetCaution   = m.theme.BudgetCaution()
-	renderer.Colours.BudgetOver      = m.theme.BudgetOver()
-	renderer.Colours.OverflowWarn    = m.theme.OverflowWarn()
-	renderer.Colours.OverflowCrit    = m.theme.OverflowCritical()
+	renderer.Colours.BudgetOK = m.theme.BudgetOK()
+	renderer.Colours.BudgetCaution = m.theme.BudgetCaution()
+	renderer.Colours.BudgetOver = m.theme.BudgetOver()
+	renderer.Colours.OverflowWarn = m.theme.OverflowWarn()
+	renderer.Colours.OverflowCrit = m.theme.OverflowCritical()
 
 	now := time.Now()
 	if m.clock != nil {
@@ -1447,7 +1447,6 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	}
 	return newViewportPaneWithOffset(vpWidth, vpHeight, content, m.theme.BgPrimary(), logoH)
 }
-
 
 // Ensure Model satisfies tea.Model at compile time.
 var _ tea.Model = Model{}

@@ -31,15 +31,15 @@ type ThemeTiers struct {
 // ColourTier holds the colour values for a single terminal capability tier.
 // Hex values are used for truecolor; xterm indices for 256; ANSI names for 16.
 type ColourTier struct {
-	BG        ColourBG      `json:"bg"`
-	FG        ColourFG      `json:"fg"`
-	Accent    ColourAccent  `json:"accent"`
-	Border    string        `json:"border"`
-	Selection string        `json:"selection"`
-	StatusBar string        `json:"status_bar"`
-	Energy    ColourEnergy  `json:"energy"`
+	BG        ColourBG       `json:"bg"`
+	FG        ColourFG       `json:"fg"`
+	Accent    ColourAccent   `json:"accent"`
+	Border    string         `json:"border"`
+	Selection string         `json:"selection"`
+	StatusBar string         `json:"status_bar"`
+	Energy    ColourEnergy   `json:"energy"`
 	Overflow  ColourOverflow `json:"overflow"`
-	Budget    ColourBudget  `json:"budget"`
+	Budget    ColourBudget   `json:"budget"`
 }
 
 // ColourBG holds background colour roles.

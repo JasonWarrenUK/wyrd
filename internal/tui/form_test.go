@@ -24,12 +24,22 @@ func newFormTestStore() *formTestStore {
 	}
 }
 
-func (s *formTestStore) ReadNode(id string) (*types.Node, error)            { return s.nodes[id], nil }
-func (s *formTestStore) WriteNode(n *types.Node) error                      { s.nodes[n.ID] = n; return nil }
-func (s *formTestStore) ReadEdge(id string) (*types.Edge, error)            { return s.edges[id], nil }
-func (s *formTestStore) WriteEdge(e *types.Edge) error                      { s.edges[e.ID] = e; return nil }
-func (s *formTestStore) DeleteEdge(id string) error                         { delete(s.edges, id); s.deletedIDs = append(s.deletedIDs, id); return nil }
-func (s *formTestStore) ArchiveNode(id string) error                        { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
+func (s *formTestStore) ReadNode(id string) (*types.Node, error) { return s.nodes[id], nil }
+func (s *formTestStore) WriteNode(n *types.Node) error           { s.nodes[n.ID] = n; return nil }
+func (s *formTestStore) ReadEdge(id string) (*types.Edge, error) { return s.edges[id], nil }
+func (s *formTestStore) WriteEdge(e *types.Edge) error           { s.edges[e.ID] = e; return nil }
+func (s *formTestStore) DeleteEdge(id string) error {
+	delete(s.edges, id)
+	s.deletedIDs = append(s.deletedIDs, id)
+	return nil
+}
+func (s *formTestStore) ArchiveNode(id string) error {
+	n := s.nodes[id]
+	if n != nil {
+		n.Properties["status"] = "archived"
+	}
+	return nil
+}
 func (s *formTestStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	n := s.nodes[id]
 	if n == nil {
@@ -47,19 +57,23 @@ func (s *formTestStore) UpdateNode(id string, updates map[string]interface{}) (*
 	}
 	return n, nil
 }
-func (s *formTestStore) ReadTemplate(_ string) (*types.Template, error)     { return nil, nil }
-func (s *formTestStore) AllTemplates() ([]*types.Template, error)           { return nil, nil }
-func (s *formTestStore) ReadView(_ string) (*types.SavedView, error)        { return nil, nil }
-func (s *formTestStore) AllViews() ([]*types.SavedView, error)              { return nil, nil }
-func (s *formTestStore) ReadRitual(_ string) (*types.Ritual, error)         { return nil, nil }
-func (s *formTestStore) AllRituals() ([]*types.Ritual, error)               { return nil, nil }
-func (s *formTestStore) ReadTheme(_ string) (*types.Theme, error)           { return nil, nil }
-func (s *formTestStore) ReadConfig() (*types.Config, error)                 { return nil, nil }
-func (s *formTestStore) WriteConfig(_ *types.Config) error                  { return nil }
-func (s *formTestStore) ReadKinds() (*types.KindRegistry, error)            { return types.NewKindRegistry(nil), nil }
-func (s *formTestStore) ReadStages() (*types.StageGroupRegistry, error)     { return types.NewStageGroupRegistry(nil), nil }
-func (s *formTestStore) WriteStages(_ []types.StageGroup) error             { return nil }
-func (s *formTestStore) StorePath() string                                  { return "/tmp/form-test" }
+func (s *formTestStore) ReadTemplate(_ string) (*types.Template, error) { return nil, nil }
+func (s *formTestStore) AllTemplates() ([]*types.Template, error)       { return nil, nil }
+func (s *formTestStore) ReadView(_ string) (*types.SavedView, error)    { return nil, nil }
+func (s *formTestStore) AllViews() ([]*types.SavedView, error)          { return nil, nil }
+func (s *formTestStore) ReadRitual(_ string) (*types.Ritual, error)     { return nil, nil }
+func (s *formTestStore) AllRituals() ([]*types.Ritual, error)           { return nil, nil }
+func (s *formTestStore) ReadTheme(_ string) (*types.Theme, error)       { return nil, nil }
+func (s *formTestStore) ReadConfig() (*types.Config, error)             { return nil, nil }
+func (s *formTestStore) WriteConfig(_ *types.Config) error              { return nil }
+func (s *formTestStore) ReadKinds() (*types.KindRegistry, error) {
+	return types.NewKindRegistry(nil), nil
+}
+func (s *formTestStore) ReadStages() (*types.StageGroupRegistry, error) {
+	return types.NewStageGroupRegistry(nil), nil
+}
+func (s *formTestStore) WriteStages(_ []types.StageGroup) error { return nil }
+func (s *formTestStore) StorePath() string                      { return "/tmp/form-test" }
 
 func formTestClock() types.Clock {
 	return types.StubClock{Fixed: time.Date(2026, 3, 23, 9, 0, 0, 0, time.UTC)}

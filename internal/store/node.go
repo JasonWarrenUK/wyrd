@@ -42,10 +42,10 @@ func (s *Store) CreateNode(body string, nodeTypes []string) (*types.Node, error)
 
 	nowStr := now.UTC().Format(time.RFC3339)
 	raw := map[string]interface{}{
-		"id":      id,
-		"body":    body,
-		"types":   nodeTypes,
-		"created": nowStr,
+		"id":       id,
+		"body":     body,
+		"types":    nodeTypes,
+		"created":  nowStr,
 		"modified": nowStr,
 		"date": map[string]interface{}{
 			"created":  nowStr,

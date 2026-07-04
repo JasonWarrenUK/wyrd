@@ -10,8 +10,8 @@ import (
 // SchedulerState tracks which rituals have already been presented during the
 // current calendar day so they are not triggered more than once per day.
 type SchedulerState struct {
-	mu         sync.Mutex
-	dismissed  map[string]string // ritual name → date string "YYYY-MM-DD"
+	mu        sync.Mutex
+	dismissed map[string]string // ritual name → date string "YYYY-MM-DD"
 }
 
 // NewSchedulerState returns an initialised SchedulerState.

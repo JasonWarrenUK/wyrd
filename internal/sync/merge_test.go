@@ -200,7 +200,7 @@ func TestMergeObjects_LWWTiesFavourOurs(t *testing.T) {
 func TestMergeObjects_DeletedOnOursSide_TheirsChanged(t *testing.T) {
 	// Theirs changed a field we deleted → change wins.
 	base := map[string]interface{}{"tag": "old-tag"}
-	ours := map[string]interface{}{}          // deleted "tag"
+	ours := map[string]interface{}{}                   // deleted "tag"
 	theirs := map[string]interface{}{"tag": "new-tag"} // modified "tag"
 
 	result, err := mergeObjects(base, ours, theirs)
@@ -215,8 +215,8 @@ func TestMergeObjects_DeletedOnOursSide_TheirsChanged(t *testing.T) {
 func TestMergeObjects_DeletedOnTheirsSide_OursChanged(t *testing.T) {
 	// We changed a field theirs deleted → change wins.
 	base := map[string]interface{}{"tag": "old-tag"}
-	ours := map[string]interface{}{"tag": "new-tag"}   // modified "tag"
-	theirs := map[string]interface{}{}                  // deleted "tag"
+	ours := map[string]interface{}{"tag": "new-tag"} // modified "tag"
+	theirs := map[string]interface{}{}               // deleted "tag"
 
 	result, err := mergeObjects(base, ours, theirs)
 	if err != nil {
@@ -245,7 +245,7 @@ func TestMergeObjects_DeletedOnBothSides(t *testing.T) {
 
 func TestMergeScalarArray_UnionOfAdditions(t *testing.T) {
 	base := []interface{}{"a", "b"}
-	ours := []interface{}{"a", "b", "c"} // added c
+	ours := []interface{}{"a", "b", "c"}   // added c
 	theirs := []interface{}{"a", "b", "d"} // added d
 
 	result := mergeScalarArray(base, ours, theirs)

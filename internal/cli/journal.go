@@ -35,12 +35,12 @@ func Journal(store types.StoreFS, opts JournalOptions) (string, error) {
 	}
 
 	node := &types.Node{
-		ID:       uuid.New().String(),
-		Title:    title,
-		Body:     opts.Body,
-		Types:    []string{"journal"},
-		Created:  now,
-		Modified: now,
+		ID:         uuid.New().String(),
+		Title:      title,
+		Body:       opts.Body,
+		Types:      []string{"journal"},
+		Created:    now,
+		Modified:   now,
 		Properties: map[string]interface{}{},
 	}
 	node.Date.About = &now
@@ -90,12 +90,12 @@ func Note(store types.StoreFS, opts NoteOptions) (string, error) {
 	now := time.Now()
 
 	node := &types.Node{
-		ID:       uuid.New().String(),
-		Title:    opts.Title,
-		Body:     opts.Body,
-		Types:    []string{"note"},
-		Created:  now,
-		Modified: now,
+		ID:         uuid.New().String(),
+		Title:      opts.Title,
+		Body:       opts.Body,
+		Types:      []string{"note"},
+		Created:    now,
+		Modified:   now,
 		Properties: map[string]interface{}{},
 	}
 

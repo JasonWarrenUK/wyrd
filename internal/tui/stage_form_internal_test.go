@@ -86,25 +86,25 @@ type errStoreFS struct {
 	written  bool
 }
 
-func (s *errStoreFS) ReadNode(_ string) (*types.Node, error)                     { return nil, nil }
-func (s *errStoreFS) WriteNode(_ *types.Node) error                              { return nil }
-func (s *errStoreFS) DeleteEdge(_ string) error                                  { return nil }
-func (s *errStoreFS) WriteEdge(_ *types.Edge) error                              { return nil }
-func (s *errStoreFS) ReadEdge(_ string) (*types.Edge, error)                     { return nil, nil }
-func (s *errStoreFS) ArchiveNode(_ string) error                                 { return nil }
+func (s *errStoreFS) ReadNode(_ string) (*types.Node, error) { return nil, nil }
+func (s *errStoreFS) WriteNode(_ *types.Node) error          { return nil }
+func (s *errStoreFS) DeleteEdge(_ string) error              { return nil }
+func (s *errStoreFS) WriteEdge(_ *types.Edge) error          { return nil }
+func (s *errStoreFS) ReadEdge(_ string) (*types.Edge, error) { return nil, nil }
+func (s *errStoreFS) ArchiveNode(_ string) error             { return nil }
 func (s *errStoreFS) UpdateNode(_ string, _ map[string]interface{}) (*types.Node, error) {
 	return nil, nil
 }
-func (s *errStoreFS) ReadTemplate(_ string) (*types.Template, error)             { return nil, nil }
-func (s *errStoreFS) AllTemplates() ([]*types.Template, error)                   { return nil, nil }
-func (s *errStoreFS) ReadView(_ string) (*types.SavedView, error)                { return nil, nil }
-func (s *errStoreFS) AllViews() ([]*types.SavedView, error)                      { return nil, nil }
-func (s *errStoreFS) ReadRitual(_ string) (*types.Ritual, error)                 { return nil, nil }
-func (s *errStoreFS) AllRituals() ([]*types.Ritual, error)                       { return nil, nil }
-func (s *errStoreFS) ReadTheme(_ string) (*types.Theme, error)                   { return nil, nil }
-func (s *errStoreFS) ReadConfig() (*types.Config, error)                         { return nil, nil }
-func (s *errStoreFS) WriteConfig(_ *types.Config) error                          { return nil }
-func (s *errStoreFS) ReadKinds() (*types.KindRegistry, error)                    { return types.NewKindRegistry(nil), nil }
+func (s *errStoreFS) ReadTemplate(_ string) (*types.Template, error) { return nil, nil }
+func (s *errStoreFS) AllTemplates() ([]*types.Template, error)       { return nil, nil }
+func (s *errStoreFS) ReadView(_ string) (*types.SavedView, error)    { return nil, nil }
+func (s *errStoreFS) AllViews() ([]*types.SavedView, error)          { return nil, nil }
+func (s *errStoreFS) ReadRitual(_ string) (*types.Ritual, error)     { return nil, nil }
+func (s *errStoreFS) AllRituals() ([]*types.Ritual, error)           { return nil, nil }
+func (s *errStoreFS) ReadTheme(_ string) (*types.Theme, error)       { return nil, nil }
+func (s *errStoreFS) ReadConfig() (*types.Config, error)             { return nil, nil }
+func (s *errStoreFS) WriteConfig(_ *types.Config) error              { return nil }
+func (s *errStoreFS) ReadKinds() (*types.KindRegistry, error)        { return types.NewKindRegistry(nil), nil }
 func (s *errStoreFS) ReadStages() (*types.StageGroupRegistry, error) {
 	if s.readErr != nil {
 		return nil, s.readErr

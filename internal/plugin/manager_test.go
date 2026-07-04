@@ -29,13 +29,13 @@ func newMockStore(t *testing.T) *mockStore {
 	}
 }
 
-func (s *mockStore) StorePath() string                                    { return s.storePath }
-func (s *mockStore) ReadNode(id string) (*types.Node, error)              { return s.nodes[id], nil }
-func (s *mockStore) WriteNode(node *types.Node) error                     { s.nodes[node.ID] = node; return nil }
-func (s *mockStore) ReadEdge(id string) (*types.Edge, error)              { return s.edges[id], nil }
-func (s *mockStore) WriteEdge(edge *types.Edge) error                     { s.edges[edge.ID] = edge; return nil }
-func (s *mockStore) DeleteEdge(id string) error                           { delete(s.edges, id); return nil }
-func (s *mockStore) ArchiveNode(_ string) error                           { return nil }
+func (s *mockStore) StorePath() string                       { return s.storePath }
+func (s *mockStore) ReadNode(id string) (*types.Node, error) { return s.nodes[id], nil }
+func (s *mockStore) WriteNode(node *types.Node) error        { s.nodes[node.ID] = node; return nil }
+func (s *mockStore) ReadEdge(id string) (*types.Edge, error) { return s.edges[id], nil }
+func (s *mockStore) WriteEdge(edge *types.Edge) error        { s.edges[edge.ID] = edge; return nil }
+func (s *mockStore) DeleteEdge(id string) error              { delete(s.edges, id); return nil }
+func (s *mockStore) ArchiveNode(_ string) error              { return nil }
 func (s *mockStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	n := s.nodes[id]
 	if n == nil {
@@ -53,18 +53,20 @@ func (s *mockStore) UpdateNode(id string, updates map[string]interface{}) (*type
 	}
 	return n, nil
 }
-func (s *mockStore) ReadTemplate(_ string) (*types.Template, error)       { return nil, nil }
-func (s *mockStore) AllTemplates() ([]*types.Template, error)             { return nil, nil }
-func (s *mockStore) ReadView(_ string) (*types.SavedView, error)          { return nil, nil }
-func (s *mockStore) AllViews() ([]*types.SavedView, error)                { return nil, nil }
-func (s *mockStore) ReadRitual(_ string) (*types.Ritual, error)           { return nil, nil }
-func (s *mockStore) AllRituals() ([]*types.Ritual, error)                 { return nil, nil }
-func (s *mockStore) ReadTheme(_ string) (*types.Theme, error)             { return nil, nil }
-func (s *mockStore) ReadConfig() (*types.Config, error)                   { return &types.Config{}, nil }
-func (s *mockStore) WriteConfig(_ *types.Config) error                    { return nil }
-func (s *mockStore) ReadKinds() (*types.KindRegistry, error)              { return types.NewKindRegistry(nil), nil }
-func (s *mockStore) ReadStages() (*types.StageGroupRegistry, error)       { return types.NewStageGroupRegistry(nil), nil }
-func (s *mockStore) WriteStages(_ []types.StageGroup) error               { return nil }
+func (s *mockStore) ReadTemplate(_ string) (*types.Template, error) { return nil, nil }
+func (s *mockStore) AllTemplates() ([]*types.Template, error)       { return nil, nil }
+func (s *mockStore) ReadView(_ string) (*types.SavedView, error)    { return nil, nil }
+func (s *mockStore) AllViews() ([]*types.SavedView, error)          { return nil, nil }
+func (s *mockStore) ReadRitual(_ string) (*types.Ritual, error)     { return nil, nil }
+func (s *mockStore) AllRituals() ([]*types.Ritual, error)           { return nil, nil }
+func (s *mockStore) ReadTheme(_ string) (*types.Theme, error)       { return nil, nil }
+func (s *mockStore) ReadConfig() (*types.Config, error)             { return &types.Config{}, nil }
+func (s *mockStore) WriteConfig(_ *types.Config) error              { return nil }
+func (s *mockStore) ReadKinds() (*types.KindRegistry, error)        { return types.NewKindRegistry(nil), nil }
+func (s *mockStore) ReadStages() (*types.StageGroupRegistry, error) {
+	return types.NewStageGroupRegistry(nil), nil
+}
+func (s *mockStore) WriteStages(_ []types.StageGroup) error { return nil }
 func (s *mockStore) ReadPluginManifest(name string) (*types.PluginManifest, error) {
 	manifestPath := filepath.Join(s.storePath, "plugins", name, "plugin.jsonc")
 	data, err := os.ReadFile(manifestPath)

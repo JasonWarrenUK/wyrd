@@ -19,7 +19,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **NW** | Not started                         | NW.1         | NW.2 (needs NW.1) |
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
-| **TD** | Not started                         | TD.1–TD.4    | —       |
+| **TD** | TD.4 done                           | TD.1–TD.3    | —       |
 | **VP** | VP.2, VP.5, VP.9 done                | VP.1, VP.3, VP.4 | VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
 
 ---
@@ -304,7 +304,6 @@ None yet.
 - [ ] TD.1. Consolidate JSONC parsing — four duplicated `stripComments` scanners exist across `internal/store/jsonc.go`, `internal/tui/theme.go`, `internal/tui/views/loader.go`, and `internal/tui/ritual/loader.go` (SL.3 adds a fourth in `internal/stage/`); only the store variant strips trailing commas; extract into a shared `internal/jsonc` package, repoint all consumers, add a trailing-comma test — **no blockers**
 - [ ] TD.2. ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` — **depends on SL.3 (done)**
 - [ ] TD.3. Edge `Modified` timestamp — restructure `types.Edge` date properties into an embedded `DateFields`-style block holding the existing `Created` plus a new `Modified`; store write paths stamp `Modified` on every edge update; serialisation changes freely (pre-production, no back-compat constraint). Implementation question to settle: whether `Node`'s top-level `Created`/`Modified` should move into its date block for symmetry — **no blockers**
-- [ ] TD.4. `gofmt` cleanup of `cmd/wyrd/main.go` — pre-existing import-ordering drift (charmbracelet/log alphabetically displaced relative to charm.land imports) and a trailing-space alignment nit on the `query` command's `Args:` field; neither was introduced by a feature branch; run `gofmt -w cmd/wyrd/main.go` — **no blockers**
 
 <a name="me-blocked"><h4>Blocked (Milestone E)</h4></a>
 
@@ -312,7 +311,7 @@ None.
 
 <a name="me-done"><h4>Completed (Milestone E)</h4></a>
 
-None yet.
+- [x] TD.4. `gofmt` cleanup — originally scoped to `cmd/wyrd/main.go` (import-ordering drift plus a trailing-space alignment nit on the `query` command's `Args:` field), but `gofmt -l .` surfaced the same class of drift (struct-field/map-key/const-block alignment, import ordering) across 30 files repo-wide; ran `gofmt -w .` for the full sweep instead of the single-file fix. Whitespace/import-ordering only, no behavioural change — **no blockers**
 
 ---
 
@@ -421,7 +420,7 @@ SL14["`*SL.14*<br/>**Lattice**<br/>Stage remap on group change`"]:::blocked
 TD1["`*TD.1*<br/>**Tech Debt**<br/>Consolidate JSONC parsing`"]:::open
 TD2["`*TD.2*<br/>**Tech Debt**<br/>ADR: default-asset lifecycle`"]:::open
 TD3["`*TD.3*<br/>**Tech Debt**<br/>Edge Modified + DateFields`"]:::open
-TD4["`*TD.4*<br/>**Tech Debt**<br/>gofmt cmd/wyrd/main.go`"]:::open
+TD4["`*TD.4*<br/>**Tech Debt**<br/>gofmt repo-wide sweep`"]:::done
 
 NW1["`*NW.1*<br/>**Node Types**<br/>Bookmark (bm:)`"]:::open
 NW2["`*NW.2*<br/>**Node Types**<br/>answers edge`"]:::blocked

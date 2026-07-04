@@ -367,4 +367,3 @@ func TestNodeListPane_ResizePreservesSelection(t *testing.T) {
 		t.Errorf("selection changed after resize: want %q, got %q", wantID, got)
 	}
 }
-

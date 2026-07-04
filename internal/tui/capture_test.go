@@ -49,19 +49,29 @@ func (s *captureStore) DeleteEdge(id string) error {
 	delete(s.edges, id)
 	return nil
 }
-func (s *captureStore) ReadTemplate(_ string) (*types.Template, error)  { return nil, nil }
-func (s *captureStore) AllTemplates() ([]*types.Template, error)         { return nil, nil }
-func (s *captureStore) ReadView(_ string) (*types.SavedView, error)      { return nil, nil }
-func (s *captureStore) AllViews() ([]*types.SavedView, error)            { return nil, nil }
-func (s *captureStore) ReadRitual(_ string) (*types.Ritual, error)       { return nil, nil }
-func (s *captureStore) AllRituals() ([]*types.Ritual, error)             { return nil, nil }
-func (s *captureStore) ReadTheme(_ string) (*types.Theme, error)         { return nil, nil }
-func (s *captureStore) ReadConfig() (*types.Config, error)               { return nil, nil }
-func (s *captureStore) WriteConfig(_ *types.Config) error                { return nil }
-func (s *captureStore) ReadKinds() (*types.KindRegistry, error)          { return types.NewKindRegistry(nil), nil }
-func (s *captureStore) ReadStages() (*types.StageGroupRegistry, error)   { return types.NewStageGroupRegistry(nil), nil }
-func (s *captureStore) WriteStages(_ []types.StageGroup) error           { return nil }
-func (s *captureStore) ArchiveNode(id string) error                      { n := s.nodes[id]; if n != nil { n.Properties["status"] = "archived" }; return nil }
+func (s *captureStore) ReadTemplate(_ string) (*types.Template, error) { return nil, nil }
+func (s *captureStore) AllTemplates() ([]*types.Template, error)       { return nil, nil }
+func (s *captureStore) ReadView(_ string) (*types.SavedView, error)    { return nil, nil }
+func (s *captureStore) AllViews() ([]*types.SavedView, error)          { return nil, nil }
+func (s *captureStore) ReadRitual(_ string) (*types.Ritual, error)     { return nil, nil }
+func (s *captureStore) AllRituals() ([]*types.Ritual, error)           { return nil, nil }
+func (s *captureStore) ReadTheme(_ string) (*types.Theme, error)       { return nil, nil }
+func (s *captureStore) ReadConfig() (*types.Config, error)             { return nil, nil }
+func (s *captureStore) WriteConfig(_ *types.Config) error              { return nil }
+func (s *captureStore) ReadKinds() (*types.KindRegistry, error) {
+	return types.NewKindRegistry(nil), nil
+}
+func (s *captureStore) ReadStages() (*types.StageGroupRegistry, error) {
+	return types.NewStageGroupRegistry(nil), nil
+}
+func (s *captureStore) WriteStages(_ []types.StageGroup) error { return nil }
+func (s *captureStore) ArchiveNode(id string) error {
+	n := s.nodes[id]
+	if n != nil {
+		n.Properties["status"] = "archived"
+	}
+	return nil
+}
 func (s *captureStore) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	n := s.nodes[id]
 	if n == nil {
@@ -79,7 +89,7 @@ func (s *captureStore) UpdateNode(id string, updates map[string]interface{}) (*t
 	}
 	return n, nil
 }
-func (s *captureStore) StorePath() string                                 { return "/tmp/store" }
+func (s *captureStore) StorePath() string { return "/tmp/store" }
 
 func fixedCaptureClock() types.Clock {
 	return types.StubClock{Fixed: time.Date(2025, 3, 17, 9, 0, 0, 0, time.UTC)}

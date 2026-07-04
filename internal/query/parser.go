@@ -19,9 +19,9 @@ const (
 	tokInt
 	tokFloat
 	tokString
-	tokPunct // single character punctuation
-	tokArrow // -> or <-
-	tokDash  // -
+	tokPunct      // single character punctuation
+	tokArrow      // -> or <-
+	tokDash       // -
 	tokDoubleDash // --
 	tokLParen
 	tokRParen
