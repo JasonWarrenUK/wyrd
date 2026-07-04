@@ -53,8 +53,22 @@ type captureSubmitMsg struct {
 }
 
 // captureConfirmClearMsg is emitted after a short delay to clear the
-// confirmation text from the status bar.
-type captureConfirmClearMsg struct{}
+// confirmation text from the status bar. gen is the capture generation the
+// tick was scheduled for; the handler ignores the tick if the current
+// generation no longer matches (a newer message has since been shown).
+type captureConfirmClearMsg struct {
+	gen int
+}
+
+// clearCaptureCmd schedules a 2s clear guarded by the current generation, so
+// a stale tick cannot clear a newer message. Call immediately AFTER the
+// SetCaptureText whose message it should clear.
+func (m *Model) clearCaptureCmd() tea.Cmd {
+	gen := m.statusBar.CaptureGen()
+	return tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return captureConfirmClearMsg{gen: gen}
+	})
+}
 
 // ritualTriggerMsg is sent when a ritual should be presented to the user.
 type ritualTriggerMsg struct {
@@ -572,15 +586,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar.StopSpinner()
 		if msg.err != nil {
 			m.statusBar.SetCaptureText("Sync failed: " + msg.err.Error())
-		} else {
-			m.statusBar.SetCaptureText("Sync complete")
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
 		}
-		return m, nil
+		m.statusBar.SetCaptureText("Sync complete")
+		return m, m.clearCaptureCmd()
 
 	case captureSubmitMsg:
 		return m.handleCaptureSubmit(msg)
 	case captureConfirmClearMsg:
-		m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+		if msg.gen == m.statusBar.CaptureGen() {
+			m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+		}
 		return m, nil
 	}
 
@@ -706,9 +723,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.leftPane = sized
 			}
 		}
-		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-			return captureConfirmClearMsg{}
-		})
+		return m, m.clearCaptureCmd()
 
 	case stageFormSubmitMsg:
 		m.rightPane = NewEmptyPane(m.theme)
@@ -727,18 +742,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.statusBar.SetCaptureText(fmt.Sprintf("Created stage group %q", msg.name))
-		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-			return captureConfirmClearMsg{}
-		})
+		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:
 		m.rightPane = NewEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
-		return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-			return captureConfirmClearMsg{}
-		})
+		return m, m.clearCaptureCmd()
 
 	case filterStateChangedMsg:
 		m.syncKeyHints()
@@ -811,6 +822,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleStageShift(+1)
 		case key.Matches(msg, m.keyMap.RetreatStage):
 			return m.handleStageShift(-1)
+		case msg.String() == "esc" && m.statusBar.CaptureSticky():
+			m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+			return m, nil
 		default:
 			return m.updateFocusedPane(msg)
 		}
@@ -883,9 +897,7 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			sp, err := newSpendFormPane(m.theme, m.store, m.index, m.clock, body)
 			if err != nil {
 				m.statusBar.SetCaptureText("No budget categories found")
-				return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-					return captureConfirmClearMsg{}
-				})
+				return m, m.clearCaptureCmd()
 			}
 			initCmd := sp.form.Init()
 			sized, _ := sp.Update(tea.WindowSizeMsg{
@@ -978,9 +990,7 @@ func (m Model) handleCaptureSubmit(msg captureSubmitMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-		return captureConfirmClearMsg{}
-	})
+	return m, m.clearCaptureCmd()
 }
 
 // handleEditNode opens an edit form for the currently selected node. It is a
@@ -1062,9 +1072,7 @@ func (m Model) handleEditSubmit(msg editSubmitMsg) (tea.Model, tea.Cmd) {
 	// Re-render the detail pane so the right side shows the updated content.
 	detailCmd := m.renderDetailAsync(msg.nodeID)
 
-	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-		return captureConfirmClearMsg{}
-	})
+	clearCmd := m.clearCaptureCmd()
 
 	return m, tea.Batch(detailCmd, clearCmd)
 }
@@ -1129,9 +1137,7 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	m.focus = FocusLeft
 	m.syncKeyHints()
 
-	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-		return captureConfirmClearMsg{}
-	})
+	clearCmd := m.clearCaptureCmd()
 
 	return m, clearCmd
 }
@@ -1189,15 +1195,11 @@ func (m Model) handleStageShift(dir int) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	clearCmd := tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
-		return captureConfirmClearMsg{}
-	})
-
 	if newStage == node.Stage {
 		// Terminal boundary: no write needed, but show a hint so the keypress
 		// isn't silent.
 		m.statusBar.SetCaptureText("Stage: " + node.Stage + " (terminal)")
-		return m, clearCmd
+		return m, m.clearCaptureCmd()
 	}
 
 	oldStage := node.Stage
@@ -1226,7 +1228,7 @@ func (m Model) handleStageShift(dir int) (tea.Model, tea.Cmd) {
 
 	// Re-render the detail pane so the right side shows the new stage.
 	detailCmd := m.renderDetailAsync(nodeID)
-	return m, tea.Batch(detailCmd, clearCmd)
+	return m, tea.Batch(detailCmd, m.clearCaptureCmd())
 }
 
 // captureDisplayText formats capture bar input for display in the status bar,
