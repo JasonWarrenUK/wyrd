@@ -46,7 +46,7 @@ wyrd plugin install {path}    install a plugin
 wyrd plugin list              list installed plugins
 ```
 
-Inside the TUI, navigation follows vim conventions: `hjkl` for movement, `gg`/`G` for top/bottom, `/` for search. `:` opens the command palette; `Ctrl+K` opens it in fuzzy mode. `i` focuses the capture bar from anywhere. `Ctrl+W` switches panes; `q` quits.
+Inside the TUI, navigation follows vim conventions: `hjkl` for movement, `gg`/`G` for top/bottom, `/` for search. `:` opens the command palette; `Ctrl+K` opens it in fuzzy mode. `i` focuses the capture bar from anywhere. `]`/`[` advance/retreat the selected node's stage. `Ctrl+W` switches panes; `q` quits.
 
 ---
 
@@ -64,11 +64,28 @@ Two entity types: **nodes** and **edges**, each stored as individual `.jsonc` fi
   views/{name}.jsonc
   plugins/{name}/plugin.jsonc
   config.jsonc
+~/wyrd/
+  kinds.jsonc
+  stages.jsonc
 ```
 
 Nodes carry a `types` array (`["task", "commitment"]`) and conditional fields contributed by template definitions. Edges are first-class entities with their own UUIDs, types, and properties. Nodes are never deleted; archiving sets `status: "archived"`, preserving the full audit trail in git history.
 
 On startup, all files are loaded into an in-memory graph index with O(1) edge lookups per node. A filesystem watcher incrementally updates the index on file change.
+
+---
+
+## Kinds and stages
+
+A **kind** (Task, Habit, Event, Project, Goblin, Talk, Travel, Note, Journal, Budget) is a named node role: a glyph, a colour, and a reference to a **stage group**, the ordered progression a node of that kind moves through (`task-flow` runs `Open → Maybe → Later → Soon → Now → Done`, for instance). `]` advances the selected node to its next stage; `[` retreats it. Boundary behaviour is per group: `terminate` stops at the ends, `loop` wraps around, `loop-to-stage` wraps to a named stage rather than the first.
+
+Ten kinds and six stage groups ship built in. Define your own in `~/wyrd/kinds.jsonc` and `~/wyrd/stages.jsonc`; user-defined groups shadow baked-in ones of the same name. From the command palette:
+
+```text
+:kinds        list registered kinds (glyph, colour, stage group)
+:stages       list registered stage groups (provenance, cycle, progression)
+:stages new   create a stage group (name, ordered stages, cycle behaviour)
+```
 
 ---
 
@@ -206,6 +223,7 @@ Switch at runtime via the command palette: `:theme fell`.
 internal/
   types/      core types and interfaces
   store/      flat-file graph store; in-memory index; fsnotify watcher
+  stage/      baked-in kinds and stage groups; registry merge logic
   query/      Cypher subset parser and evaluator
   sync/       git operations; three-way JSONC merge driver
   plugin/     JSON-lines protocol; process lifecycle; shell executor
