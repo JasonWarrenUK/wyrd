@@ -9,7 +9,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 |        | Status                              | Next Up      | Blocked |
 |--------|-------------------------------------|--------------|---------|
-| **CP** | CP.14, CP.15, CP.16 done            | CP.17        | —       |
+| **CP** | CP.14, CP.15, CP.16, CP.17 done — milestone complete | —            | —       |
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
@@ -20,7 +20,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 | **DL** | Not started                         | DL.1, DL.3   | DL.2, DL.4–DL.5 |
 | **SK** | Not started                         | SK.1         | SK.2–SK.4 (need SK.1+) |
 | **TD** | TD.4 done                           | TD.1–TD.3    | —       |
-| **VP** | VP.2, VP.5, VP.9 done                | VP.1, VP.3, VP.4 | VP.6 (needs VP.4), VP.7–VP.8 (need CP.17) |
+| **VP** | VP.2, VP.5, VP.9 done                | VP.1, VP.3, VP.4, VP.7, VP.8 | VP.6 (needs VP.4) |
 
 ---
 
@@ -53,10 +53,11 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.17. Dismissable capture-bar messages — status text set via `SetCaptureText` (e.g. "Sync failed: …" in `app.go`) persists indefinitely with no way to dismiss it and restore the key-hint bar; add an explicit dismiss keypress and consider auto-expiry for transient messages — **no blockers**
+Milestone complete — all CP tasks done.
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
+- [x] CP.17. Dismissable capture-bar messages — added a sticky/transient distinction on `StatusBar`'s capture message: `SetCaptureText` failures (e.g. "Sync failed: …") are now sticky and only cleared by `esc`, while success/info messages still auto-clear after 2s. Fixed a latent race where a stale clear-tick could wipe a newer message before its own timer fired, by adding a generation counter and routing the 8 previously copy-pasted tick literals in `app.go` through one guarded helper. `internal/tui/statusbar.go`, `internal/tui/app.go` — **no blockers**
 - [x] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, doc comments in `form.go`/`spend_form.go`/`spend_form_test.go`, and the `"s: coffee beans"` literal in `TestCaptureBar_SpendPrefix` (`capture_test.go`), so budget-related prefixes group under `b*` — **no blockers**
 - [x] CP.16. Fix edit-mode node data loss — `(formPane).buildNode` now starts from a `Node.Clone()` of the original node (stashed on the `formPane` by the edit constructors) and overwrites only form-owned fields, so budget `spend_log`, `Date` sub-fields, journal `About`, kind/stage, source, and custom/plugin `Properties` all survive edits. `Clone` added to `types.Node`. Also fixed in passing: `handleEditNode` had no `budget` case (budget nodes fell through to the task edit form, rewriting them as tasks — now wired to `newEditBudgetFormPane`); "Warn at" gained `Validate` (optional, [0–1], blank defaults to 1.0 — the warn_at default changed from 0.8 to 1.0 across form, CLI, and budget view); "Allocated" now accepts 0 — **no blockers**
 - [x] CP.14. Budget creation form — `huh`-based form with fields for category name, allocation amount, period select, warn threshold; creates a budget-type node. Shipped on the `b:` prefix; renamed to `bc:` under CP.15 — **depends on CP.13 (done)**
@@ -328,8 +329,8 @@ None.
 
 <a name="mf-blocked"><h4>Blocked (Milestone F)</h4></a>
 - [ ] VP.6. Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` — **depends on VP.4**
-- [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17**
-- [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync`; the bar's terminal failure state is displayed through the CP.17 dismissable-message mechanism — **depends on CP.17**
+- [ ] VP.7. Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal — **depends on CP.17 (done)**
+- [ ] VP.8. Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync`; the bar's terminal failure state is displayed through the CP.17 dismissable-message mechanism — **depends on CP.17 (done)**
 
 <a name="mf-done"><h4>Completed (Milestone F)</h4></a>
 
@@ -363,7 +364,7 @@ mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
 CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::done
 CP16["`*CP.16*<br/>**Capture**<br/>Edit data-loss fix`"]:::done
-CP17["`*CP.17*<br/>**Capture**<br/>Dismissable messages`"]:::open
+CP17["`*CP.17*<br/>**Capture**<br/>Dismissable messages`"]:::done
 
 LG7["`*LG.7*<br/>**Logging**<br/>TUI log overlay`"]:::done
 
