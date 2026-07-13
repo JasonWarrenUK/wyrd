@@ -50,7 +50,7 @@ var _ formActivePane = spendFormPane{}
 func (spendFormPane) isFormActive() {}
 
 // NewSpendFormPane builds a spendFormPane. prefillNote is the text the user
-// typed after the "s:" prefix in the capture bar (may be empty). Exported for
+// typed after the "bs:" prefix in the capture bar (may be empty). Exported for
 // use in tests.
 //
 // Returns an error when no budget category nodes exist in the store.

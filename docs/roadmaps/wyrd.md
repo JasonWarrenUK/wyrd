@@ -5,11 +5,11 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 # Wyrd: Feature Roadmap
 
 > [!NOTE]
-> Capture prefix renames (`s:` → `bs:`, `b:` → `bc:`) are tracked as CP.15; the code currently uses `s:` and `b:`. The `bm:` bookmark prefix arrives with NW.1.
+> Capture prefixes were renamed under CP.15 (`s:` → `bs:`, `b:` → `bc:`); the code now uses `bs:` and `bc:`. The `bm:` bookmark prefix arrives with NW.1.
 
 |        | Status                              | Next Up      | Blocked |
 |--------|-------------------------------------|--------------|---------|
-| **CP** | CP.14, CP.16 done; prefix renames pending | CP.15, CP.17 | —       |
+| **CP** | CP.14, CP.15, CP.16 done            | CP.17        | —       |
 | **LG** | LG.1–LG.7 done — milestone complete | —            | —       |
 | **RT** | RT.1–RT.5 done; actions stubbed     | RT.6–RT.8    | —       |
 | **DA** | No screenshots/gifs                 | DA.1         | DA.2–DA.9 |
@@ -53,13 +53,13 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 <a name="m3-todo"><h4>To Do (Milestone 3)</h4></a>
 
-- [ ] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, tests, and docs, so budget-related prefixes group under `b*` — **no blockers**
 - [ ] CP.17. Dismissable capture-bar messages — status text set via `SetCaptureText` (e.g. "Sync failed: …" in `app.go`) persists indefinitely with no way to dismiss it and restore the key-hint bar; add an explicit dismiss keypress and consider auto-expiry for transient messages — **no blockers**
 
 <a name="m3-done"><h4>Completed (Milestone 3)</h4></a>
 
+- [x] CP.15. Rename capture prefixes — `s:` → `bs:` (spend) and `b:` → `bc:` (budget category) in `parseCapturePrefixes`, the capture hint text, doc comments in `form.go`/`spend_form.go`/`spend_form_test.go`, and the `"s: coffee beans"` literal in `TestCaptureBar_SpendPrefix` (`capture_test.go`), so budget-related prefixes group under `b*` — **no blockers**
 - [x] CP.16. Fix edit-mode node data loss — `(formPane).buildNode` now starts from a `Node.Clone()` of the original node (stashed on the `formPane` by the edit constructors) and overwrites only form-owned fields, so budget `spend_log`, `Date` sub-fields, journal `About`, kind/stage, source, and custom/plugin `Properties` all survive edits. `Clone` added to `types.Node`. Also fixed in passing: `handleEditNode` had no `budget` case (budget nodes fell through to the task edit form, rewriting them as tasks — now wired to `newEditBudgetFormPane`); "Warn at" gained `Validate` (optional, [0–1], blank defaults to 1.0 — the warn_at default changed from 0.8 to 1.0 across form, CLI, and budget view); "Allocated" now accepts 0 — **no blockers**
-- [x] CP.14. Budget creation form — `huh`-based form with fields for category name, allocation amount, period select, warn threshold; creates a budget-type node. Shipped on the `b:` prefix; the `bc:` rename is CP.15 — **depends on CP.13 (done)**
+- [x] CP.14. Budget creation form — `huh`-based form with fields for category name, allocation amount, period select, warn threshold; creates a budget-type node. Shipped on the `b:` prefix; renamed to `bc:` under CP.15 — **depends on CP.13 (done)**
 - [x] CP.13. Add `budget.jsonc` starter template — **no blockers**
 - [x] CP.11. Edge management in edit form — **no blockers**
 - [x] CP.10. Edit existing node — `ctrl+o` opens pre-populated huh form — **no blockers**
@@ -136,7 +136,7 @@ None.
 
 <a name="m7-blocked"><h4>Blocked (Milestone 7)</h4></a>
 
-- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, CP.15, Milestone A (SL.7c, SL.11 (done), SL.12 (done), SL.14), Milestone B (NW.2), Milestone C (DL.2, DL.5), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
+- [ ] DA.2. Capture freeze screenshot of main TUI view (node list + detail pane) for README hero — **depends on VS.10 (done), DA.1, CP.15 (done), Milestone A (SL.7c, SL.11 (done), SL.12 (done), SL.14), Milestone B (NW.2), Milestone C (DL.2, DL.5), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.3. Capture freeze screenshot of budget view with progress bars — **depends on DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8), Milestone G (SP.4, SP.6, SP.9, SP.11)**
 - [ ] DA.4. Capture freeze screenshot of schedule view — **depends on DA.1, Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
 - [ ] DA.5. Write VHS tape for task creation flow (capture bar → huh form → node appears in list) — **depends on CP.2 (done), DA.1, Milestone A (SL.7c, SL.11 (done), SL.12 (done), SL.14), Milestone F (VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8)**
@@ -361,7 +361,7 @@ mTE["`**Milestone E**<br/>Tech Debt`"]:::mile
 mVP["`**Milestone F**<br/>Visual Polish`"]:::mile
 
 CP14["`*CP.14*<br/>**Capture**<br/>Budget form`"]:::done
-CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::open
+CP15["`*CP.15*<br/>**Capture**<br/>Prefix renames`"]:::done
 CP16["`*CP.16*<br/>**Capture**<br/>Edit data-loss fix`"]:::done
 CP17["`*CP.17*<br/>**Capture**<br/>Dismissable messages`"]:::open
 

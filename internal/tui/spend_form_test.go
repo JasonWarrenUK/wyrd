@@ -123,7 +123,7 @@ func TestSpendFormPaneViewRenders(t *testing.T) {
 	}
 }
 
-// TestSpendFormPanePrefillNote verifies that the text after "s:" is used as
+// TestSpendFormPanePrefillNote verifies that the text after "bs:" is used as
 // the note pre-fill.
 func TestSpendFormPanePrefillNote(t *testing.T) {
 	theme, err := tui.LoadTheme(".", "")

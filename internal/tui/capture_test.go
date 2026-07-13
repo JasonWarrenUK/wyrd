@@ -198,7 +198,7 @@ func TestCaptureBar_SpendPrefix(t *testing.T) {
 	// "spend" is a routing token, not a node type. Submit() should return nil
 	// rather than creating a node. The actual spend form is opened by
 	// handleCaptureKey in app.go.
-	bar.SetInput("s: coffee beans")
+	bar.SetInput("bs: coffee beans")
 
 	result, err := bar.Submit()
 	if err != nil {
