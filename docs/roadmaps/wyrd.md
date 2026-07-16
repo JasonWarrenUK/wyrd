@@ -472,7 +472,7 @@ graph LR
 	VP7 --> MF
 	VP8 --> MF
 
-	class CO2 & DA1 & DL3 & DL6 & NW1 & RT6 & RT7 & RT8 & SK1 & SL10 & SP7 & TD1 & TD2 & TD3 & VP1 & VP3 & VP4 & VP7 & VP8 open
-	class CO3 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL1 & DL2 & DL4 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 & VP6 blocked
-	class CO1 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP2 & VP5 & VP9 done
+	class CO2 & DA1 & DL3 & NW1 & RT6 & RT7 & RT8 & SK1 & SL10 & SP7 & TD1 & TD2 & TD3 & VP1 & VP3 & VP4 & VP7 & VP8 open
+	class CO3 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL2 & DL4 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 & VP6 blocked
+	class CO1 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & DL1 & DL6 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP2 & VP5 & VP9 done
 ```
