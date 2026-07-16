@@ -66,6 +66,29 @@ func TestTypeBadges_Empty(t *testing.T) {
 	}
 }
 
+func TestBlockedBadge_WithGlyph(t *testing.T) {
+	badge := BlockedBadge("✖")
+	if badge == "" {
+		t.Fatal("expected non-empty badge")
+	}
+	if !strings.Contains(badge, "BLOCKED") {
+		t.Errorf("expected badge to contain 'BLOCKED', got: %q", badge)
+	}
+	if !strings.Contains(badge, "✖") {
+		t.Errorf("expected badge to contain glyph '✖', got: %q", badge)
+	}
+}
+
+func TestBlockedBadge_NoGlyph(t *testing.T) {
+	badge := BlockedBadge("")
+	if badge == "" {
+		t.Fatal("expected non-empty badge")
+	}
+	if !strings.Contains(badge, "BLOCKED") {
+		t.Errorf("expected badge to contain 'BLOCKED', got: %q", badge)
+	}
+}
+
 func TestTypeBadges_MultipleBadges(t *testing.T) {
 	result := TypeBadges([]string{"task", "note"}, lipgloss.NoColor{})
 	if result == "" {

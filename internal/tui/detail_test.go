@@ -335,6 +335,113 @@ func TestRender_ArchivedNode_BodyStillRendered(t *testing.T) {
 	}
 }
 
+// --- Blocked node tests (DL.2) ---
+
+// blockedTestRegistries returns a Kind + StageGroup registry pair with a
+// single "task" kind on a terminate-cycle "task-flow" group, mirroring the
+// query engine's taskFlowRegistries fixture (internal/query/evaluator_test.go)
+// so blocked/terminal semantics stay consistent across both call sites.
+func blockedTestRegistries() (*types.KindRegistry, *types.StageGroupRegistry) {
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{
+			Name:   "task-flow",
+			Stages: []string{"Open", "Maybe", "Later", "Soon", "Now", "Done"},
+			Cycle:  types.CycleTerminate,
+		},
+	})
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "task", StageGroup: "task-flow"},
+	})
+	return kinds, groups
+}
+
+func TestRender_BlockedNode_ShowsBannerAndBlockedBy(t *testing.T) {
+	blocker := simpleNode("blocker-1", "Blocking task", []string{"task"})
+	blocker.Title = "Blocking task"
+	blocker.Kind = "task"
+	blocker.Stage = "Now" // non-terminal
+
+	node := simpleNode("n-blocked", "Blocked task body", []string{"task"})
+	edges := []*types.Edge{
+		{ID: "e1", Type: "blocks", From: blocker.ID, To: node.ID},
+	}
+	nodesByID := map[string]*types.Node{blocker.ID: blocker}
+
+	kinds, groups := blockedTestRegistries()
+	r := newRenderer()
+	r.Kinds = kinds
+	r.StageGroups = groups
+
+	output := stripANSI(r.Render(node, edges, nodesByID, nil, testNow))
+
+	if !strings.Contains(output, "BLOCKED") {
+		t.Errorf("expected BLOCKED banner in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "BLOCKED BY") {
+		t.Errorf("expected BLOCKED BY section in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Blocking task") {
+		t.Errorf("expected blocker title in BLOCKED BY section, got:\n%s", output)
+	}
+}
+
+func TestRender_TerminalBlocker_NoBanner(t *testing.T) {
+	blocker := simpleNode("blocker-2", "Done task", []string{"task"})
+	blocker.Title = "Done task"
+	blocker.Kind = "task"
+	blocker.Stage = "Done" // terminal — lifts the block
+
+	node := simpleNode("n-unblocked", "Free task body", []string{"task"})
+	edges := []*types.Edge{
+		{ID: "e2", Type: "blocks", From: blocker.ID, To: node.ID},
+	}
+	nodesByID := map[string]*types.Node{blocker.ID: blocker}
+
+	kinds, groups := blockedTestRegistries()
+	r := newRenderer()
+	r.Kinds = kinds
+	r.StageGroups = groups
+
+	output := stripANSI(r.Render(node, edges, nodesByID, nil, testNow))
+
+	if strings.Contains(output, "BLOCKED") {
+		t.Errorf("expected no BLOCKED banner when blocker is terminal, got:\n%s", output)
+	}
+	if strings.Contains(output, "BLOCKED BY") {
+		t.Errorf("expected no BLOCKED BY section when blocker is terminal, got:\n%s", output)
+	}
+}
+
+func TestRender_NoBlocksEdges_NoBanner(t *testing.T) {
+	node := simpleNode("n-noedges", "Standalone task", []string{"task"})
+	r := newRenderer()
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if strings.Contains(output, "BLOCKED") {
+		t.Errorf("expected no BLOCKED banner with no blocks edges, got:\n%s", output)
+	}
+}
+
+func TestRender_UnresolvableBlocker_StillShowsBanner(t *testing.T) {
+	// Blocker has no Kind/Stage set — terminality can't be resolved, so
+	// "presence blocks" applies (mirrors types.EvalBlockers/Blockers).
+	blocker := simpleNode("blocker-3", "Untriaged blocker", nil)
+	blocker.Title = "Untriaged blocker"
+
+	node := simpleNode("n-unresolved", "Task blocked by untriaged node", []string{"task"})
+	edges := []*types.Edge{
+		{ID: "e3", Type: "blocks", From: blocker.ID, To: node.ID},
+	}
+	nodesByID := map[string]*types.Node{blocker.ID: blocker}
+
+	r := newRenderer() // no Kinds/StageGroups wired — registries absent too
+	output := stripANSI(r.Render(node, edges, nodesByID, nil, testNow))
+
+	if !strings.Contains(output, "BLOCKED") {
+		t.Errorf("expected BLOCKED banner for unresolvable blocker (presence blocks), got:\n%s", output)
+	}
+}
+
 func TestRender_NonArchivedNode_NoBanner(t *testing.T) {
 	node := simpleNode("n5", "Active node", []string{"task"})
 	node.Properties = map[string]interface{}{

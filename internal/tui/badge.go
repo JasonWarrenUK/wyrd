@@ -63,6 +63,27 @@ func TypeBadge(typeName string) string {
 		Render(typeName)
 }
 
+// blockedBadgeColour is the fixed pill colour for BlockedBadge — raspberry-5
+// from Reasonable Colors, matching the badgePalette entries' FG convention.
+var blockedBadgeColour = BadgeColour{BG: "#82002c", FG: "#f6f6f6"}
+
+// BlockedBadge renders a self-contained "BLOCKED" pill, prefixed with glyph
+// (typically theme.Glyphs().Blocked, default "✖") so it respects theme
+// overrides. Like TypeBadge, it carries its own background and foreground so
+// it is bleed-safe on any container background.
+func BlockedBadge(glyph string) string {
+	label := "BLOCKED"
+	if glyph != "" {
+		label = glyph + " " + label
+	}
+	return lipgloss.NewStyle().
+		Background(lipgloss.Color(blockedBadgeColour.BG)).
+		Foreground(lipgloss.Color(blockedBadgeColour.FG)).
+		Padding(0, 1).
+		Bold(true).
+		Render(label)
+}
+
 // TypeBadges renders multiple type names as space-separated pill badges.
 // containerBg is the background colour of the surrounding element — used for
 // the spacer between badges so there is no bleed at badge boundaries.
