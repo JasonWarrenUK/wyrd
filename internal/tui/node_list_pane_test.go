@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/list"
@@ -152,7 +153,7 @@ func TestRowsToItems_NoGrouping(t *testing.T) {
 	cols := []string{"title"}
 	widths := []int{10}
 
-	items := rowsToItems(rows, cols, widths, "")
+	items := rowsToItems(rows, cols, widths, "", "")
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(items))
 	}
@@ -160,6 +161,69 @@ func TestRowsToItems_NoGrouping(t *testing.T) {
 		if _, ok := item.(nodeListItem); !ok {
 			t.Errorf("expected nodeListItem, got %T", item)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// formatRowTitle / isBlockedRow — blocked glyph prefix (DL.2)
+// ---------------------------------------------------------------------------
+
+func TestFormatRowTitle_BlockedRowGetsGlyphPrefix(t *testing.T) {
+	row := map[string]interface{}{"title": "Blocked task", "isBlocked": true}
+	cols := []string{"title"}
+	widths := []int{20}
+
+	got := formatRowTitle(row, cols, widths, "✖")
+	if !strings.HasPrefix(got, "✖") {
+		t.Errorf("expected title to start with blocked glyph, got %q", got)
+	}
+}
+
+func TestFormatRowTitle_UnblockedRowNoPrefix(t *testing.T) {
+	row := map[string]interface{}{"title": "Free task", "isBlocked": false}
+	cols := []string{"title"}
+	widths := []int{20}
+
+	got := formatRowTitle(row, cols, widths, "✖")
+	if strings.HasPrefix(got, "✖") {
+		t.Errorf("unblocked row should not carry the blocked glyph, got %q", got)
+	}
+}
+
+func TestFormatRowTitle_EmptyGlyphDisablesPrefix(t *testing.T) {
+	row := map[string]interface{}{"title": "Blocked task", "isBlocked": true}
+	cols := []string{"title"}
+	widths := []int{20}
+
+	got := formatRowTitle(row, cols, widths, "")
+	if strings.HasPrefix(got, "✖") {
+		t.Errorf("empty blockedGlyph should disable the prefix, got %q", got)
+	}
+}
+
+func TestFormatRowTitle_IsBlockedColumnNotRenderedAsCell(t *testing.T) {
+	row := map[string]interface{}{"title": "Task", "isBlocked": true}
+	cols := []string{"title", "isBlocked"}
+	widths := []int{20, 4}
+
+	got := formatRowTitle(row, cols, widths, "")
+	if got != listPadOrTruncate("Task", 20) {
+		t.Errorf("isBlocked should never render as a text cell, got %q", got)
+	}
+}
+
+func TestIsBlockedRow(t *testing.T) {
+	if isBlockedRow(map[string]interface{}{"isBlocked": true}) != true {
+		t.Error("expected true for isBlocked=true")
+	}
+	if isBlockedRow(map[string]interface{}{"isBlocked": false}) != false {
+		t.Error("expected false for isBlocked=false")
+	}
+	if isBlockedRow(map[string]interface{}{}) != false {
+		t.Error("expected false when isBlocked is absent")
+	}
+	if isBlockedRow(map[string]interface{}{"isBlocked": "not-a-bool"}) != false {
+		t.Error("expected false for non-bool isBlocked value")
 	}
 }
 
@@ -176,7 +240,7 @@ func TestRowsToItems_WithGrouping_InsertsHeaders(t *testing.T) {
 	cols := []string{"category", "title"}
 	widths := []int{8, 10}
 
-	items := rowsToItems(rows, cols, widths, "category")
+	items := rowsToItems(rows, cols, widths, "category", "")
 	// Expected: header(Tasks), t1, t2, header(Notes), n1 = 5 items.
 	if len(items) != 5 {
 		t.Fatalf("expected 5 items (2 headers + 3 data), got %d", len(items))
@@ -211,7 +275,7 @@ func TestRowsToItems_SingleGroup(t *testing.T) {
 	cols := []string{"category", "title"}
 	widths := []int{8, 10}
 
-	items := rowsToItems(rows, cols, widths, "category")
+	items := rowsToItems(rows, cols, widths, "category", "")
 	// header + 2 data = 3.
 	if len(items) != 3 {
 		t.Fatalf("expected 3 items (1 header + 2 data), got %d", len(items))
@@ -230,7 +294,7 @@ func TestRowsToItems_PreservesGroupOrder(t *testing.T) {
 	cols := []string{"category", "title"}
 	widths := []int{8, 10}
 
-	items := rowsToItems(rows, cols, widths, "category")
+	items := rowsToItems(rows, cols, widths, "category", "")
 	// Expected: header(Journals), j1, header(Tasks), t1.
 	if h, ok := items[0].(groupHeaderItem); !ok || h.label != "Journals" {
 		t.Errorf("expected first header 'Journals', got %v", items[0])
@@ -241,7 +305,7 @@ func TestRowsToItems_PreservesGroupOrder(t *testing.T) {
 }
 
 func TestRowsToItems_EmptyRows_WithGrouping(t *testing.T) {
-	items := rowsToItems(nil, []string{"category", "title"}, []int{8, 10}, "category")
+	items := rowsToItems(nil, []string{"category", "title"}, []int{8, 10}, "category", "")
 	if len(items) != 0 {
 		t.Errorf("expected 0 items for empty rows, got %d", len(items))
 	}
@@ -256,7 +320,7 @@ func TestRowsToItems_GroupByKind(t *testing.T) {
 	cols := []string{"kind", "title"}
 	widths := []int{8, 10}
 
-	items := rowsToItems(rows, cols, widths, "kind")
+	items := rowsToItems(rows, cols, widths, "kind", "")
 	// Expected: header(Tasks), t1, t2, header(Events), e1 = 5 items.
 	if len(items) != 5 {
 		t.Fatalf("expected 5 items (2 headers + 3 data), got %d", len(items))
@@ -278,7 +342,7 @@ func TestRowsToItems_GroupByStage(t *testing.T) {
 	cols := []string{"stage", "title"}
 	widths := []int{8, 10}
 
-	items := rowsToItems(rows, cols, widths, "stage")
+	items := rowsToItems(rows, cols, widths, "stage", "")
 	// Expected: header(Now), a, b, header(Later), c = 5 items.
 	if len(items) != 5 {
 		t.Fatalf("expected 5 items (2 headers + 3 data), got %d", len(items))

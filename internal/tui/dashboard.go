@@ -47,23 +47,23 @@ func DefaultDashboardQuery() DashboardQuery {
 	return DashboardQuery{
 		Tasks: `MATCH (n:task)
 WHERE n.status <> "archived" AND (n.date.due <= $today OR n.date.due IS NULL)
-RETURN n.id AS id, n.title AS title, n.date.due AS date, "task" AS category
+RETURN n.id AS id, n.title AS title, n.date.due AS date, "task" AS category, n.isBlocked AS isBlocked
 ORDER BY n.date.due`,
 
 		Notes: `MATCH (n:note)
 WHERE n.status <> "archived"
-RETURN n.id AS id, n.title AS title, null AS date, "note" AS category
+RETURN n.id AS id, n.title AS title, null AS date, "note" AS category, n.isBlocked AS isBlocked
 LIMIT 10`,
 
 		Journals: `MATCH (n:journal)
 WHERE n.status <> "archived"
-RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category
+RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category, n.isBlocked AS isBlocked
 ORDER BY n.date.created DESC
 LIMIT 5`,
 
 		Budgets: `MATCH (n:budget)
 WHERE n.status <> "archived"
-RETURN n.id AS id, n.title AS title, null AS date, "budget" AS category`,
+RETURN n.id AS id, n.title AS title, null AS date, "budget" AS category, n.isBlocked AS isBlocked`,
 	}
 }
 
@@ -209,17 +209,23 @@ func parseDate(v interface{}) *time.Time {
 
 // projectColumns returns a new slice of rows containing only the specified
 // columns, preserving order. Extra columns in the source rows are dropped,
-// except "id" which is always retained for navigation even when not displayed.
+// except "id" (navigation) and "isBlocked" (DL.2 list badge), which are always
+// retained even when not displayed as visible columns.
 func projectColumns(rows []map[string]interface{}, cols []string) []map[string]interface{} {
 	out := make([]map[string]interface{}, len(rows))
 	for i, row := range rows {
-		projected := make(map[string]interface{}, len(cols)+1)
+		projected := make(map[string]interface{}, len(cols)+2)
 		for _, col := range cols {
 			projected[col] = row[col]
 		}
 		// Always carry the id so nodeListItem can populate its NodeID field.
 		if _, hasID := projected["id"]; !hasID {
 			projected["id"] = row["id"]
+		}
+		// Always carry isBlocked so the list badge can be rendered without it
+		// appearing as a visible text column (DL.2).
+		if _, hasBlocked := projected["isBlocked"]; !hasBlocked {
+			projected["isBlocked"] = row["isBlocked"]
 		}
 		out[i] = projected
 	}

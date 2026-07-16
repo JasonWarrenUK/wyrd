@@ -28,10 +28,11 @@ func (s *stubRunner) Run(q string, _ types.Clock) (*types.QueryResult, error) {
 // row is a helper to build a result row.
 func row(category, title string, date interface{}) map[string]interface{} {
 	return map[string]interface{}{
-		"category": category,
-		"title":    title,
-		"date":     date,
-		"id":       "dummy-id",
+		"category":  category,
+		"title":     title,
+		"date":      date,
+		"id":        "dummy-id",
+		"isBlocked": false,
 	}
 }
 
@@ -148,6 +149,41 @@ func TestRunDashboard_Columns(t *testing.T) {
 	// id must be present in the row for navigation, even though it is not a display column.
 	if _, ok := result.Rows[0]["id"]; !ok {
 		t.Error("'id' must be retained in projected rows for node navigation")
+	}
+}
+
+// TestRunDashboard_IsBlockedCarriedButNotDisplayed verifies that isBlocked
+// (projected by n.isBlocked, DL.1) survives projectColumns for the list badge
+// (DL.2) without appearing as a visible display column.
+func TestRunDashboard_IsBlockedCarriedButNotDisplayed(t *testing.T) {
+	cfg := DefaultDashboardQuery()
+	clock := types.StubClock{Fixed: date("2026-03-20")}
+
+	blockedRow := row("task", "Blocked task", date("2026-03-20"))
+	blockedRow["isBlocked"] = true
+
+	runner := &stubRunner{
+		results: map[string]*types.QueryResult{
+			cfg.Tasks: {
+				Columns: []string{"id", "title", "date", "category", "isBlocked"},
+				Rows:    []map[string]interface{}{blockedRow},
+			},
+		},
+	}
+
+	result, err := RunDashboard(runner, clock, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, col := range result.Columns {
+		if col == "isBlocked" {
+			t.Errorf("isBlocked must not appear as a visible display column, got columns: %v", result.Columns)
+		}
+	}
+
+	if blocked, ok := result.Rows[0]["isBlocked"].(bool); !ok || !blocked {
+		t.Errorf("expected isBlocked=true to be carried through in row data, got %v", result.Rows[0]["isBlocked"])
 	}
 }
 

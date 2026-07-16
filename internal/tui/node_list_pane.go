@@ -179,7 +179,7 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	const initialWidth = 80
 	const delegatePad = 1 // left padding added by the delegate style
 	widths := calculateColWidths(result.Rows, cols, initialWidth-delegatePad)
-	items := rowsToItems(result.Rows, cols, widths, groupCol)
+	items := rowsToItems(result.Rows, cols, widths, groupCol, theme.Glyphs().Blocked)
 
 	// Use groupedDelegate when grouping is active, DefaultDelegate otherwise.
 	var delegate list.ItemDelegate
@@ -286,7 +286,7 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		prevID := p.SelectedNodeID()
 		// Recompute column widths for the new inner pane width and rebuild items.
 		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
-		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol))
+		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol, p.theme.Glyphs().Blocked))
 		// Restore the previously-selected row rather than resetting to the first
 		// data row. Fall back to skipInitialHeaders only when nothing was selected
 		// (empty list, or the selected node no longer exists after a reload).
@@ -520,14 +520,15 @@ func toStageLabel(raw string) string {
 // When groupCol is non-empty, rows are grouped by that column and
 // groupHeaderItem separators are inserted at each group boundary.
 // colWidths must be the same length as the non-id, non-groupCol display columns.
-func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, groupCol string) []list.Item {
+// blockedGlyph is prefixed onto blocked rows' titles (DL.2); pass "" to disable.
+func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, groupCol string, blockedGlyph string) []list.Item {
 	if groupCol == "" {
 		items := make([]list.Item, len(rows))
 		for i, row := range rows {
 			id, _ := row["id"].(string)
 			items[i] = nodeListItem{
 				row:   row,
-				title: formatRowTitle(row, cols, colWidths),
+				title: formatRowTitle(row, cols, colWidths, blockedGlyph),
 				id:    id,
 			}
 		}
@@ -558,7 +559,7 @@ func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, 
 			id, _ := row["id"].(string)
 			items = append(items, nodeListItem{
 				row:   row,
-				title: formatRowTitle(row, cols, colWidths),
+				title: formatRowTitle(row, cols, colWidths, blockedGlyph),
 				id:    id,
 			})
 		}
@@ -568,12 +569,15 @@ func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, 
 
 // formatRowTitle produces the single-line display string for a row.
 // Each non-id cell is padded or truncated to its column width, then joined
-// with listColPadding spaces so all rows align with the header.
-func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int) string {
+// with listColPadding spaces so all rows align with the header. When the row
+// carries isBlocked=true (projected by the dashboard/view queries via
+// n.isBlocked, DL.1), blockedGlyph is prefixed so blocked nodes are visible
+// at a glance in the list (DL.2). Pass an empty blockedGlyph to disable.
+func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int, blockedGlyph string) string {
 	parts := make([]string, 0, len(cols))
 	wi := 0
 	for _, col := range cols {
-		if col == "id" {
+		if col == "id" || col == "isBlocked" {
 			continue
 		}
 		w := 0
@@ -583,7 +587,18 @@ func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int) 
 		wi++
 		parts = append(parts, listPadOrTruncate(formatCellValue(row[col]), w))
 	}
-	return strings.Join(parts, strings.Repeat(" ", listColPadding))
+	title := strings.Join(parts, strings.Repeat(" ", listColPadding))
+	if blockedGlyph != "" && isBlockedRow(row) {
+		title = blockedGlyph + " " + title
+	}
+	return title
+}
+
+// isBlockedRow reports whether a row's isBlocked cell (projected by
+// n.isBlocked, DL.1) is truthy. Absent or non-bool values are not blocked.
+func isBlockedRow(row map[string]interface{}) bool {
+	b, _ := row["isBlocked"].(bool)
+	return b
 }
 
 // calculateColWidths computes the display width for each non-id column.
