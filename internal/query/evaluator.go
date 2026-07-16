@@ -668,37 +668,11 @@ func (ev *evaluator) isBlockedUnresolved(node *types.Node) bool {
 	return blocked && unresolved
 }
 
-// evalBlockers walks node's incoming "blocks" edges and reports whether any
-// still blocks (blocked) and whether that verdict rests on at least one
-// unresolvable blocker (unresolved) rather than a confirmed non-terminal one.
+// evalBlockers reports whether node is blocked and whether that verdict rests
+// on an unresolvable blocker. Thin wrapper over types.EvalBlockers (moved
+// there in DL.2 so the TUI can share the same derivation without a query).
 func (ev *evaluator) evalBlockers(node *types.Node) (blocked bool, unresolved bool) {
-	if node == nil || ev.index == nil {
-		return false, false
-	}
-	for _, edge := range ev.index.EdgesTo(node.ID) {
-		if edge.Type != string(types.EdgeBlocks) {
-			continue
-		}
-		source, err := ev.index.GetNode(edge.From)
-		if err != nil || source == nil {
-			// Dangling edge: the blocker can't be inspected at all.
-			blocked = true
-			unresolved = true
-			continue
-		}
-		group, ok := types.ResolveStageGroup(ev.kinds, ev.stageGroups, source)
-		if !ok {
-			// Unknown kind / empty stage / registries not wired: presence
-			// blocks, but flag it as unresolved rather than confirmed.
-			blocked = true
-			unresolved = true
-			continue
-		}
-		if !group.IsTerminal(source.Stage) {
-			blocked = true
-		}
-	}
-	return blocked, unresolved
+	return types.EvalBlockers(ev.index, ev.kinds, ev.stageGroups, node)
 }
 
 // nodePropertyChain resolves a property path of one or more segments on a node.

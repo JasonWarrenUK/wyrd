@@ -56,6 +56,18 @@ type DetailRenderer struct {
 	// May be nil (e.g. in tests); renderKindStageLine guards for nil before calling Lookup.
 	Kinds *types.KindRegistry
 
+	// StageGroups is the merged stage-group registry used to resolve blocker
+	// terminality (DL.2, mirrors the query engine's WithStageResolver). May be
+	// nil (e.g. in tests); a nil registry makes any blocker unresolvable,
+	// which "presence blocks" per types.EvalBlockers/Blockers semantics.
+	StageGroups *types.StageGroupRegistry
+
+	// BlockedGlyph is the glyph shown in the BLOCKED banner and BLOCKED BY
+	// section (DL.2). Defaults to "✖" via NewDetailRenderer, matching
+	// types.ThemeGlyphs.Blocked's built-in default; callers wire the live
+	// theme's glyph in to respect user overrides.
+	BlockedGlyph string
+
 	// glamRenderer caches the Glamour terminal renderer so it is only created
 	// once (or recreated when Width, dark/light mode, or the active theme changes).
 	glamRenderer *glamour.TermRenderer
@@ -67,8 +79,9 @@ type DetailRenderer struct {
 // NewDetailRenderer creates a DetailRenderer with default colours and a sensible width.
 func NewDetailRenderer() *DetailRenderer {
 	return &DetailRenderer{
-		Width:   80,
-		Colours: defaultColours(),
+		Width:        80,
+		Colours:      defaultColours(),
+		BlockedGlyph: "✖",
 	}
 }
 
@@ -113,6 +126,7 @@ func (r *DetailRenderer) Render(
 		Bold(true)
 
 	isArchived := isArchivedNode(node)
+	blockers := r.blockers(node, edges, nodesByID)
 
 	var sb strings.Builder
 
@@ -123,6 +137,12 @@ func (r *DetailRenderer) Render(
 			Background(bg).
 			Bold(true)
 		sb.WriteString(archivedStyle.Render("ARCHIVED"))
+		sb.WriteString("\n\n")
+	}
+
+	// --- BLOCKED banner (DL.2) ---
+	if len(blockers) > 0 {
+		sb.WriteString(BlockedBadge(r.BlockedGlyph))
 		sb.WriteString("\n\n")
 	}
 
@@ -175,6 +195,19 @@ func (r *DetailRenderer) Render(
 	if node.Source != nil {
 		sb.WriteString(renderSourceIndicator(node.Source, mutedStyle))
 		sb.WriteString("\n\n")
+	}
+
+	// --- BLOCKED BY section (DL.2) ---
+	if len(blockers) > 0 {
+		sb.WriteString(sectionHeaderStyle.Render("BLOCKED BY"))
+		sb.WriteString("\n")
+		blockedGlyphStyle := lipgloss.NewStyle().Foreground(c.BudgetOver).Background(bg)
+		sp := Spacer(1, bg)
+		for _, blocker := range blockers {
+			sb.WriteString(blockedGlyphStyle.Render(r.BlockedGlyph) + sp + mutedStyle.Render(nodeTitle(blocker)))
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
 	}
 
 	// --- EDGES section ---
@@ -360,6 +393,35 @@ func isArchivedNode(node *types.Node) bool {
 	}
 	status, _ := node.Properties["status"].(string)
 	return status == "archived"
+}
+
+// blockers returns the nodes currently holding a block on node (DL.2),
+// mirroring types.Blockers' semantics (non-terminal or unresolvable blockers
+// count; terminal blockers don't) but working from the edges/nodesByID the
+// caller already gathered rather than a types.GraphIndex — renderDetail
+// collects both anyway when building the EDGES section, so no extra
+// dependency is threaded into DetailRenderer.
+func (r *DetailRenderer) blockers(node *types.Node, edges []*types.Edge, nodesByID map[string]*types.Node) []*types.Node {
+	if node == nil {
+		return nil
+	}
+	var blockers []*types.Node
+	for _, edge := range edges {
+		if edge.Type != string(types.EdgeBlocks) || edge.To != node.ID {
+			continue
+		}
+		source, ok := nodesByID[edge.From]
+		if !ok || source == nil {
+			// Dangling edge: no node to show, but it does still block per
+			// types.EvalBlockers — omitted here since there's nothing to render.
+			continue
+		}
+		group, resolved := types.ResolveStageGroup(r.Kinds, r.StageGroups, source)
+		if !resolved || !group.IsTerminal(source.Stage) {
+			blockers = append(blockers, source)
+		}
+	}
+	return blockers
 }
 
 // nodeTitle returns the node's Title when set, falling back to the first line
