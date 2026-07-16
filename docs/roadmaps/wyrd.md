@@ -240,7 +240,7 @@ None yet.
 
 <a name="mb-todo"><h4>To Do (Milestone B)</h4></a>
 
-- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional; the form carries the SL.7 kind select from birth). `bm:` does not collide with `b:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **depends on SL.7b (done)**
+- [ ] NW.1. Add `bookmark` node type with `url` property; `bm:` capture prefix triggers a form (url required, title optional; the form carries the SL.7 kind select from birth). `bm:` does not collide with `bc:`/`bs:` (prefix matching is exact); registering bookmark as a default kind folds into SL.5 — **depends on SL.7b (done)**
 
 <a name="mb-blocked"><h4>Blocked (Milestone B)</h4></a>
 
