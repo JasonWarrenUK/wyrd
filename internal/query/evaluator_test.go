@@ -577,3 +577,183 @@ func TestEngine_NilClock(t *testing.T) {
 		t.Errorf("expected 1 row, got %d", len(result.Rows))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// n.isBlocked computed property (DL.1)
+// ---------------------------------------------------------------------------
+
+// taskFlowRegistries returns a Kind + StageGroup registry pair with a single
+// "task" kind on a terminate-cycle "task-flow" group (Open -> ... -> Done),
+// mirroring the shipped defaults closely enough for isBlocked tests.
+func taskFlowRegistries() (*types.KindRegistry, *types.StageGroupRegistry) {
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{
+			Name:   "task-flow",
+			Stages: []string{"Open", "Maybe", "Later", "Soon", "Now", "Done"},
+			Cycle:  types.CycleTerminate,
+		},
+	})
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "task", StageGroup: "task-flow"},
+	})
+	return kinds, groups
+}
+
+func TestEngine_IsBlocked_NonTerminalBlocker(t *testing.T) {
+	blocker := makeNode("b1", "Blocker", []string{"task"}, nil)
+	blocker.Kind = "task"
+	blocker.Stage = "Now" // not terminal
+	target := makeNode("t1", "Target", []string{"task"}, nil)
+	target.Kind = "task"
+	target.Stage = "Open"
+	g := &mockGraph{
+		nodes: []*types.Node{blocker, target},
+		edges: []*types.Edge{makeEdge("e1", "blocks", "b1", "t1")},
+	}
+	kinds, groups := taskFlowRegistries()
+	e := NewEngine(g, 5, WithStageResolver(kinds, groups))
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.body = "Target" RETURN n.isBlocked, n.isBlockedUnresolved`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(result.Rows))
+	}
+	row := result.Rows[0]
+	if row["n.isBlocked"] != true {
+		t.Errorf("expected isBlocked true, got %v", row["n.isBlocked"])
+	}
+	if row["n.isBlockedUnresolved"] != false {
+		t.Errorf("expected isBlockedUnresolved false (confirmed block), got %v", row["n.isBlockedUnresolved"])
+	}
+}
+
+func TestEngine_IsBlocked_TerminalBlockerLifts(t *testing.T) {
+	blocker := makeNode("b1", "Blocker", []string{"task"}, nil)
+	blocker.Kind = "task"
+	blocker.Stage = "Done" // terminal
+	target := makeNode("t1", "Target", []string{"task"}, nil)
+	target.Kind = "task"
+	target.Stage = "Open"
+	g := &mockGraph{
+		nodes: []*types.Node{blocker, target},
+		edges: []*types.Edge{makeEdge("e1", "blocks", "b1", "t1")},
+	}
+	kinds, groups := taskFlowRegistries()
+	e := NewEngine(g, 5, WithStageResolver(kinds, groups))
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.body = "Target" RETURN n.isBlocked`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Rows[0]["n.isBlocked"] != false {
+		t.Errorf("expected isBlocked false (blocker at terminal stage), got %v", result.Rows[0]["n.isBlocked"])
+	}
+}
+
+func TestEngine_IsBlocked_NoIncomingBlocksEdge(t *testing.T) {
+	target := makeNode("t1", "Target", []string{"task"}, nil)
+	target.Kind = "task"
+	target.Stage = "Open"
+	g := &mockGraph{nodes: []*types.Node{target}}
+	kinds, groups := taskFlowRegistries()
+	e := NewEngine(g, 5, WithStageResolver(kinds, groups))
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) RETURN n.isBlocked`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Rows[0]["n.isBlocked"] != false {
+		t.Errorf("expected isBlocked false (no blocks edges), got %v", result.Rows[0]["n.isBlocked"])
+	}
+}
+
+func TestEngine_IsBlocked_UnresolvableBlockerPresenceBlocks(t *testing.T) {
+	// Blocker has no Kind set (empty stage/kind) -> terminality unresolvable.
+	blocker := makeNode("b1", "Blocker", []string{"task"}, nil)
+	target := makeNode("t1", "Target", []string{"task"}, nil)
+	target.Kind = "task"
+	target.Stage = "Open"
+	g := &mockGraph{
+		nodes: []*types.Node{blocker, target},
+		edges: []*types.Edge{makeEdge("e1", "blocks", "b1", "t1")},
+	}
+	kinds, groups := taskFlowRegistries()
+	e := NewEngine(g, 5, WithStageResolver(kinds, groups))
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.body = "Target" RETURN n.isBlocked, n.isBlockedUnresolved`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	row := result.Rows[0]
+	if row["n.isBlocked"] != true {
+		t.Errorf("expected isBlocked true (presence blocks on unresolvable blocker), got %v", row["n.isBlocked"])
+	}
+	if row["n.isBlockedUnresolved"] != true {
+		t.Errorf("expected isBlockedUnresolved true, got %v", row["n.isBlockedUnresolved"])
+	}
+}
+
+func TestEngine_IsBlocked_NoRegistriesWiredPresenceBlocks(t *testing.T) {
+	// Engine built WITHOUT WithStageResolver: registries are nil, so even a
+	// well-formed blocker's terminality cannot be resolved.
+	blocker := makeNode("b1", "Blocker", []string{"task"}, nil)
+	blocker.Kind = "task"
+	blocker.Stage = "Done"
+	target := makeNode("t1", "Target", []string{"task"}, nil)
+	target.Kind = "task"
+	target.Stage = "Open"
+	g := &mockGraph{
+		nodes: []*types.Node{blocker, target},
+		edges: []*types.Edge{makeEdge("e1", "blocks", "b1", "t1")},
+	}
+	e := newTestEngine(g) // no WithStageResolver
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.body = "Target" RETURN n.isBlocked, n.isBlockedUnresolved`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	row := result.Rows[0]
+	if row["n.isBlocked"] != true {
+		t.Errorf("expected isBlocked true (nil registries -> unresolvable -> presence blocks), got %v", row["n.isBlocked"])
+	}
+	if row["n.isBlockedUnresolved"] != true {
+		t.Errorf("expected isBlockedUnresolved true, got %v", row["n.isBlockedUnresolved"])
+	}
+}
+
+func TestEngine_IsBlocked_WhereFilter(t *testing.T) {
+	blocker := makeNode("b1", "Blocker", []string{"task"}, nil)
+	blocker.Kind = "task"
+	blocker.Stage = "Now"
+	blockedTarget := makeNode("t1", "Blocked target", []string{"task"}, nil)
+	blockedTarget.Kind = "task"
+	blockedTarget.Stage = "Open"
+	freeTarget := makeNode("t2", "Free target", []string{"task"}, nil)
+	freeTarget.Kind = "task"
+	freeTarget.Stage = "Open"
+	g := &mockGraph{
+		nodes: []*types.Node{blocker, blockedTarget, freeTarget},
+		edges: []*types.Edge{makeEdge("e1", "blocks", "b1", "t1")},
+	}
+	kinds, groups := taskFlowRegistries()
+	e := NewEngine(g, 5, WithStageResolver(kinds, groups))
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:task) WHERE n.isBlocked RETURN n.body`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(result.Rows))
+	}
+	if result.Rows[0]["n.body"] != "Blocked target" {
+		t.Errorf("expected 'Blocked target', got %v", result.Rows[0]["n.body"])
+	}
+}

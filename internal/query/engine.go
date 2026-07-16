@@ -18,10 +18,25 @@ func WithLogger(l *clog.Logger) EngineOption {
 	}
 }
 
+// WithStageResolver gives the engine access to the Kind and StageGroup
+// registries, letting computed properties (e.g. n.isBlocked, DL.1) resolve a
+// node's stage terminality via types.ResolveStageGroup. Nil-safe: without
+// this option (or with either registry nil), terminality cannot be resolved
+// and callers of the resolver treat that as an unresolvable blocker rather
+// than erroring.
+func WithStageResolver(kinds *types.KindRegistry, groups *types.StageGroupRegistry) EngineOption {
+	return func(e *Engine) {
+		e.kinds = kinds
+		e.stageGroups = groups
+	}
+}
+
 type Engine struct {
-	index    types.GraphIndex
-	maxDepth int
-	logger   *clog.Logger
+	index       types.GraphIndex
+	maxDepth    int
+	logger      *clog.Logger
+	kinds       *types.KindRegistry
+	stageGroups *types.StageGroupRegistry
 }
 
 // NewEngine creates a new Engine backed by the given graph index.
@@ -58,6 +73,8 @@ func (e *Engine) Run(query string, clock types.Clock) (*types.QueryResult, error
 	}
 
 	ev := newEvaluator(e.index, clock, e.maxDepth, query)
+	ev.kinds = e.kinds
+	ev.stageGroups = e.stageGroups
 	result, err := ev.runQuery(q)
 	if err != nil {
 		return nil, err

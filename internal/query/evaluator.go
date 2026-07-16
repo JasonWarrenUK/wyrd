@@ -36,6 +36,12 @@ type evaluator struct {
 	clock    types.Clock
 	maxDepth int
 	query    string
+
+	// kinds and stageGroups back computed properties that need stage
+	// terminality (e.g. n.isBlocked, DL.1). Both nil unless the engine was
+	// built with WithStageResolver; nil-safe throughout.
+	kinds       *types.KindRegistry
+	stageGroups *types.StageGroupRegistry
 }
 
 // newEvaluator creates a new evaluator with the given graph index, clock, and
@@ -619,6 +625,14 @@ func (ev *evaluator) evalProperty(row binding, e *PropertyExpr) (interface{}, er
 
 	switch obj := v.(type) {
 	case *types.Node:
+		if len(e.Properties) == 1 {
+			switch strings.ToLower(e.Properties[0]) {
+			case "isblocked":
+				return ev.isBlocked(obj), nil
+			case "isblockedunresolved":
+				return ev.isBlockedUnresolved(obj), nil
+			}
+		}
 		return nodePropertyChain(obj, e.Properties), nil
 	case *types.Edge:
 		if len(e.Properties) == 1 {
@@ -628,6 +642,63 @@ func (ev *evaluator) evalProperty(row binding, e *PropertyExpr) (interface{}, er
 	default:
 		return nil, nil
 	}
+}
+
+// isBlocked reports whether node is blocked by an incoming "blocks" edge
+// (DL.1): a node is blocked if any node pointing to it via a blocks edge is
+// not at a terminal stage. Terminality is resolved via
+// types.ResolveStageGroup + StageGroup.IsTerminal (SL.2).
+//
+// When a blocker's terminality cannot be determined — unknown kind, empty
+// stage, or the registries were never wired via WithStageResolver — the
+// block is treated as still active ("presence blocks"): only a *confirmed*
+// terminal blocker lifts the block. Pair with isBlockedUnresolved to tell a
+// confirmed block apart from one resting on an unresolvable blocker.
+func (ev *evaluator) isBlocked(node *types.Node) bool {
+	blocked, _ := ev.evalBlockers(node)
+	return blocked
+}
+
+// isBlockedUnresolved reports whether node.isBlocked is true only because at
+// least one blocking node's stage terminality could not be resolved, rather
+// than because a blocker was confirmed non-terminal. Lets callers surface an
+// "unresolvable blocker" warning distinctly from a confirmed block.
+func (ev *evaluator) isBlockedUnresolved(node *types.Node) bool {
+	blocked, unresolved := ev.evalBlockers(node)
+	return blocked && unresolved
+}
+
+// evalBlockers walks node's incoming "blocks" edges and reports whether any
+// still blocks (blocked) and whether that verdict rests on at least one
+// unresolvable blocker (unresolved) rather than a confirmed non-terminal one.
+func (ev *evaluator) evalBlockers(node *types.Node) (blocked bool, unresolved bool) {
+	if node == nil || ev.index == nil {
+		return false, false
+	}
+	for _, edge := range ev.index.EdgesTo(node.ID) {
+		if edge.Type != string(types.EdgeBlocks) {
+			continue
+		}
+		source, err := ev.index.GetNode(edge.From)
+		if err != nil || source == nil {
+			// Dangling edge: the blocker can't be inspected at all.
+			blocked = true
+			unresolved = true
+			continue
+		}
+		group, ok := types.ResolveStageGroup(ev.kinds, ev.stageGroups, source)
+		if !ok {
+			// Unknown kind / empty stage / registries not wired: presence
+			// blocks, but flag it as unresolved rather than confirmed.
+			blocked = true
+			unresolved = true
+			continue
+		}
+		if !group.IsTerminal(source.Stage) {
+			blocked = true
+		}
+	}
+	return blocked, unresolved
 }
 
 // nodePropertyChain resolves a property path of one or more segments on a node.
