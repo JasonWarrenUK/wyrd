@@ -184,14 +184,14 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 	lower := strings.ToLower(raw)
 
 	switch {
-	case strings.HasPrefix(lower, "b:"):
-		return "budget", strings.TrimSpace(raw[2:])
+	case strings.HasPrefix(lower, "bc:"):
+		return "budget", strings.TrimSpace(raw[3:])
 	case strings.HasPrefix(lower, "j:"):
 		return "journal", strings.TrimSpace(raw[2:])
 	case strings.HasPrefix(lower, "n:"):
 		return "note", strings.TrimSpace(raw[2:])
-	case strings.HasPrefix(lower, "s:"):
-		return "spend", strings.TrimSpace(raw[2:])
+	case strings.HasPrefix(lower, "bs:"):
+		return "spend", strings.TrimSpace(raw[3:])
 	case strings.HasPrefix(lower, "t:"):
 		return "task", strings.TrimSpace(raw[2:])
 	default:
@@ -202,7 +202,7 @@ func parseCapturePrefixes(raw string) (nodeType, body string) {
 // CaptureBarPlaceholder returns the placeholder text shown when the capture
 // bar is not focused and empty.
 func CaptureBarPlaceholder() string {
-	return "ctrl+n to capture — b: budget · j: journal · n: note · s: spend · t: task (default)"
+	return "ctrl+n to capture — bc: budget · j: journal · n: note · bs: spend · t: task (default)"
 }
 
 // unusedTime is a compile-time assertion that time is imported.

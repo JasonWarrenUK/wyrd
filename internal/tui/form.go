@@ -390,7 +390,7 @@ func newNoteFormPane(
 }
 
 // NewBudgetFormPane builds a formPane for budget creation.
-// prefillCategory is the text the user typed after the "b:" prefix (may be empty).
+// prefillCategory is the text the user typed after the "bc:" prefix (may be empty).
 // Exported for use in tests.
 func NewBudgetFormPane(
 	theme *ActiveTheme,
