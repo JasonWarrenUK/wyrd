@@ -82,6 +82,43 @@ func openStore(storePath string) (*store.Store, error) {
 	return store.New(storePath, types.RealClock{}, opts...)
 }
 
+// buildRegistries assembles the merged Kind and StageGroup registries: the
+// baked-in defaults shadowed by the user's kinds.jsonc / stages.jsonc.
+// Shared by every call site that constructs a query.Engine, so the TUI and
+// both CLI query paths (queryCmd, viewCmd) resolve stage terminality
+// identically (DL.6). A parse failure in the baked-in defaults is a build
+// bug and returned as fatal; a missing/invalid user file is logged and
+// skipped, falling back to defaults only.
+func buildRegistries(s *store.Store) (*types.KindRegistry, *types.StageGroupRegistry, error) {
+	kindDefaults, err := stage.DefaultKinds()
+	if err != nil {
+		return nil, nil, fmt.Errorf("loading built-in kind defaults: %w", err)
+	}
+	userKindReg, err := s.ReadKinds()
+	if err != nil {
+		if appLogger != nil {
+			appLogger.Warn("could not load kinds.jsonc; using defaults only", "err", err)
+		}
+		userKindReg = types.NewKindRegistry(nil)
+	}
+	kinds := stage.MergeKinds(kindDefaults, userKindReg.All())
+
+	groupDefaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		return nil, nil, fmt.Errorf("loading built-in stage-group defaults: %w", err)
+	}
+	userGroupReg, err := s.ReadStages()
+	if err != nil {
+		if appLogger != nil {
+			appLogger.Warn("could not load stages.jsonc; using defaults only", "err", err)
+		}
+		userGroupReg = types.NewStageGroupRegistry(nil)
+	}
+	stageGroups := stage.MergeStageGroups(groupDefaults, userGroupReg.All())
+
+	return kinds, stageGroups, nil
+}
+
 func rootCmd() *cobra.Command {
 	var storePath string
 	var logLevel string
@@ -126,43 +163,18 @@ property graph. Run without arguments to launch the TUI.`,
 			}
 			defer s.Close()
 
-			// Build the merged kind registry: baked-in defaults shadowed by the
-			// user's kinds.jsonc. A parse failure in the baked-in defaults is a
-			// build bug, not a user error — treat it as fatal.
-			kindDefaults, err := stage.DefaultKinds()
+			// Build the merged kind + stage-group registries (baked-in
+			// defaults shadowed by kinds.jsonc / stages.jsonc, SL.13).
+			kinds, stageGroups, err := buildRegistries(s)
 			if err != nil {
-				return fmt.Errorf("loading built-in kind defaults: %w", err)
+				return err
 			}
-			userKindReg, err := s.ReadKinds()
-			if err != nil {
-				// Non-fatal: log and continue without user kinds.
-				if appLogger != nil {
-					appLogger.Warn("could not load kinds.jsonc; using defaults only", "err", err)
-				}
-				userKindReg = types.NewKindRegistry(nil)
-			}
-			kinds := stage.MergeKinds(kindDefaults, userKindReg.All())
-
-			// Build the merged stage-group registry: baked-in defaults shadowed
-			// by any user-defined groups in stages.jsonc (SL.13).
-			groupDefaults, err := stage.DefaultStageGroups()
-			if err != nil {
-				return fmt.Errorf("loading built-in stage-group defaults: %w", err)
-			}
-			userGroupReg, err := s.ReadStages()
-			if err != nil {
-				// Non-fatal: log and continue without user stage groups.
-				if appLogger != nil {
-					appLogger.Warn("could not load stages.jsonc; using defaults only", "err", err)
-				}
-				userGroupReg = types.NewStageGroupRegistry(nil)
-			}
-			stageGroups := stage.MergeStageGroups(groupDefaults, userGroupReg.All())
 
 			var engineOpts []query.EngineOption
 			if appLogger != nil {
 				engineOpts = append(engineOpts, query.WithLogger(appLogger))
 			}
+			engineOpts = append(engineOpts, query.WithStageResolver(kinds, stageGroups))
 			return tui.Run(tui.Config{
 				Store:       s,
 				StorePath:   storePath,
@@ -591,10 +603,15 @@ func queryCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			kinds, stageGroups, err := buildRegistries(s)
+			if err != nil {
+				return err
+			}
 			var engineOpts []query.EngineOption
 			if appLogger != nil {
 				engineOpts = append(engineOpts, query.WithLogger(appLogger))
 			}
+			engineOpts = append(engineOpts, query.WithStageResolver(kinds, stageGroups))
 			engine := query.NewEngine(s.Index(), 0, engineOpts...)
 			return cli.RunQuery(engine, types.RealClock{}, cli.QueryOptions{QueryString: args[0]}, os.Stdout)
 		},
@@ -612,10 +629,15 @@ func viewCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			kinds, stageGroups, err := buildRegistries(s)
+			if err != nil {
+				return err
+			}
 			var engineOpts []query.EngineOption
 			if appLogger != nil {
 				engineOpts = append(engineOpts, query.WithLogger(appLogger))
 			}
+			engineOpts = append(engineOpts, query.WithStageResolver(kinds, stageGroups))
 			engine := query.NewEngine(s.Index(), 0, engineOpts...)
 			return cli.RunView(s, engine, types.RealClock{}, args[0], os.Stdout)
 		},
