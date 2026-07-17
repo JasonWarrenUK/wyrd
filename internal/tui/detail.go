@@ -68,6 +68,17 @@ type DetailRenderer struct {
 	// theme's glyph in to respect user overrides.
 	BlockedGlyph string
 
+	// StaleGlyph is the glyph shown in the muted staleness suffix (DL.3).
+	// Defaults to "◌" via NewDetailRenderer, matching
+	// types.ThemeGlyphs.Stale's built-in default; callers wire the live
+	// theme's glyph in to respect user overrides.
+	StaleGlyph string
+
+	// StaleThresholdDays is the idle-days threshold used to decide whether
+	// the staleness suffix shows (DL.3). <= 0 resolves to
+	// types.DefaultStalenessThresholdDays via types.IsStale.
+	StaleThresholdDays int
+
 	// glamRenderer caches the Glamour terminal renderer so it is only created
 	// once (or recreated when Width, dark/light mode, or the active theme changes).
 	glamRenderer *glamour.TermRenderer
@@ -82,6 +93,7 @@ func NewDetailRenderer() *DetailRenderer {
 		Width:        80,
 		Colours:      defaultColours(),
 		BlockedGlyph: "✖",
+		StaleGlyph:   "◌",
 	}
 }
 
@@ -149,6 +161,16 @@ func (r *DetailRenderer) Render(
 	// --- Title ---
 	title := nodeTitle(node)
 	sb.WriteString(titleStyle.Render(title))
+
+	// --- Staleness suffix (DL.3) ---
+	// Deliberately muted (dim foreground, no bold pill) so it reads as a
+	// quiet aside next to the title rather than competing with the bold
+	// BLOCKED banner above.
+	if types.IsStale(node, now, r.StaleThresholdDays) {
+		days := types.DaysSince(node.Modified, now)
+		suffix := fmt.Sprintf(" %s stale · %dd", r.StaleGlyph, days)
+		sb.WriteString(mutedStyle.Render(suffix))
+	}
 	sb.WriteString("\n\n")
 
 	// --- Type badges ---
