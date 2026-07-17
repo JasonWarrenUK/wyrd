@@ -631,6 +631,8 @@ func (ev *evaluator) evalProperty(row binding, e *PropertyExpr) (interface{}, er
 				return ev.isBlocked(obj), nil
 			case "isblockedunresolved":
 				return ev.isBlockedUnresolved(obj), nil
+			case "dayssincemodified":
+				return ev.daysSinceModified(obj), nil
 			}
 		}
 		return nodePropertyChain(obj, e.Properties), nil
@@ -673,6 +675,14 @@ func (ev *evaluator) isBlockedUnresolved(node *types.Node) bool {
 // there in DL.2 so the TUI can share the same derivation without a query).
 func (ev *evaluator) evalBlockers(node *types.Node) (blocked bool, unresolved bool) {
 	return types.EvalBlockers(ev.index, ev.kinds, ev.stageGroups, node)
+}
+
+// daysSinceModified reports whole days between node's last-modified
+// timestamp and now (DL.3). Backs n.daysSinceModified. Deliberately
+// threshold-free: staleness is a presentation-boundary judgement (see
+// types.IsStale), so the engine only ever reports the raw day-count.
+func (ev *evaluator) daysSinceModified(node *types.Node) int {
+	return types.DaysSince(node.Modified, ev.clock.Now())
 }
 
 // nodePropertyChain resolves a property path of one or more segments on a node.
