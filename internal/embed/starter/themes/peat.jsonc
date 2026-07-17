@@ -43,6 +43,7 @@
 		"energy_low": "◇",
 		"overflow": "⚠",
 		"blocked": "⊘",
+		"stale": "◌",
 		"waiting": "⏳",
 		"budget_ok": "✓",
 		"budget_caution": "~",

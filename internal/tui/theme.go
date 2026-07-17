@@ -202,6 +202,7 @@ func builtinTheme() *types.Theme {
 			EnergyLow:     "○",
 			Overflow:      "▲",
 			Blocked:       "✖",
+			Stale:         "◌",
 			Waiting:       "⧖",
 			BudgetOK:      "✓",
 			BudgetCaution: "!",
