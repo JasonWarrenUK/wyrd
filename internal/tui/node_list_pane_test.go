@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
+	"github.com/mattn/go-runewidth"
 )
 
 // ---------------------------------------------------------------------------
@@ -206,9 +207,11 @@ func TestFormatRowTitle_IsBlockedColumnNotRenderedAsCell(t *testing.T) {
 	cols := []string{"title", "isBlocked"}
 	widths := []int{20, 4}
 
+	// blockedGlyph is "" here, so the row carries a blank gutter, not the glyph.
 	got := formatRowTitle(row, cols, widths, "", "", 0)
-	if got != listPadOrTruncate("Task", 20) {
-		t.Errorf("isBlocked should never render as a text cell, got %q", got)
+	want := glyphGutter(row, "", "", 0) + listPadOrTruncate("Task", 20)
+	if got != want {
+		t.Errorf("isBlocked should never render as a text cell, got %q, want %q", got, want)
 	}
 }
 
@@ -269,21 +272,68 @@ func TestFormatRowTitle_DaysSinceModifiedColumnNotRenderedAsCell(t *testing.T) {
 	cols := []string{"title", "daysSinceModified"}
 	widths := []int{20, 4}
 
+	// staleGlyph is "" here, so the row carries a blank gutter, not the glyph.
 	got := formatRowTitle(row, cols, widths, "", "", 0)
-	if got != listPadOrTruncate("Task", 20) {
-		t.Errorf("daysSinceModified should never render as a text cell, got %q", got)
+	want := glyphGutter(row, "", "", 0) + listPadOrTruncate("Task", 20)
+	if got != want {
+		t.Errorf("daysSinceModified should never render as a text cell, got %q, want %q", got, want)
 	}
 }
 
-func TestFormatRowTitle_BlockedAndStaleBothPrefix(t *testing.T) {
-	// Blocked is the louder signal and comes first; stale (muted) follows.
+func TestFormatRowTitle_BlockedTakesPrecedenceOverStale(t *testing.T) {
+	// Blocked is the louder signal; a row that is both blocked and stale shows
+	// only the blocked glyph in the single fixed-width gutter slot — the two
+	// glyphs no longer stack, since stacking made the row wider than the
+	// width budget accounted for (the source of the misalignment/"..." bugs).
 	row := map[string]interface{}{"title": "Idle blocked task", "isBlocked": true, "daysSinceModified": 21}
 	cols := []string{"title"}
 	widths := []int{20}
 
 	got := formatRowTitle(row, cols, widths, "✖", "◌", 14)
-	if !strings.HasPrefix(got, "✖ ◌ ") {
-		t.Errorf("expected blocked glyph before stale glyph, got %q", got)
+	if !strings.HasPrefix(got, "✖ ") {
+		t.Errorf("expected blocked glyph, got %q", got)
+	}
+	if strings.Contains(got, "◌") {
+		t.Errorf("expected stale glyph to be suppressed when row is also blocked, got %q", got)
+	}
+}
+
+func TestFormatRowTitle_GlyphedAndNonGlyphedRowsAlignColumns(t *testing.T) {
+	// The category/title columns must start at the same offset regardless of
+	// whether the row carries a glyph — the gutter is fixed-width so a
+	// non-glyphed row's text isn't shifted left relative to a glyphed one.
+	cols := []string{"title"}
+	widths := []int{20}
+
+	plain := formatRowTitle(map[string]interface{}{"title": "Plain task"}, cols, widths, "✖", "◌", 14)
+	blocked := formatRowTitle(map[string]interface{}{"title": "Blocked task", "isBlocked": true}, cols, widths, "✖", "◌", 14)
+	stale := formatRowTitle(map[string]interface{}{"title": "Stale task", "daysSinceModified": 21}, cols, widths, "✖", "◌", 14)
+
+	// Measure the display-column offset of the title text, not the byte
+	// index: the glyphs are multi-byte runes, so strings.Index would
+	// misreport alignment even when the gutter is correctly fixed-width.
+	plainOffset := runewidth.StringWidth(plain[:strings.IndexRune(plain, 'P')])
+	blockedOffset := runewidth.StringWidth(blocked[:strings.IndexRune(blocked, 'B')])
+	staleOffset := runewidth.StringWidth(stale[:strings.IndexRune(stale, 'S')])
+
+	if plainOffset != blockedOffset || plainOffset != staleOffset {
+		t.Errorf("expected all rows to start their title text at the same offset, got plain=%d blocked=%d stale=%d (plain=%q blocked=%q stale=%q)",
+			plainOffset, blockedOffset, staleOffset, plain, blocked, stale)
+	}
+}
+
+func TestGlyphGutter_FixedWidthRegardlessOfGlyph(t *testing.T) {
+	blocked := glyphGutter(map[string]interface{}{"isBlocked": true}, "✖", "◌", 14)
+	stale := glyphGutter(map[string]interface{}{"daysSinceModified": 21}, "✖", "◌", 14)
+	blank := glyphGutter(map[string]interface{}{}, "✖", "◌", 14)
+
+	bw := runewidth.StringWidth(blocked)
+	sw := runewidth.StringWidth(stale)
+	kw := runewidth.StringWidth(blank)
+
+	if bw != sw || bw != kw {
+		t.Errorf("expected all gutters to occupy the same display width, got blocked=%d stale=%d blank=%d (blocked=%q stale=%q blank=%q)",
+			bw, sw, kw, blocked, stale, blank)
 	}
 }
 
