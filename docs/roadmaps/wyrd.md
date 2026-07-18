@@ -85,12 +85,12 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
 - [ ] **DA.1** — Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites
-- [ ] **DA.2** — Capture freeze screenshot of main TUI view (node list + detail pane) for README hero _(blocked — depends on CP.15, DA.1, DL.2, DL.5, NW.2, SL.11, SL.12, SL.14, SL.7c, VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8, MA, MB, MC, MF)_
-- [ ] **DA.3** — Capture freeze screenshot of budget view with progress bars _(blocked — depends on DA.1, SP.11, SP.4, SP.6, SP.9, VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8, MF, MG)_
-- [ ] **DA.4** — Capture freeze screenshot of schedule view _(blocked — depends on DA.1, VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8, MF)_
-- [ ] **DA.5** — Write VHS tape for task creation flow (capture bar → huh form → node appears in list) _(blocked — depends on CP.2, DA.1, SL.11, SL.12, SL.14, SL.7c, VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8, MA, MF)_
-- [ ] **DA.6** — Write VHS tape for ritual run (startup prompt → steps → gate → completion) _(blocked — depends on DA.1, RT.5, RT.6, RT.7, RT.8, VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8, M6, MF)_
-- [ ] **DA.7** — Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) _(blocked — depends on DA.1, VP.1, VP.2, VP.3, VP.5, VP.6, VP.7, VP.8, MF)_
+- [ ] **DA.2** — Capture freeze screenshot of main TUI view (node list + detail pane) for README hero _(blocked — depends on CP.15, DA.1, DL.2, DL.5, NW.2, SL.11, SL.12, SL.14, SL.7c, VP.6, VP.7, VP.8, MA, MB, MC, MF)_
+- [ ] **DA.3** — Capture freeze screenshot of budget view with progress bars _(blocked — depends on DA.1, SP.11, SP.4, SP.6, SP.9, VP.6, VP.7, VP.8, MF, MG)_
+- [ ] **DA.4** — Capture freeze screenshot of schedule view _(blocked — depends on DA.1, VP.6, VP.7, VP.8, MF)_
+- [ ] **DA.5** — Write VHS tape for task creation flow (capture bar → huh form → node appears in list) _(blocked — depends on CP.2, DA.1, SL.11, SL.12, SL.14, SL.7c, VP.6, VP.7, VP.8, MA, MF)_
+- [ ] **DA.6** — Write VHS tape for ritual run (startup prompt → steps → gate → completion) _(blocked — depends on DA.1, RT.5, RT.6, RT.7, RT.8, VP.6, VP.7, VP.8, M6, MF)_
+- [ ] **DA.7** — Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) _(blocked — depends on DA.1, VP.6, VP.7, VP.8, MF)_
 - [ ] **DA.8** — Integrate screenshots and gifs into README.md under a "Screenshots" section _(blocked — depends on DA.2, DA.3, DA.4)_
 - [ ] **DA.9** — Store VHS tapes in `docs/vhs/` directory; add make target `make demo` to regenerate all gifs _(blocked — depends on DA.5, DA.6, DA.7)_
 
@@ -197,10 +197,10 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 **Goal:** The TUI looks and feels coherent — in-app branding, theme-consistent forms and markdown, considered focus affordances, and honest progress feedback. Visual polish only; no data-model changes. Task ideas VP.2–VP.8 are drawn from a survey of the Charm stack (bubbletea, bubbles, lipgloss, huh, harmonica, glamour). Soft-serve was assessed for `wyrd sync` and deliberately excluded: sync is already a generic git client, so a soft-serve remote needs zero code and adds no UX gain — at most a future docs how-to, not a polish task.
 
-- [ ] **VP.1** — Logo/title pane atop the detail column — split the right column vertically into a fixed-height logo/title pane (top) and the existing detail pane (below). Add a `wyrd` wordmark asset (none exists today); rework `layout.go` `Render` to stack the logo box and detail box with `JoinVertical`, add a height calc reserving the logo's rows, and wire a `logoPane` alongside `rightPane` in `app.go`. Must honour the background-bleed rules (`PadLines`, both fg+bg on every style)
-- [ ] **VP.3** — Theme-derived glamour stylesheet — build a glamour `ansi.StyleConfig` from theme colours (headings → accent, code → muted bg, links → accent-secondary) so rendered markdown in the detail pane is visually continuous with its container
-- [ ] **VP.4** — Gradient focus border — replace the flat accent border on the focused pane with a subtle `BorderForegroundBlend` gradient (accent → accent-secondary, both already in theme) so focus is unmistakable
-- [ ] **VP.6** — Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go` _(blocked — depends on VP.4)_
+- [x] **VP.1** — Logo/title pane atop the detail column — the right column is split vertically into a fixed-height wordmark box (top, `logo.go` `RenderLogo`/`LogoHeight`) and the detail pane (below), stacked in `layout.go` `Render` via `JoinVertical`, with `pane.go`'s `heightOffset` keeping the detail viewport's height calc in sync with the reserved logo rows. Background-bleed rules honoured throughout (`PadLines`, both fg+bg on every style)
+- [x] **VP.3** — Theme-derived glamour stylesheet — `detail.go` `renderMarkdown` builds a glamour `ansi.StyleConfig` from theme colours each render (memoised, invalidated on width/dark-mode/theme change): H1→AccentPrimary, H2/H3→AccentSecondary, Link→AccentSecondary, inline code→AccentPrimary. Rendered markdown in the detail pane matches its container
+- [x] **VP.4** — Gradient focus border — the focused pane (list or detail) uses a `BorderForegroundBlend` gradient (AccentPrimary → AccentSecondary → AccentPrimary, a wrapping set so the blend closes cleanly at the corner) in place of the flat accent border, so focus is unmistakable. The logo box (VP.1) now carries the same thick gradient border permanently, since it never holds focus but benefits from the same visual language
+- [ ] **VP.6** — Spring-eased pane focus transition — animate the focus-border colour fade (and optional 1-col width nudge) over ~150ms via harmonica `Spring.Update` driven by `tea.Tick`, instead of a hard snap; gate all motion behind a `reduce_motion` config toggle for accessibility. Sequenced after VP.4 because both touch the focused-border render path in `layout.go`
 - [ ] **VP.7** — Auto-generated key-hint footer — replace the hand-rolled `keyHints` in `statusbar.go` with the bubbles `help` component generating short/full help from the `key.Binding` set, with a `?`-toggle full view. Sequenced after CP.17 because both rework the statusbar surface and the footer must restore hints after a message dismissal _(depends on CP.17)_
 - [ ] **VP.8** — Stepped sync progress bar — `wyrd sync` shows an indeterminate MiniDot today; the git phases (stage → commit → pull → push) are discrete, so drive a determinate bubbles `progress` bar with phase labels from phased messages emitted by `internal/sync`; the bar's terminal failure state is displayed through the CP.17 dismissable-message mechanism _(depends on CP.17)_
 - [x] **VP.5** — Floating modal overlays via compositor — overlays are composited via `lipgloss.Place` + `Layer`/`Compositor`, floating over the main frame and centred horizontally and vertically, with content-driven height rather than a fixed clamp; the log, help, and kinds overlays inherit correct sizing from the VP.9 height work _(depends on VP.9)_
@@ -472,7 +472,7 @@ graph LR
 	VP7 --> MF
 	VP8 --> MF
 
-	class CO2 & DA1 & DL4 & NW1 & RT6 & RT7 & RT8 & SK1 & SL10 & SP7 & TD1 & TD2 & TD3 & VP1 & VP3 & VP4 & VP7 & VP8 open
-	class CO3 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 & VP6 blocked
-	class CO1 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & DL1 & DL2 & DL3 & DL6 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP2 & VP5 & VP9 done
+	class CO2 & DA1 & DL4 & NW1 & RT6 & RT7 & RT8 & SK1 & SL10 & SP7 & TD1 & TD2 & TD3 & VP6 & VP7 & VP8 open
+	class CO3 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 blocked
+	class CO1 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & DL1 & DL2 & DL3 & DL6 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP1 & VP2 & VP3 & VP4 & VP5 & VP9 done
 ```
