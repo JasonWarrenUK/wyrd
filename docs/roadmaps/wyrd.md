@@ -163,9 +163,9 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 **Goal:** Blocked status is derived from the edge graph. Stale nodes get a visual indicator. The dashboard activates a backlog triage sweep when the active list reaches a calmness threshold.
 
 - [x] **DL.1** — Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model (`StageGroup.IsTerminal`, SL.2) _(depends on DL.6, SL.2, SL.8)_
-- [ ] **DL.3** — Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness needs nothing from the status lattice
+- [x] **DL.3** — Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness needs nothing from the status lattice. Implemented as `n.daysSinceModified` (raw day-count, not a boolean) so the property doubles as a DL.4 ranking key via `ORDER BY`; the idle threshold lives at the presentation boundary (`types.IsStale`, config, TUI) rather than in the query engine, so no `WithStalenessThreshold` engine option was needed. Note for DL.4: `ORDER BY n.daysSinceModified` requires the property to also appear in `RETURN` — the engine's ORDER BY sorts on already-projected columns, not re-evaluated expressions
 - [x] **DL.2** — TUI: blocked badge on list items where `n.isBlocked` is true; detail pane shows BLOCKED BY section listing blocking nodes _(depends on DL.1)_
-- [ ] **DL.4** — Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages _(blocked — depends on DL.3, SL.8)_
+- [ ] **DL.4** — Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages _(depends on DL.3, SL.8)_
 - [ ] **DL.5** — Dashboard calmness threshold — when active-stage node count drops below configurable N, dashboard automatically appends backlog triage results as a separate section; N and M configurable in `config.jsonc` _(blocked — depends on DL.4)_
 - [x] **DL.6** — Thread Kind + StageGroup registries into the query engine so it can resolve stage terminality — add a `WithStageResolver(kinds, groups)` EngineOption (nil-safe, matching the existing `WithLogger` pattern in `internal/query/engine.go`); update the two CLI query paths (`queryCmd`, `viewCmd` in `cmd/wyrd/main.go`) to build and pass the registries, matching the TUI path, which already builds them. Enables stage-terminality resolution for computed properties like `isBlocked` (DL.1). An unresolvable blocker (empty stage, unknown kind, or no registries wired) is treated as still blocking (presence blocks), surfaced distinctly from a confirmed non-terminal block rather than silently.
 
@@ -472,7 +472,7 @@ graph LR
 	VP7 --> MF
 	VP8 --> MF
 
-	class CO2 & DA1 & DL3 & NW1 & RT6 & RT7 & RT8 & SK1 & SL10 & SP7 & TD1 & TD2 & TD3 & VP1 & VP3 & VP4 & VP7 & VP8 open
-	class CO3 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL4 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 & VP6 blocked
-	class CO1 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & DL1 & DL2 & DL6 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP2 & VP5 & VP9 done
+	class CO2 & DA1 & DL4 & NW1 & RT6 & RT7 & RT8 & SK1 & SL10 & SP7 & TD1 & TD2 & TD3 & VP1 & VP3 & VP4 & VP7 & VP8 open
+	class CO3 & DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 & VP6 blocked
+	class CO1 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & DL1 & DL2 & DL3 & DL6 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP2 & VP5 & VP9 done
 ```

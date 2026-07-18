@@ -160,14 +160,21 @@ type nodeListPane struct {
 	width    int
 	height   int
 	theme    *ActiveTheme
+	// staleThresholdDays is the DL.3 idle-days threshold (from config,
+	// resolved via types.DefaultStalenessThresholdDays when <= 0); carried on
+	// the pane so resize rebuilds (Update) can re-derive stale glyphs without
+	// re-running the dashboard query.
+	staleThresholdDays int
 	// result is stored so applyTheme can rebuild the pane with a new theme
 	// without re-running the dashboard query.
 	result types.QueryResult
 }
 
 // newNodeListPane constructs a pane from a QueryResult, wiring the theme
-// colours into the bubbles/list delegate styles.
-func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane {
+// colours into the bubbles/list delegate styles. staleThresholdDays is the
+// DL.3 idle-days threshold used to decide which rows get the muted stale
+// glyph; <= 0 resolves to types.DefaultStalenessThresholdDays.
+func newNodeListPane(result types.QueryResult, theme *ActiveTheme, staleThresholdDays int) nodeListPane {
 	cols := result.Columns
 	if len(cols) == 0 {
 		cols = dashboardColumns
@@ -179,7 +186,7 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	const initialWidth = 80
 	const delegatePad = 1 // left padding added by the delegate style
 	widths := calculateColWidths(result.Rows, cols, initialWidth-delegatePad)
-	items := rowsToItems(result.Rows, cols, widths, groupCol, theme.Glyphs().Blocked)
+	items := rowsToItems(result.Rows, cols, widths, groupCol, theme.Glyphs().Blocked, theme.Glyphs().Stale, staleThresholdDays)
 
 	// Use groupedDelegate when grouping is active, DefaultDelegate otherwise.
 	var delegate list.ItemDelegate
@@ -241,15 +248,16 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme) nodeListPane 
 	skipInitialHeaders(&l)
 
 	return nodeListPane{
-		list:      l,
-		columns:   cols,
-		colWidths: widths,
-		rows:      result.Rows,
-		groupCol:  groupCol,
-		width:     initialWidth,
-		height:    22,
-		theme:     theme,
-		result:    result,
+		list:               l,
+		columns:            cols,
+		colWidths:          widths,
+		rows:               result.Rows,
+		groupCol:           groupCol,
+		width:              initialWidth,
+		height:             22,
+		theme:              theme,
+		staleThresholdDays: staleThresholdDays,
+		result:             result,
 	}
 }
 
@@ -286,7 +294,7 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		prevID := p.SelectedNodeID()
 		// Recompute column widths for the new inner pane width and rebuild items.
 		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
-		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol, p.theme.Glyphs().Blocked))
+		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol, p.theme.Glyphs().Blocked, p.theme.Glyphs().Stale, p.staleThresholdDays))
 		// Restore the previously-selected row rather than resetting to the first
 		// data row. Fall back to skipInitialHeaders only when nothing was selected
 		// (empty list, or the selected node no longer exists after a reload).
@@ -521,14 +529,16 @@ func toStageLabel(raw string) string {
 // groupHeaderItem separators are inserted at each group boundary.
 // colWidths must be the same length as the non-id, non-groupCol display columns.
 // blockedGlyph is prefixed onto blocked rows' titles (DL.2); pass "" to disable.
-func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, groupCol string, blockedGlyph string) []list.Item {
+// staleGlyph is prefixed onto rows idle beyond staleThresholdDays (DL.3);
+// pass "" to disable.
+func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, groupCol string, blockedGlyph string, staleGlyph string, staleThresholdDays int) []list.Item {
 	if groupCol == "" {
 		items := make([]list.Item, len(rows))
 		for i, row := range rows {
 			id, _ := row["id"].(string)
 			items[i] = nodeListItem{
 				row:   row,
-				title: formatRowTitle(row, cols, colWidths, blockedGlyph),
+				title: formatRowTitle(row, cols, colWidths, blockedGlyph, staleGlyph, staleThresholdDays),
 				id:    id,
 			}
 		}
@@ -559,7 +569,7 @@ func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, 
 			id, _ := row["id"].(string)
 			items = append(items, nodeListItem{
 				row:   row,
-				title: formatRowTitle(row, cols, colWidths, blockedGlyph),
+				title: formatRowTitle(row, cols, colWidths, blockedGlyph, staleGlyph, staleThresholdDays),
 				id:    id,
 			})
 		}
@@ -572,12 +582,20 @@ func rowsToItems(rows []map[string]interface{}, cols []string, colWidths []int, 
 // with listColPadding spaces so all rows align with the header. When the row
 // carries isBlocked=true (projected by the dashboard/view queries via
 // n.isBlocked, DL.1), blockedGlyph is prefixed so blocked nodes are visible
-// at a glance in the list (DL.2). Pass an empty blockedGlyph to disable.
-func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int, blockedGlyph string) string {
+// at a glance in the list (DL.2). When the row's daysSinceModified exceeds
+// staleThresholdDays (DL.3), staleGlyph is prefixed after the blocked glyph —
+// blocked is the louder signal, stale the quieter one, and a row can carry
+// both. Pass an empty glyph to disable either prefix.
+//
+// Both glyphs are plain, unstyled text: the whole title is re-wrapped in a
+// single style downstream (normal/selected/dimmed) and rune-length-truncated
+// by the delegate, so embedding ANSI styling here would break truncation and
+// get discarded anyway. "Muted" is expressed via glyph choice, not colour.
+func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int, blockedGlyph string, staleGlyph string, staleThresholdDays int) string {
 	parts := make([]string, 0, len(cols))
 	wi := 0
 	for _, col := range cols {
-		if col == "id" || col == "isBlocked" {
+		if col == "id" || col == "isBlocked" || col == "daysSinceModified" {
 			continue
 		}
 		w := 0
@@ -588,10 +606,28 @@ func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int, 
 		parts = append(parts, listPadOrTruncate(formatCellValue(row[col]), w))
 	}
 	title := strings.Join(parts, strings.Repeat(" ", listColPadding))
+	if staleGlyph != "" && isStaleRow(row, staleThresholdDays) {
+		title = staleGlyph + " " + title
+	}
 	if blockedGlyph != "" && isBlockedRow(row) {
 		title = blockedGlyph + " " + title
 	}
 	return title
+}
+
+// isStaleRow reports whether a row's daysSinceModified cell (projected by
+// n.daysSinceModified, DL.3) exceeds thresholdDays. Absent or non-numeric
+// values are not stale. thresholdDays <= 0 resolves to
+// types.DefaultStalenessThresholdDays, matching types.IsStale.
+func isStaleRow(row map[string]interface{}, thresholdDays int) bool {
+	days, ok := row["daysSinceModified"].(int)
+	if !ok {
+		return false
+	}
+	if thresholdDays <= 0 {
+		thresholdDays = types.DefaultStalenessThresholdDays
+	}
+	return days > thresholdDays
 }
 
 // isBlockedRow reports whether a row's isBlocked cell (projected by

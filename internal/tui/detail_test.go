@@ -456,6 +456,68 @@ func TestRender_NonArchivedNode_NoBanner(t *testing.T) {
 	}
 }
 
+// --- Staleness suffix tests (DL.3) ---
+
+func TestRender_StaleNode_ShowsSuffix(t *testing.T) {
+	node := simpleNode("n-stale", "Quiet task", []string{"task"})
+	node.Modified = testNow.AddDate(0, 0, -21) // 21 days idle
+
+	r := newRenderer()
+	r.StaleThresholdDays = 14
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if !strings.Contains(output, "stale") {
+		t.Errorf("expected muted staleness suffix in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "21d") {
+		t.Errorf("expected the day count in the staleness suffix, got:\n%s", output)
+	}
+}
+
+func TestRender_FreshNode_NoSuffix(t *testing.T) {
+	node := simpleNode("n-fresh", "Recent task", []string{"task"})
+	node.Modified = testNow.AddDate(0, 0, -3) // 3 days idle
+
+	r := newRenderer()
+	r.StaleThresholdDays = 14
+	output := stripANSI(r.Render(node, nil, nil, nil, testNow))
+
+	if strings.Contains(output, "stale") {
+		t.Errorf("expected no staleness suffix for a recently-modified node, got:\n%s", output)
+	}
+}
+
+func TestRender_StaleNode_NotCompetingWithBlockedBanner(t *testing.T) {
+	// A node that is both blocked and stale should show both indicators —
+	// the stale suffix must not be suppressed by the blocked banner.
+	blocker := simpleNode("blocker-3", "Blocking task", []string{"task"})
+	blocker.Title = "Blocking task"
+	blocker.Kind = "task"
+	blocker.Stage = "Now" // non-terminal
+
+	node := simpleNode("n-both", "Blocked and stale", []string{"task"})
+	node.Modified = testNow.AddDate(0, 0, -30)
+	edges := []*types.Edge{
+		{ID: "e3", Type: "blocks", From: blocker.ID, To: node.ID},
+	}
+	nodesByID := map[string]*types.Node{blocker.ID: blocker}
+
+	kinds, groups := blockedTestRegistries()
+	r := newRenderer()
+	r.Kinds = kinds
+	r.StageGroups = groups
+	r.StaleThresholdDays = 14
+
+	output := stripANSI(r.Render(node, edges, nodesByID, nil, testNow))
+
+	if !strings.Contains(output, "BLOCKED") {
+		t.Errorf("expected BLOCKED banner alongside staleness, got:\n%s", output)
+	}
+	if !strings.Contains(output, "stale") {
+		t.Errorf("expected staleness suffix alongside BLOCKED banner, got:\n%s", output)
+	}
+}
+
 // --- Budget section tests ---
 
 func TestRender_BudgetSection_Shown(t *testing.T) {

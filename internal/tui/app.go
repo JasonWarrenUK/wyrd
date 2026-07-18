@@ -129,6 +129,11 @@ type Model struct {
 	// clock is used for age calculations in the detail renderer.
 	clock types.Clock
 
+	// staleThresholdDays is the DL.3 idle-days threshold read from
+	// config.jsonc (staleness_threshold_days); <= 0 resolves to
+	// types.DefaultStalenessThresholdDays via types.IsStale.
+	staleThresholdDays int
+
 	// detailRenderer is reused across node selections so the expensive
 	// glamour.NewTermRenderer() call only happens once (or on resize).
 	detailRenderer *DetailRenderer
@@ -225,11 +230,15 @@ func New(cfg Config) (Model, error) {
 		storePath = "."
 	}
 
-	// Attempt to read config for theme name.
+	// Attempt to read config for theme name and the DL.3 staleness threshold.
 	themeName := cfg.ThemeName
-	if themeName == "" && cfg.Store != nil {
-		if appCfg, err := cfg.Store.ReadConfig(); err == nil && appCfg.Theme != "" {
-			themeName = appCfg.Theme
+	staleThresholdDays := 0
+	if cfg.Store != nil {
+		if appCfg, err := cfg.Store.ReadConfig(); err == nil {
+			if themeName == "" && appCfg.Theme != "" {
+				themeName = appCfg.Theme
+			}
+			staleThresholdDays = appCfg.StalenessThresholdDays
 		}
 	}
 
@@ -303,7 +312,7 @@ func New(cfg Config) (Model, error) {
 		}
 		result, err := RunDashboard(cfg.QueryRunner, clock, dq, cols)
 		if err == nil {
-			leftPane = newNodeListPane(result, theme)
+			leftPane = newNodeListPane(result, theme, staleThresholdDays)
 		}
 		// On error: silently use empty pane — a working TUI with no data is
 		// better than a crash on first launch.
@@ -391,31 +400,32 @@ func New(cfg Config) (Model, error) {
 	})
 
 	m := Model{
-		theme:          theme,
-		storePath:      storePath,
-		layout:         layout,
-		leftPane:       leftPane,
-		rightPane:      NewEmptyPane(theme),
-		focus:          FocusLeft,
-		keyMap:         keyMap,
-		palette:        palette,
-		statusBar:      statusBar,
-		store:          cfg.Store,
-		captureBar:     captureBar,
-		queryRunner:    cfg.QueryRunner,
-		index:          cfg.Index,
-		clock:          clock,
-		detailRenderer: NewDetailRenderer(),
-		schedulerState: schedulerState,
-		rituals:        rituals,
-		kinds:          cfg.Kinds,
-		stageGroups:    cfg.StageGroups,
-		logger:         cfg.Logger,
-		logOverlay:     newLogOverlay(theme),
-		helpOverlay:    newHelpOverlay(theme),
-		kindsOverlay:   newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
-		stagesOverlay:  newStagesOverlay(theme, cfg.StageGroups),
-		ready:          false,
+		theme:              theme,
+		storePath:          storePath,
+		layout:             layout,
+		leftPane:           leftPane,
+		rightPane:          NewEmptyPane(theme),
+		focus:              FocusLeft,
+		keyMap:             keyMap,
+		palette:            palette,
+		statusBar:          statusBar,
+		store:              cfg.Store,
+		captureBar:         captureBar,
+		queryRunner:        cfg.QueryRunner,
+		index:              cfg.Index,
+		clock:              clock,
+		staleThresholdDays: staleThresholdDays,
+		detailRenderer:     NewDetailRenderer(),
+		schedulerState:     schedulerState,
+		rituals:            rituals,
+		kinds:              cfg.Kinds,
+		stageGroups:        cfg.StageGroups,
+		logger:             cfg.Logger,
+		logOverlay:         newLogOverlay(theme),
+		helpOverlay:        newHelpOverlay(theme),
+		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
+		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups),
+		ready:              false,
 	}
 
 	// Pre-populate the right pane with the first selected item so the detail
@@ -715,7 +725,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-				lp := newNodeListPane(result, m.theme)
+				lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
 				sized, _ := lp.Update(tea.WindowSizeMsg{
 					Width:  m.layout.TotalWidth(),
 					Height: m.layout.TotalHeight(),
@@ -981,7 +991,7 @@ func (m Model) handleCaptureSubmit(msg captureSubmitMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			lp := newNodeListPane(result, m.theme)
+			lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
 			sized, _ := lp.Update(tea.WindowSizeMsg{
 				Width:  m.layout.TotalWidth(),
 				Height: m.layout.TotalHeight(),
@@ -1060,7 +1070,7 @@ func (m Model) handleEditSubmit(msg editSubmitMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			lp := newNodeListPane(result, m.theme)
+			lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
 			sized, _ := lp.Update(tea.WindowSizeMsg{
 				Width:  m.layout.TotalWidth(),
 				Height: m.layout.TotalHeight(),
@@ -1123,7 +1133,7 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 			dq = DashboardQueryFromView(view)
 		}
 		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			lp := newNodeListPane(result, m.theme)
+			lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
 			sized, _ := lp.Update(tea.WindowSizeMsg{
 				Width:  m.layout.TotalWidth(),
 				Height: m.layout.TotalHeight(),
@@ -1217,7 +1227,7 @@ func (m Model) handleStageShift(dir int) (tea.Model, tea.Cmd) {
 			}
 		}
 		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			nlp := newNodeListPane(result, m.theme)
+			nlp := newNodeListPane(result, m.theme, m.staleThresholdDays)
 			sized, _ := nlp.Update(tea.WindowSizeMsg{
 				Width:  m.layout.TotalWidth(),
 				Height: m.layout.TotalHeight(),
@@ -1270,7 +1280,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	// Rebuild the node list pane so the delegate's baked-in Lipgloss styles
 	// (section headers, row colours) repaint with the new theme.
 	if lp, ok := m.leftPane.(nodeListPane); ok {
-		m.leftPane = newNodeListPane(lp.result, t)
+		m.leftPane = newNodeListPane(lp.result, t, lp.staleThresholdDays)
 	} else if _, ok := m.leftPane.(emptyPane); ok {
 		m.leftPane = NewEmptyPane(t)
 	}
@@ -1414,6 +1424,8 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	renderer.Kinds = m.kinds
 	renderer.StageGroups = m.stageGroups
 	renderer.BlockedGlyph = m.theme.Glyphs().Blocked
+	renderer.StaleGlyph = m.theme.Glyphs().Stale
+	renderer.StaleThresholdDays = m.staleThresholdDays
 	renderer.Colours.BgPrimary = m.theme.BgPrimary()
 	renderer.Colours.FGPrimary = m.theme.FgPrimary()
 	renderer.Colours.FGMuted = m.theme.FgMuted()

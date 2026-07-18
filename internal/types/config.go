@@ -23,4 +23,9 @@ type Config struct {
 	// MaxTraversalDepth caps variable-length edge traversal in queries.
 	// Defaults to 5.
 	MaxTraversalDepth int `json:"max_traversal_depth,omitempty"`
+
+	// StalenessThresholdDays flags nodes idle beyond this many days in the
+	// TUI (DL.3). Zero/absent resolves to DefaultStalenessThresholdDays (14)
+	// — see types.IsStale.
+	StalenessThresholdDays int `json:"staleness_threshold_days,omitempty"`
 }

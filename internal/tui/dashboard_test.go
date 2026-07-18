@@ -187,6 +187,42 @@ func TestRunDashboard_IsBlockedCarriedButNotDisplayed(t *testing.T) {
 	}
 }
 
+// TestRunDashboard_DaysSinceModifiedCarriedButNotDisplayed verifies that
+// daysSinceModified (projected by n.daysSinceModified, DL.3) survives
+// projectColumns for the list stale glyph without appearing as a visible
+// display column — mirrors TestRunDashboard_IsBlockedCarriedButNotDisplayed.
+func TestRunDashboard_DaysSinceModifiedCarriedButNotDisplayed(t *testing.T) {
+	cfg := DefaultDashboardQuery()
+	clock := types.StubClock{Fixed: date("2026-03-20")}
+
+	staleRow := row("task", "Idle task", date("2026-03-20"))
+	staleRow["daysSinceModified"] = 21
+
+	runner := &stubRunner{
+		results: map[string]*types.QueryResult{
+			cfg.Tasks: {
+				Columns: []string{"id", "title", "date", "category", "isBlocked", "daysSinceModified"},
+				Rows:    []map[string]interface{}{staleRow},
+			},
+		},
+	}
+
+	result, err := RunDashboard(runner, clock, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, col := range result.Columns {
+		if col == "daysSinceModified" {
+			t.Errorf("daysSinceModified must not appear as a visible display column, got columns: %v", result.Columns)
+		}
+	}
+
+	if days, ok := result.Rows[0]["daysSinceModified"].(int); !ok || days != 21 {
+		t.Errorf("expected daysSinceModified=21 to be carried through in row data, got %v", result.Rows[0]["daysSinceModified"])
+	}
+}
+
 // TestRunDashboard_EmptyStore verifies that all three categories returning no
 // rows still produces a valid (empty) result, not an error.
 func TestRunDashboard_EmptyStore(t *testing.T) {

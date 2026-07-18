@@ -11,5 +11,7 @@
 	// sync_remote: git remote URL for wyrd sync
 	"sync_remote": "",
 	// max_traversal_depth: cap for variable-length edge traversal in queries
-	"max_traversal_depth": 5
+	"max_traversal_depth": 5,
+	// staleness_threshold_days: nodes idle longer than this are flagged in the TUI (default 14)
+	"staleness_threshold_days": 14
 }

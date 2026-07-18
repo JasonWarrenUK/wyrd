@@ -87,6 +87,7 @@ type ThemeGlyphs struct {
 	EnergyLow     string `json:"energy_low"`
 	Overflow      string `json:"overflow"`
 	Blocked       string `json:"blocked"`
+	Stale         string `json:"stale"`
 	Waiting       string `json:"waiting"`
 	BudgetOK      string `json:"budget_ok"`
 	BudgetCaution string `json:"budget_caution"`

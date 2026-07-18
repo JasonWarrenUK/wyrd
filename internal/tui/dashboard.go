@@ -47,23 +47,23 @@ func DefaultDashboardQuery() DashboardQuery {
 	return DashboardQuery{
 		Tasks: `MATCH (n:task)
 WHERE n.status <> "archived" AND (n.date.due <= $today OR n.date.due IS NULL)
-RETURN n.id AS id, n.title AS title, n.date.due AS date, "task" AS category, n.isBlocked AS isBlocked
+RETURN n.id AS id, n.title AS title, n.date.due AS date, "task" AS category, n.isBlocked AS isBlocked, n.daysSinceModified AS daysSinceModified
 ORDER BY n.date.due`,
 
 		Notes: `MATCH (n:note)
 WHERE n.status <> "archived"
-RETURN n.id AS id, n.title AS title, null AS date, "note" AS category, n.isBlocked AS isBlocked
+RETURN n.id AS id, n.title AS title, null AS date, "note" AS category, n.isBlocked AS isBlocked, n.daysSinceModified AS daysSinceModified
 LIMIT 10`,
 
 		Journals: `MATCH (n:journal)
 WHERE n.status <> "archived"
-RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category, n.isBlocked AS isBlocked
+RETURN n.id AS id, n.title AS title, n.date.created AS date, "journal" AS category, n.isBlocked AS isBlocked, n.daysSinceModified AS daysSinceModified
 ORDER BY n.date.created DESC
 LIMIT 5`,
 
 		Budgets: `MATCH (n:budget)
 WHERE n.status <> "archived"
-RETURN n.id AS id, n.title AS title, null AS date, "budget" AS category, n.isBlocked AS isBlocked`,
+RETURN n.id AS id, n.title AS title, null AS date, "budget" AS category, n.isBlocked AS isBlocked, n.daysSinceModified AS daysSinceModified`,
 	}
 }
 
@@ -209,12 +209,13 @@ func parseDate(v interface{}) *time.Time {
 
 // projectColumns returns a new slice of rows containing only the specified
 // columns, preserving order. Extra columns in the source rows are dropped,
-// except "id" (navigation) and "isBlocked" (DL.2 list badge), which are always
-// retained even when not displayed as visible columns.
+// except "id" (navigation), "isBlocked" (DL.2 list badge), and
+// "daysSinceModified" (DL.3 list badge), which are always retained even when
+// not displayed as visible columns.
 func projectColumns(rows []map[string]interface{}, cols []string) []map[string]interface{} {
 	out := make([]map[string]interface{}, len(rows))
 	for i, row := range rows {
-		projected := make(map[string]interface{}, len(cols)+2)
+		projected := make(map[string]interface{}, len(cols)+3)
 		for _, col := range cols {
 			projected[col] = row[col]
 		}
@@ -226,6 +227,11 @@ func projectColumns(rows []map[string]interface{}, cols []string) []map[string]i
 		// appearing as a visible text column (DL.2).
 		if _, hasBlocked := projected["isBlocked"]; !hasBlocked {
 			projected["isBlocked"] = row["isBlocked"]
+		}
+		// Always carry daysSinceModified so the staleness badge can be
+		// rendered without it appearing as a visible text column (DL.3).
+		if _, hasStale := projected["daysSinceModified"]; !hasStale {
+			projected["daysSinceModified"] = row["daysSinceModified"]
 		}
 		out[i] = projected
 	}

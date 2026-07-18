@@ -757,3 +757,70 @@ func TestEngine_IsBlocked_WhereFilter(t *testing.T) {
 		t.Errorf("expected 'Blocked target', got %v", result.Rows[0]["n.body"])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// n.daysSinceModified computed property (DL.3)
+// ---------------------------------------------------------------------------
+
+func TestEngine_DaysSinceModified(t *testing.T) {
+	// makeNode fixes Modified at 2025-01-02; refTime (the clock's "now") is
+	// 2025-03-19 — 76 days later.
+	n := makeNode("n1", "Idle note", []string{"note"}, nil)
+	g := &mockGraph{nodes: []*types.Node{n}}
+	e := NewEngine(g, 5)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:note) RETURN n.daysSinceModified`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(result.Rows))
+	}
+	if got := result.Rows[0]["n.daysSinceModified"]; got != 76 {
+		t.Errorf("expected 76 days since modified, got %v", got)
+	}
+}
+
+func TestEngine_DaysSinceModified_JustModified(t *testing.T) {
+	n := makeNode("n1", "Fresh note", []string{"note"}, nil)
+	n.Modified = refTime
+	g := &mockGraph{nodes: []*types.Node{n}}
+	e := NewEngine(g, 5)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:note) RETURN n.daysSinceModified`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := result.Rows[0]["n.daysSinceModified"]; got != 0 {
+		t.Errorf("expected 0 days for a just-modified node, got %v", got)
+	}
+}
+
+func TestEngine_DaysSinceModified_OrderByRanksByStaleness(t *testing.T) {
+	// DL.3's raw-days design exists specifically so DL.4-style ranking works
+	// without a second engine property — prove ORDER BY on it works. Per the
+	// engine's ORDER BY contract (evalOrderBy sorts on already-projected
+	// columns, not re-evaluated expressions), the property must also appear
+	// in RETURN — same requirement as ORDER BY n.date.due in the existing
+	// dashboard queries.
+	fresh := makeNode("n1", "Fresh", []string{"note"}, nil)
+	fresh.Modified = refTime.AddDate(0, 0, -1)
+	stale := makeNode("n2", "Stale", []string{"note"}, nil)
+	stale.Modified = refTime.AddDate(0, 0, -30)
+	g := &mockGraph{nodes: []*types.Node{fresh, stale}}
+	e := NewEngine(g, 5)
+	clock := fixedClock(refTime)
+
+	result, err := e.Run(`MATCH (n:note) RETURN n.body, n.daysSinceModified ORDER BY n.daysSinceModified DESC`, clock)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(result.Rows))
+	}
+	if result.Rows[0]["n.body"] != "Stale" {
+		t.Errorf("expected the more-stale node first, got %v", result.Rows[0]["n.body"])
+	}
+}
