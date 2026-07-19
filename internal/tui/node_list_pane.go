@@ -6,13 +6,13 @@ import (
 	"io"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
+	"github.com/mattn/go-runewidth"
 )
 
 // groupHeaderItem is a non-selectable separator item rendered as a bold group
@@ -64,6 +64,15 @@ const (
 	listColEllipsis = "…"
 	// listMinColWidth is the smallest a column will be rendered before truncation.
 	listMinColWidth = 4
+	// listGlyphGutterWidth is the fixed display-cell width reserved at the start
+	// of every row for the blocked/stale glyph (or blank space when neither
+	// applies). Reserving a constant-width gutter — rather than prepending the
+	// glyph after columns are already padded — is what keeps glyphed and
+	// non-glyphed rows' columns aligned (fixes the misalignment bug) and keeps
+	// the row's total display width predictable (prevents the glyph from
+	// pushing a row past its truncation budget, which otherwise wraps into a
+	// stray line under PadLines).
+	listGlyphGutterWidth = 2
 )
 
 // filterStateChangedMsg is emitted when the node list filter state transitions
@@ -129,17 +138,19 @@ func (d groupedDelegate) Render(w io.Writer, m list.Model, index int, item list.
 		}
 		title := it.Title()
 		// Truncate if wider than available space (width minus left padding).
+		// Measured in display cells via runewidth, not rune count: the
+		// blocked/stale glyphs (✖/◌) are ambiguous-width and a rune-count
+		// measurement can under-count them, letting an over-wide line slip
+		// through to PadLines, which wraps (rather than truncates) any line
+		// wider than the pane — the source of the stray "..." row bug.
 		maxW := m.Width() - style.GetPaddingLeft() - style.GetPaddingRight()
-		if maxW > 0 {
-			runes := []rune(title)
-			if len(runes) > maxW {
-				ellipsisWidth := utf8.RuneCountInString(listColEllipsis)
-				cut := maxW - ellipsisWidth
-				if cut < 0 {
-					cut = 0
-				}
-				title = string(runes[:cut]) + listColEllipsis
+		if maxW > 0 && runewidth.StringWidth(title) > maxW {
+			ellipsisWidth := runewidth.StringWidth(listColEllipsis)
+			cut := maxW - ellipsisWidth
+			if cut < 0 {
+				cut = 0
 			}
+			title = runewidth.Truncate(title, cut, "") + listColEllipsis
 		}
 		fmt.Fprint(w, style.Render(title))
 	}
@@ -185,7 +196,10 @@ func newNodeListPane(result types.QueryResult, theme *ActiveTheme, staleThreshol
 
 	const initialWidth = 80
 	const delegatePad = 1 // left padding added by the delegate style
-	widths := calculateColWidths(result.Rows, cols, initialWidth-delegatePad)
+	// Reserve the glyph gutter (+ its trailing space) so column widths leave
+	// room for it; every row emits the gutter regardless of glyph presence.
+	const gutterReserve = listGlyphGutterWidth + 1
+	widths := calculateColWidths(result.Rows, cols, initialWidth-delegatePad-gutterReserve)
 	items := rowsToItems(result.Rows, cols, widths, groupCol, theme.Glyphs().Blocked, theme.Glyphs().Stale, staleThresholdDays)
 
 	// Use groupedDelegate when grouping is active, DefaultDelegate otherwise.
@@ -287,13 +301,14 @@ func (p nodeListPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		const delegatePad = 1
+		const gutterReserve = listGlyphGutterWidth + 1
 		p.width = msg.Width / 2
 		p.height = msg.Height
 		p.list.SetSize(p.width, listHeight(msg.Height))
 		// Capture the selected node before rebuilding so we can restore it below.
 		prevID := p.SelectedNodeID()
 		// Recompute column widths for the new inner pane width and rebuild items.
-		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad)
+		p.colWidths = calculateColWidths(p.rows, p.columns, p.width-delegatePad-gutterReserve)
 		p.list.SetItems(rowsToItems(p.rows, p.columns, p.colWidths, p.groupCol, p.theme.Glyphs().Blocked, p.theme.Glyphs().Stale, p.staleThresholdDays))
 		// Restore the previously-selected row rather than resetting to the first
 		// data row. Fall back to skipInitialHeaders only when nothing was selected
@@ -606,13 +621,27 @@ func formatRowTitle(row map[string]interface{}, cols []string, colWidths []int, 
 		parts = append(parts, listPadOrTruncate(formatCellValue(row[col]), w))
 	}
 	title := strings.Join(parts, strings.Repeat(" ", listColPadding))
-	if staleGlyph != "" && isStaleRow(row, staleThresholdDays) {
-		title = staleGlyph + " " + title
-	}
+	return glyphGutter(row, blockedGlyph, staleGlyph, staleThresholdDays) + title
+}
+
+// glyphGutter returns the fixed-width leading gutter for a row: the blocked
+// glyph if the row is blocked, else the stale glyph if the row is stale
+// (blocked is the louder signal and wins when a row is both), else blank. The
+// result always occupies exactly listGlyphGutterWidth display cells plus a
+// single trailing space, so every row — glyphed or not — starts its column
+// text at the same offset.
+func glyphGutter(row map[string]interface{}, blockedGlyph string, staleGlyph string, staleThresholdDays int) string {
+	glyph := ""
 	if blockedGlyph != "" && isBlockedRow(row) {
-		title = blockedGlyph + " " + title
+		glyph = blockedGlyph
+	} else if staleGlyph != "" && isStaleRow(row, staleThresholdDays) {
+		glyph = staleGlyph
 	}
-	return title
+	pad := listGlyphGutterWidth - runewidth.StringWidth(glyph)
+	if pad < 0 {
+		pad = 0
+	}
+	return glyph + strings.Repeat(" ", pad+1)
 }
 
 // isStaleRow reports whether a row's daysSinceModified cell (projected by
@@ -653,14 +682,19 @@ func calculateColWidths(rows []map[string]interface{}, cols []string, totalWidth
 		return nil
 	}
 
-	// Compute natural widths from header names and cell values.
+	// Compute natural widths from header names and cell values. Measured in
+	// display cells via runewidth, not rune count: a column dominated by
+	// fullwidth values (CJK, some emoji) would otherwise get a narrower
+	// budget than its rendered width actually needs, overflowing the pane
+	// once listPadOrTruncate renders it — the same stray-row wrap bug this
+	// pane's glyph gutter fix addressed for the blocked/stale glyphs.
 	natural := make([]int, n)
 	for i, col := range displayCols {
-		natural[i] = utf8.RuneCountInString(col)
+		natural[i] = runewidth.StringWidth(col)
 	}
 	for _, row := range rows {
 		for i, col := range displayCols {
-			w := utf8.RuneCountInString(formatCellValue(row[col]))
+			w := runewidth.StringWidth(formatCellValue(row[col]))
 			if w > natural[i] {
 				natural[i] = w
 			}
@@ -708,22 +742,26 @@ func calculateColWidths(rows []map[string]interface{}, cols []string, totalWidth
 	return widths
 }
 
-// listPadOrTruncate pads s with spaces to exactly width runes, or truncates
-// it with an ellipsis if it exceeds width.
+// listPadOrTruncate pads s with spaces to exactly width display cells, or
+// truncates it with an ellipsis if it exceeds width. Measured via runewidth,
+// not rune count, so fullwidth characters (CJK, some emoji) can't render
+// wider than the width they were budgeted for by calculateColWidths — that
+// mismatch is what let a row overflow the pane and wrap into a stray line
+// under PadLines.
 func listPadOrTruncate(s string, width int) string {
 	if width <= 0 {
 		return s
 	}
-	runes := []rune(s)
-	if len(runes) <= width {
-		return s + strings.Repeat(" ", width-len(runes))
+	sw := runewidth.StringWidth(s)
+	if sw <= width {
+		return s + strings.Repeat(" ", width-sw)
 	}
-	ellipsisWidth := utf8.RuneCountInString(listColEllipsis)
-	cutAt := width - ellipsisWidth
-	if cutAt < 0 {
-		cutAt = 0
+	ellipsisWidth := runewidth.StringWidth(listColEllipsis)
+	cut := width - ellipsisWidth
+	if cut < 0 {
+		cut = 0
 	}
-	return string(runes[:cutAt]) + listColEllipsis
+	return runewidth.Truncate(s, cut, "") + listColEllipsis
 }
 
 // formatCellValue converts a cell value to a display string.
@@ -791,7 +829,12 @@ func buildDelegate(theme *ActiveTheme) list.DefaultDelegate {
 // Inter-column gaps use Spacer() so they carry the background colour — bare
 // string separators would bleed the terminal default at ANSI reset boundaries.
 func renderListHeader(cols []string, colWidths []int, fg, bg color.Color) string {
-	style := lipgloss.NewStyle().Bold(true).Foreground(fg).Background(bg).Padding(0, 0, 0, 1)
+	// First cell carries the left padding plus a blank glyph-gutter-width
+	// segment, so header columns start at the same offset as data rows (which
+	// always emit a gutter via glyphGutter, glyph or not).
+	firstStyle := lipgloss.NewStyle().Bold(true).Foreground(fg).Background(bg).
+		Padding(0, 0, 0, 1+listGlyphGutterWidth+1)
+	style := lipgloss.NewStyle().Bold(true).Foreground(fg).Background(bg)
 
 	cells := make([]string, 0, len(cols))
 	wi := 0
@@ -803,8 +846,12 @@ func renderListHeader(cols []string, colWidths []int, fg, bg color.Color) string
 		if wi < len(colWidths) {
 			w = colWidths[wi]
 		}
+		cellStyle := style
+		if wi == 0 {
+			cellStyle = firstStyle
+		}
 		wi++
-		cells = append(cells, style.Render(listPadOrTruncate(col, w)))
+		cells = append(cells, cellStyle.Render(listPadOrTruncate(col, w)))
 	}
 
 	return strings.Join(cells, Spacer(listColPadding, bg))
