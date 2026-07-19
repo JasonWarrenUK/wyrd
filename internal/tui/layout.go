@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"image/color"
+
 	"charm.land/lipgloss/v2"
 )
 
@@ -14,6 +16,20 @@ const (
 	// FocusRight means the right pane is active.
 	FocusRight
 )
+
+// FocusAnimState carries the in-flight VP.6 spring transition into Render so
+// the border colour and pane width can be interpolated rather than snapped.
+// A nil *FocusAnimState means no transition is in flight; Render then falls
+// back to the pre-VP.6 hard-snap behaviour — the correct value for callers
+// with reduce_motion enabled, or on any frame between transitions.
+type FocusAnimState struct {
+	// From and To are the panes losing and gaining focus.
+	From, To FocusedPane
+
+	// Progress is the clamped [0,1] spring position: 0 is fully at From,
+	// 1 is fully at To.
+	Progress float64
+}
 
 // Layout holds the dimensions and styles used to render the two-pane split.
 // It is recalculated whenever the terminal window is resized.
@@ -80,14 +96,45 @@ func (l *Layout) RightWidth() int {
 	return w
 }
 
-// paneStyle builds the Lipgloss style for a pane box, highlighting it
-// differently based on whether it has focus. The focused pane uses a
-// wrapping-set gradient blend (AccentPrimary → AccentSecondary → AccentPrimary)
-// so the gradient closes seamlessly at the top-left corner where the perimeter
-// ends, per the BorderForegroundBlend docstring guidance for closed borders.
-func (l *Layout) paneStyle(width int, focused bool) lipgloss.Style {
+// focusFraction returns how "focused" the given pane is right now, as a
+// [0,1] value used to interpolate its border colour and width nudge. Outside
+// of a transition this collapses to the plain binary 0/1 the pre-VP.6 code
+// used. During a transition, the pane gaining focus (anim.to) animates
+// 0→anim.progress and the pane losing it (anim.from) animates 1→(1-progress);
+// any other pane (impossible with only two panes, but defensive) stays put.
+func focusFraction(pane FocusedPane, focus FocusedPane, anim *FocusAnimState) float64 {
+	if anim == nil {
+		if pane == focus {
+			return 1
+		}
+		return 0
+	}
+	switch pane {
+	case anim.To:
+		return anim.Progress
+	case anim.From:
+		return 1 - anim.Progress
+	default:
+		if pane == focus {
+			return 1
+		}
+		return 0
+	}
+}
+
+// paneStyle builds the Lipgloss style for a pane box, blending its border
+// colour and width between the unfocused and focused rest states according
+// to frac (see focusFraction). At frac==0 this renders identically to the
+// old flat-border unfocused style; at frac==1, identically to the old
+// wrapping-set gradient blend (AccentPrimary → AccentSecondary →
+// AccentPrimary) used for the focused pane, which closes seamlessly at the
+// top-left corner per the BorderForegroundBlend docstring guidance for
+// closed borders. widthNudge is the extra (or fewer, if negative) columns to
+// apply to the outer box width at this frac — see Render for why this must
+// never feed back into LeftWidth/RightWidth.
+func (l *Layout) paneStyle(width int, frac float64, widthNudge int) lipgloss.Style {
 	style := lipgloss.NewStyle().
-		Width(width).
+		Width(width + widthNudge).
 		Height(l.PaneHeight()).
 		MaxHeight(l.PaneHeight()).
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -95,17 +142,26 @@ func (l *Layout) paneStyle(width int, focused bool) lipgloss.Style {
 		Background(l.theme.BgPrimary()).
 		Foreground(l.theme.FgPrimary())
 
-	if focused {
-		style = style.BorderForegroundBlend(
-			l.theme.AccentPrimary(),
-			l.theme.AccentSecondary(),
-			l.theme.AccentPrimary(),
-		)
+	border := l.theme.Border()
+	a, b, c := blendStopColours(border, l.theme.AccentPrimary(), l.theme.AccentSecondary(), frac)
+	if frac <= 0 {
+		style = style.BorderForeground(border)
 	} else {
-		style = style.BorderForeground(l.theme.Border())
+		style = style.BorderForegroundBlend(a, b, c)
 	}
 
 	return style
+}
+
+// blendStopColours interpolates the three BorderForegroundBlend stops
+// (accent1 → accent2 → accent1, wrapping) from the flat unfocused border
+// colour toward that gradient at fraction t. At t==0 all three stops equal
+// `border` (visually a flat border); at t==1 they reproduce the original
+// AccentPrimary → AccentSecondary → AccentPrimary gradient exactly.
+func blendStopColours(border, accent1, accent2 color.Color, t float64) (color.Color, color.Color, color.Color) {
+	a := lerpColour(border, accent1, t)
+	b := lerpColour(border, accent2, t)
+	return a, b, a
 }
 
 // logoStyle returns the bordered Lipgloss style for the logo box that sits atop
@@ -134,14 +190,14 @@ func (l *Layout) logoStyle(width, height int) lipgloss.Style {
 
 // detailPaneStyle returns the pane style for the right-hand detail column,
 // sized to PaneHeight() minus the logo height so that logo + detail together
-// fill the full pane height.
-func (l *Layout) detailPaneStyle(width int, focused bool, logoH int) lipgloss.Style {
+// fill the full pane height. frac and widthNudge behave as in paneStyle.
+func (l *Layout) detailPaneStyle(width int, frac float64, widthNudge int, logoH int) lipgloss.Style {
 	h := l.PaneHeight() - logoH
 	if h < 1 {
 		h = 1
 	}
 	style := lipgloss.NewStyle().
-		Width(width).
+		Width(width + widthNudge).
 		Height(h).
 		MaxHeight(h).
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -149,14 +205,12 @@ func (l *Layout) detailPaneStyle(width int, focused bool, logoH int) lipgloss.St
 		Background(l.theme.BgPrimary()).
 		Foreground(l.theme.FgPrimary())
 
-	if focused {
-		style = style.BorderForegroundBlend(
-			l.theme.AccentPrimary(),
-			l.theme.AccentSecondary(),
-			l.theme.AccentPrimary(),
-		)
+	border := l.theme.Border()
+	a, b, c := blendStopColours(border, l.theme.AccentPrimary(), l.theme.AccentSecondary(), frac)
+	if frac <= 0 {
+		style = style.BorderForeground(border)
 	} else {
-		style = style.BorderForeground(l.theme.Border())
+		style = style.BorderForegroundBlend(a, b, c)
 	}
 
 	return style
@@ -166,22 +220,62 @@ func (l *Layout) detailPaneStyle(width int, focused bool, logoH int) lipgloss.St
 // status bar. leftView and rightView should already be the content returned by
 // PaneModel.View(). logoView sits above rightView in the right column; it is
 // produced by RenderLogo(RightWidth(), theme).
+//
+// anim carries the VP.6 focus-transition spring state (nil = no transition
+// in flight, renders identically to the pre-VP.6 hard snap). The ±1-column
+// width nudge applied to the gaining/losing pane's OUTER box width here is
+// deliberately local to this function: LeftWidth()/RightWidth() (and
+// therefore RenderLogo's width and the detail viewport's content width,
+// which callers compute from those same methods) are never perturbed, so
+// leftView/rightView/logoView content never needs to reflow mid-transition —
+// only the box each already-rendered string is placed into changes size.
 func (l *Layout) Render(
 	leftView string,
 	rightView string,
 	logoView string,
 	statusBarView string,
 	focus FocusedPane,
+	anim *FocusAnimState,
 ) string {
 	rw := l.RightWidth()
+	lw := l.LeftWidth()
 	logoH := LogoHeight(rw)
 
-	leftBox := l.paneStyle(l.LeftWidth(), focus == FocusLeft).Render(leftView)
+	leftFrac := focusFraction(FocusLeft, focus, anim)
+	rightFrac := focusFraction(FocusRight, focus, anim)
+
+	// The gaining pane grows by up to 1 column as it nears full focus; the
+	// other pane shrinks by the same amount so the total row width is
+	// unchanged (JoinHorizontal requires the row to still fill the terminal).
+	leftNudge := 0
+	rightNudge := 0
+	if anim != nil {
+		switch anim.To {
+		case FocusLeft:
+			leftNudge = roundNudge(anim.Progress)
+			rightNudge = -leftNudge
+		case FocusRight:
+			rightNudge = roundNudge(anim.Progress)
+			leftNudge = -rightNudge
+		}
+	}
+
+	leftBox := l.paneStyle(lw, leftFrac, leftNudge).Render(leftView)
 	logoBox := l.logoStyle(rw, logoH).Render(logoView)
-	detailBox := l.detailPaneStyle(rw, focus == FocusRight, logoH).Render(rightView)
+	detailBox := l.detailPaneStyle(rw, rightFrac, rightNudge, logoH).Render(rightView)
 
 	rightColumn := lipgloss.JoinVertical(lipgloss.Left, logoBox, detailBox)
 	row := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightColumn)
 
 	return lipgloss.JoinVertical(lipgloss.Left, row, statusBarView)
+}
+
+// roundNudge converts a [0,1] spring progress into a 0/1 column nudge,
+// rounding at the midpoint so the width settles exactly at 1 once the
+// transition completes rather than drifting from float accumulation.
+func roundNudge(progress float64) int {
+	if progress >= 0.5 {
+		return 1
+	}
+	return 0
 }

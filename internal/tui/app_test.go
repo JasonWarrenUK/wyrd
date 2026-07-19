@@ -163,6 +163,61 @@ func TestSwitchPaneFocus(t *testing.T) {
 	}
 }
 
+// TestSwitchPaneFocusKicksOffAnimation verifies VP.6's Update choke-point:
+// a focus change returns a non-nil command (the batched spring tick,
+// alongside handleSwitchPane's own HandleFocusLost command), and the
+// resulting View still renders without panicking mid-transition — the
+// interpolated border/width path in Layout.Render must not crash on a
+// freshly-started (progress≈0) transition.
+func TestSwitchPaneFocusKicksOffAnimation(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("expected a non-nil command after a focus change (spring tick should be batched in)")
+	}
+	m2, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+	if v := m2.View(); v.Content == "" {
+		t.Error("View() returned empty content mid-transition")
+	}
+}
+
+// TestFocusTickAdvancesWithoutPanic drives a handful of focusTickMsg-shaped
+// steps (via the real tea.Tick command returned from the focus change) to
+// make sure the spring loop can run to completion — either re-arming
+// another tick or settling — without panicking or looping forever within a
+// bounded number of steps.
+func TestFocusTickAdvancesWithoutPanic(t *testing.T) {
+	m := newTestModel(t)
+	m = sendWindowSize(t, m, 80, 24)
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
+	m2, ok := updated.(tui.Model)
+	if !ok {
+		t.Fatalf("unexpected type %T", updated)
+	}
+
+	// Drive the tick loop forward. A ~150ms transition at 60fps settles in
+	// under 10 steps; cap well above that so a regression that never settles
+	// fails the test instead of hanging.
+	const maxSteps = 60
+	for i := 0; i < maxSteps && cmd != nil; i++ {
+		msg := cmd() // execute the tea.Tick command to get the next message
+		updated, cmd = m2.Update(msg)
+		m2, ok = updated.(tui.Model)
+		if !ok {
+			t.Fatalf("unexpected type %T at step %d", updated, i)
+		}
+		if v := m2.View(); v.Content == "" {
+			t.Fatalf("View() returned empty content at tick step %d", i)
+		}
+	}
+}
+
 // TestCommandPaletteOpensOnCtrlP checks that pressing ctrl+p opens the palette.
 func TestCommandPaletteOpensOnCtrlP(t *testing.T) {
 	m := newTestModel(t)

@@ -81,7 +81,7 @@ func TestRenderDoesNotPanic(t *testing.T) {
 		}
 	}()
 
-	output := l.Render("left content", "right content", "", "[status bar]", tui.FocusLeft)
+	output := l.Render("left content", "right content", "", "[status bar]", tui.FocusLeft, nil)
 	if output == "" {
 		t.Error("Render returned empty string")
 	}
@@ -91,7 +91,7 @@ func TestRenderDoesNotPanic(t *testing.T) {
 func TestRenderWithFocusRight(t *testing.T) {
 	theme := loadBuiltinTheme(t)
 	l := tui.NewLayout(80, 24, theme)
-	output := l.Render("left", "right", "", "status", tui.FocusRight)
+	output := l.Render("left", "right", "", "status", tui.FocusRight, nil)
 	if output == "" {
 		t.Error("Render with FocusRight returned empty string")
 	}
@@ -120,7 +120,7 @@ func TestSmallTerminalDoesNotCrash(t *testing.T) {
 		t.Errorf("PaneHeight too small: %d", l.PaneHeight())
 	}
 
-	_ = l.Render("l", "r", "", "s", tui.FocusLeft)
+	_ = l.Render("l", "r", "", "s", tui.FocusLeft, nil)
 }
 
 // TestSectionHeaderReturnsUppercase verifies that SectionHeader uppercases
