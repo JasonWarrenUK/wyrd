@@ -337,6 +337,47 @@ func TestGlyphGutter_FixedWidthRegardlessOfGlyph(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// calculateColWidths / listPadOrTruncate
+// ---------------------------------------------------------------------------
+
+func TestCalculateColWidths_FullwidthCellNotUnderMeasured(t *testing.T) {
+	// A fullwidth-heavy value (CJK) has a rune count far below its true
+	// display width. If calculateColWidths measured by rune count, it would
+	// hand back a budget too narrow for the value's actual rendered width —
+	// the same overflow-then-wrap bug the glyph gutter fix addressed for the
+	// blocked/stale glyphs, just triggered by ordinary cell content instead.
+	rows := []map[string]interface{}{
+		{"title": "日本語タスク"}, // 6 runes, 12 display cells
+	}
+	cols := []string{"title"}
+	widths := calculateColWidths(rows, cols, 80)
+
+	rendered := listPadOrTruncate("日本語タスク", widths[0])
+	if got := runewidth.StringWidth(rendered); got > widths[0] {
+		t.Errorf("rendered display width %d exceeds allocated column budget %d — row would overflow the pane and wrap under PadLines", got, widths[0])
+	}
+}
+
+func TestListPadOrTruncate_PadsAndTruncatesByDisplayWidth(t *testing.T) {
+	// Padding a fullwidth string to a display-cell width must not add extra
+	// runes beyond what's needed to reach that width in display cells.
+	padded := listPadOrTruncate("日本語", 10) // 3 runes, 6 display cells
+	if got := runewidth.StringWidth(padded); got != 10 {
+		t.Errorf("expected padded display width 10, got %d (%q)", got, padded)
+	}
+
+	// Truncating a fullwidth string must cut at a display-cell boundary and
+	// never exceed the requested width once the ellipsis is appended.
+	truncated := listPadOrTruncate("日本語タスク", 8) // true width 12, budget 8
+	if got := runewidth.StringWidth(truncated); got > 8 {
+		t.Errorf("truncated display width %d exceeds requested width 8 (%q)", got, truncated)
+	}
+	if !strings.HasSuffix(truncated, listColEllipsis) {
+		t.Errorf("expected truncated string to end with ellipsis, got %q", truncated)
+	}
+}
+
 func TestIsStaleRow(t *testing.T) {
 	if isStaleRow(map[string]interface{}{"daysSinceModified": 21}, 14) != true {
 		t.Error("expected true when daysSinceModified exceeds the threshold")

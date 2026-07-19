@@ -6,7 +6,6 @@ import (
 	"io"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
@@ -683,14 +682,19 @@ func calculateColWidths(rows []map[string]interface{}, cols []string, totalWidth
 		return nil
 	}
 
-	// Compute natural widths from header names and cell values.
+	// Compute natural widths from header names and cell values. Measured in
+	// display cells via runewidth, not rune count: a column dominated by
+	// fullwidth values (CJK, some emoji) would otherwise get a narrower
+	// budget than its rendered width actually needs, overflowing the pane
+	// once listPadOrTruncate renders it — the same stray-row wrap bug this
+	// pane's glyph gutter fix addressed for the blocked/stale glyphs.
 	natural := make([]int, n)
 	for i, col := range displayCols {
-		natural[i] = utf8.RuneCountInString(col)
+		natural[i] = runewidth.StringWidth(col)
 	}
 	for _, row := range rows {
 		for i, col := range displayCols {
-			w := utf8.RuneCountInString(formatCellValue(row[col]))
+			w := runewidth.StringWidth(formatCellValue(row[col]))
 			if w > natural[i] {
 				natural[i] = w
 			}
@@ -738,22 +742,26 @@ func calculateColWidths(rows []map[string]interface{}, cols []string, totalWidth
 	return widths
 }
 
-// listPadOrTruncate pads s with spaces to exactly width runes, or truncates
-// it with an ellipsis if it exceeds width.
+// listPadOrTruncate pads s with spaces to exactly width display cells, or
+// truncates it with an ellipsis if it exceeds width. Measured via runewidth,
+// not rune count, so fullwidth characters (CJK, some emoji) can't render
+// wider than the width they were budgeted for by calculateColWidths — that
+// mismatch is what let a row overflow the pane and wrap into a stray line
+// under PadLines.
 func listPadOrTruncate(s string, width int) string {
 	if width <= 0 {
 		return s
 	}
-	runes := []rune(s)
-	if len(runes) <= width {
-		return s + strings.Repeat(" ", width-len(runes))
+	sw := runewidth.StringWidth(s)
+	if sw <= width {
+		return s + strings.Repeat(" ", width-sw)
 	}
-	ellipsisWidth := utf8.RuneCountInString(listColEllipsis)
-	cutAt := width - ellipsisWidth
-	if cutAt < 0 {
-		cutAt = 0
+	ellipsisWidth := runewidth.StringWidth(listColEllipsis)
+	cut := width - ellipsisWidth
+	if cut < 0 {
+		cut = 0
 	}
-	return string(runes[:cutAt]) + listColEllipsis
+	return runewidth.Truncate(s, cut, "") + listColEllipsis
 }
 
 // formatCellValue converts a cell value to a display string.
