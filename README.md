@@ -50,6 +50,18 @@ Inside the TUI, navigation follows vim conventions: `hjkl` for movement, `gg`/`G
 
 ---
 
+## Configuration
+
+`~/wyrd/store/config.jsonc` holds app-wide settings.
+
+```jsonc
+{
+	"reduce_motion": false  // true disables the focus-transition animation (accessibility)
+}
+```
+
+---
+
 ## Data model
 
 Two entity types: **nodes** and **edges**, each stored as individual `.jsonc` files.

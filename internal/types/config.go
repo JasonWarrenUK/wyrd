@@ -28,4 +28,9 @@ type Config struct {
 	// TUI (DL.3). Zero/absent resolves to DefaultStalenessThresholdDays (14)
 	// — see types.IsStale.
 	StalenessThresholdDays int `json:"staleness_threshold_days,omitempty"`
+
+	// ReduceMotion disables spring-eased animation in the TUI (VP.6) —
+	// e.g. the focus-border transition — for accessibility. Absent/false
+	// leaves motion enabled.
+	ReduceMotion bool `json:"reduce_motion,omitempty"`
 }

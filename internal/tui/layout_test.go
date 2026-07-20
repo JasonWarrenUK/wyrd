@@ -1,8 +1,10 @@
 package tui_test
 
 import (
+	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
 )
 
@@ -81,7 +83,7 @@ func TestRenderDoesNotPanic(t *testing.T) {
 		}
 	}()
 
-	output := l.Render("left content", "right content", "", "[status bar]", tui.FocusLeft)
+	output := l.Render("left content", "right content", "", "[status bar]", tui.FocusLeft, nil)
 	if output == "" {
 		t.Error("Render returned empty string")
 	}
@@ -91,9 +93,45 @@ func TestRenderDoesNotPanic(t *testing.T) {
 func TestRenderWithFocusRight(t *testing.T) {
 	theme := loadBuiltinTheme(t)
 	l := tui.NewLayout(80, 24, theme)
-	output := l.Render("left", "right", "", "status", tui.FocusRight)
+	output := l.Render("left", "right", "", "status", tui.FocusRight, nil)
 	if output == "" {
 		t.Error("Render with FocusRight returned empty string")
+	}
+}
+
+// TestRenderPaneWidthNeverChangesWithFocus is a regression test: VP.6
+// originally nudged the focused pane 1 column wider (and shrank the other
+// pane to compensate), but that grow/shrink read as visually distracting
+// rather than as a focus affordance and was removed. Pane widths must stay
+// exactly LeftWidth()/RightWidth() regardless of focus, both at rest and
+// mid-transition — only the border colour should animate.
+func TestRenderPaneWidthNeverChangesWithFocus(t *testing.T) {
+	theme := loadBuiltinTheme(t)
+	l := tui.NewLayout(80, 24, theme)
+
+	firstLine := func(s string) string {
+		if i := strings.IndexByte(s, '\n'); i >= 0 {
+			return s[:i]
+		}
+		return s
+	}
+	widthOfLeftPane := func(out string) int {
+		return lipgloss.Width(firstLine(out))
+	}
+
+	atRestFocused := widthOfLeftPane(l.Render("left", "right", "", "status", tui.FocusLeft, nil))
+	atRestUnfocused := widthOfLeftPane(l.Render("left", "right", "", "status", tui.FocusRight, nil))
+	if atRestFocused != atRestUnfocused {
+		t.Errorf("left pane width differs by focus at rest: focused=%d unfocused=%d, want equal",
+			atRestFocused, atRestUnfocused)
+	}
+
+	// Also check mid-transition, where the old nudge was most visible.
+	anim := &tui.FocusAnimState{From: tui.FocusLeft, To: tui.FocusRight, Progress: 0.5}
+	midTransition := widthOfLeftPane(l.Render("left", "right", "", "status", tui.FocusLeft, anim))
+	if midTransition != atRestFocused {
+		t.Errorf("left pane width changed mid-transition: got=%d want=%d (same as at rest)",
+			midTransition, atRestFocused)
 	}
 }
 
@@ -120,7 +158,7 @@ func TestSmallTerminalDoesNotCrash(t *testing.T) {
 		t.Errorf("PaneHeight too small: %d", l.PaneHeight())
 	}
 
-	_ = l.Render("l", "r", "", "s", tui.FocusLeft)
+	_ = l.Render("l", "r", "", "s", tui.FocusLeft, nil)
 }
 
 // TestSectionHeaderReturnsUppercase verifies that SectionHeader uppercases

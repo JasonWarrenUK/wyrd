@@ -128,7 +128,21 @@ func (d groupedDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 func (d groupedDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	switch it := item.(type) {
 	case groupHeaderItem:
-		fmt.Fprint(w, d.headerStyle.Render(it.label))
+		// Pad the header out to the list's own width with the header's
+		// background BEFORE handing it off. list.Model never pads delegate
+		// output itself, and the header text ("Tasks" etc.) is far
+		// narrower than the row — left unpadded, lipgloss.JoinVertical
+		// (used later in nodeListPane.View() to stack this content under
+		// the column header) fills that gap with BARE unstyled spaces to
+		// match the widest sibling line, which take on the terminal's
+		// default background rather than the theme's. That's invisible on
+		// dark themes (default bg happens to look black-ish already) but
+		// shows as a stark black bar on light themes (kiln, fell). PadLines
+		// applied later in View() cannot fix this retroactively — by then
+		// the line is already at its full width, so its own Width()-based
+		// padding is a no-op.
+		header := d.headerStyle.Render(it.label)
+		fmt.Fprint(w, PadLines(header, m.Width(), d.headerStyle.GetBackground()))
 	case nodeListItem:
 		style := d.normalStyle
 		if index == m.Index() {

@@ -105,6 +105,21 @@ type Model struct {
 	// focus indicates which pane has keyboard focus.
 	focus FocusedPane
 
+	// prevFocus is the focus value as of the end of the previous Update call.
+	// Update (the exported wrapper) diffs focus against prevFocus after every
+	// message is handled, regardless of which internal path changed it, and
+	// kicks off focusAnim from that single choke-point (VP.6).
+	prevFocus FocusedPane
+
+	// focusAnim holds the in-flight spring-eased focus-border transition, or
+	// nil when no transition is running (rendered as a hard, un-animated
+	// state). See focus_anim.go.
+	focusAnim *focusTransition
+
+	// reduceMotion disables focusAnim entirely (VP.6 accessibility gate) —
+	// read once at startup from config.jsonc's reduce_motion.
+	reduceMotion bool
+
 	// keyMap holds the application-level key bindings.
 	keyMap AppKeyMap
 
@@ -230,15 +245,18 @@ func New(cfg Config) (Model, error) {
 		storePath = "."
 	}
 
-	// Attempt to read config for theme name and the DL.3 staleness threshold.
+	// Attempt to read config for theme name, the DL.3 staleness threshold,
+	// and the VP.6 reduce_motion accessibility gate.
 	themeName := cfg.ThemeName
 	staleThresholdDays := 0
+	reduceMotion := false
 	if cfg.Store != nil {
 		if appCfg, err := cfg.Store.ReadConfig(); err == nil {
 			if themeName == "" && appCfg.Theme != "" {
 				themeName = appCfg.Theme
 			}
 			staleThresholdDays = appCfg.StalenessThresholdDays
+			reduceMotion = appCfg.ReduceMotion
 		}
 	}
 
@@ -406,6 +424,8 @@ func New(cfg Config) (Model, error) {
 		leftPane:           leftPane,
 		rightPane:          NewEmptyPane(theme),
 		focus:              FocusLeft,
+		prevFocus:          FocusLeft,
+		reduceMotion:       reduceMotion,
 		keyMap:             keyMap,
 		palette:            palette,
 		statusBar:          statusBar,
@@ -470,8 +490,39 @@ func ritualCheckTickNext() tea.Cmd {
 	})
 }
 
-// Update is the Elm-style update function. All state changes happen here.
+// Update is the Elm-style update function's public entry point. It delegates
+// to update for all actual message handling, then acts as the single VP.6
+// choke-point: focus is set directly in roughly a dozen places scattered
+// through update's many early-return branches (handleSwitchPane, capture/
+// edit/archive flow returns, etc.), so rather than instrument every one of
+// them, this wrapper diffs the resulting focus against prevFocus exactly
+// once per call and kicks off (or re-targets) the spring transition from
+// here — the only place guaranteed to run after every focus change.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	newModel, cmd := m.update(msg)
+
+	next, ok := newModel.(Model)
+	if !ok {
+		// Should not happen — every internal path returns a Model — but fall
+		// back to passing the result through unanimated rather than panic.
+		return newModel, cmd
+	}
+
+	if !next.reduceMotion && next.focus != next.prevFocus {
+		gen := 0
+		if next.focusAnim != nil {
+			gen = next.focusAnim.gen
+		}
+		next.focusAnim = newFocusTransition(gen, next.prevFocus, next.focus)
+		cmd = tea.Batch(cmd, next.focusAnim.tick())
+	}
+	next.prevFocus = next.focus
+
+	return next, cmd
+}
+
+// update is the Elm-style update function. All state changes happen here.
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// When the ritual overlay is active, route messages to it first.
 	if m.ritualOvl.IsActive() {
 		cmd, consumed := m.ritualOvl.Update(msg)
@@ -609,6 +660,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetCaptureText(CaptureBarPlaceholder())
 		}
 		return m, nil
+
+	case focusTickMsg:
+		// Stale tick from a transition that's since been superseded by
+		// another focus change (see Update's choke-point) — drop it.
+		if m.focusAnim == nil || msg.gen != m.focusAnim.gen {
+			return m, nil
+		}
+		m.focusAnim.step()
+		if m.focusAnim.settled() {
+			m.focusAnim = nil
+			return m, nil
+		}
+		return m, m.focusAnim.tick()
 	}
 
 	// Let the palette handle input first when it is active.
@@ -1316,7 +1380,16 @@ func (m Model) View() tea.View {
 		statusView := m.statusBar.View()
 		logoView := RenderLogo(m.layout.RightWidth(), m.theme)
 
-		frame = m.layout.Render(leftView, rightView, logoView, statusView, m.focus)
+		var anim *FocusAnimState
+		if m.focusAnim != nil {
+			anim = &FocusAnimState{
+				From:     m.focusAnim.from,
+				To:       m.focusAnim.to,
+				Progress: m.focusAnim.progress(),
+			}
+		}
+
+		frame = m.layout.Render(leftView, rightView, logoView, statusView, m.focus, anim)
 
 		// Composite whichever overlay is active, horizontally and vertically
 		// centred, over the base frame using lipgloss.Place. Only one overlay

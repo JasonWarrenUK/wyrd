@@ -426,6 +426,46 @@ func TestWriteConfig_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestReduceMotionConfig_RoundTrip covers VP.6's accessibility gate: an
+// explicit true survives WriteConfig/ReadConfig, and an absent field (the
+// common case — omitempty drops false on write) resolves back to false
+// rather than erroring or defaulting true.
+func TestReduceMotionConfig_RoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	defer s.Close()
+
+	if err := s.WriteConfig(&types.Config{ReduceMotion: true}); err != nil {
+		t.Fatalf("WriteConfig: %v", err)
+	}
+	got, err := s.ReadConfig()
+	if err != nil {
+		t.Fatalf("ReadConfig: %v", err)
+	}
+	if !got.ReduceMotion {
+		t.Errorf("ReduceMotion = false, want true")
+	}
+}
+
+func TestReduceMotionConfig_AbsentDefaultsFalse(t *testing.T) {
+	s := newTestStore(t)
+	defer s.Close()
+
+	// omitempty drops a false ReduceMotion entirely, so the field is simply
+	// absent from the written JSONC — this is the config.jsonc shipped by
+	// `wyrd init` today (reduce_motion: false is present there for
+	// discoverability, but ReadConfig must not require it).
+	if err := s.WriteConfig(&types.Config{Theme: "cairn"}); err != nil {
+		t.Fatalf("WriteConfig: %v", err)
+	}
+	got, err := s.ReadConfig()
+	if err != nil {
+		t.Fatalf("ReadConfig: %v", err)
+	}
+	if got.ReduceMotion {
+		t.Errorf("ReduceMotion = true, want false (absent field default)")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Plugin manifests
 // ---------------------------------------------------------------------------
