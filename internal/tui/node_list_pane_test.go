@@ -1,14 +1,25 @@
 package tui
 
 import (
+	"image/color"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 	"github.com/mattn/go-runewidth"
 )
+
+// ansiTruecolourBgRe extracts the r;g;b triple from a truecolor BACKGROUND
+// SGR component (e.g. matches inside "48;2;255;248;245"). Distinct from
+// ansiTruecolourFgRe (focus_anim.go), which matches the foreground ("38;2;
+// ...") component — an escape can carry both in one sequence, so the two
+// must not be conflated.
+var ansiTruecolourBgRe = regexp.MustCompile(`48;2;(\d+);(\d+);(\d+)`)
 
 // ---------------------------------------------------------------------------
 // detectGroupCol
@@ -610,4 +621,70 @@ func TestNodeListPane_ResizePreservesSelection(t *testing.T) {
 	if got := pAfter.SelectedNodeID(); got != wantID {
 		t.Errorf("selection changed after resize: want %q, got %q", wantID, got)
 	}
+}
+
+// TestGroupedDelegateHeaderNoBackgroundBleed is a regression test: the group
+// header row ("Tasks" etc.) is only as wide as its own text when the
+// delegate hands it to bubbles/list — list.Model never pads delegate output
+// to its own width. Left unpadded, nodeListPane.View()'s later
+// lipgloss.JoinVertical (stacking this row under the wider column-header
+// row) fills the gap with BARE, unstyled spaces to match the widest
+// sibling line. Those spaces take on the terminal's default background
+// rather than the theme's, which is invisible on dark themes (default bg
+// happens to look black-ish already) but shows as a stark black bar on
+// light themes (kiln, fell — both have a near-white bg.primary). The fix
+// pads the header to the list's width, with the header's own background,
+// inside the delegate itself, before JoinVertical ever sees it.
+func TestGroupedDelegateHeaderNoBackgroundBleed(t *testing.T) {
+	theme := testThemeVP2()
+	delegate := newGroupedDelegate(theme)
+
+	const listWidth = 40
+	l := list.New([]list.Item{groupHeaderItem{label: "Tasks"}}, delegate, listWidth, 10)
+
+	var buf strings.Builder
+	delegate.Render(&buf, l, 0, groupHeaderItem{label: "Tasks"})
+	out := buf.String()
+
+	if got := lipgloss.Width(out); got != listWidth {
+		t.Fatalf("rendered header width = %d, want %d (list width) — padding did not reach the full row",
+			got, listWidth)
+	}
+
+	wantBg := theme.BgPrimary()
+	cells := ansiBgCells(out)
+	if len(cells) == 0 {
+		t.Fatal("no cells parsed from rendered header — test setup problem")
+	}
+	for i, c := range cells {
+		if c.colour == nil {
+			t.Errorf("cell[%d] (char %q) has no background colour set — bare unstyled space, will bleed the terminal default", i, c.char)
+			continue
+		}
+		if c.colour != wantBg {
+			t.Errorf("cell[%d] (char %q) background = %v, want theme bg %v", i, c.char, c.colour, wantBg)
+		}
+	}
+}
+
+// ansiBgCells expands s into one entry per displayed rune, each carrying
+// that position's BACKGROUND colour (nil if the position has no background
+// escape active) — the background analogue of ansiColourCells
+// (focus_anim.go), which tracks foreground.
+func ansiBgCells(s string) []ansiCell {
+	runs := ansiColourRuns(s)
+	var cells []ansiCell
+	for _, run := range runs {
+		var bg color.Color
+		if m := ansiTruecolourBgRe.FindStringSubmatch(run.escape); m != nil {
+			r, _ := strconv.Atoi(m[1])
+			g, _ := strconv.Atoi(m[2])
+			b, _ := strconv.Atoi(m[3])
+			bg = color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 255}
+		}
+		for _, r := range run.text {
+			cells = append(cells, ansiCell{escape: run.escape, char: r, colour: bg})
+		}
+	}
+	return cells
 }
