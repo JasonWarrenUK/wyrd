@@ -1,5 +1,5 @@
 {
-	// Kiln theme — light, warm · Terracotta. Orange and cinnamon earth tones, red glaze accents.
+	// Kiln theme — light, warm · Terracotta. Orange and cinnamon earth tones, plum glaze accents.
 	// Palette source: Reasonable Colors (reasonable.work/colors)
 	// Reference: docs/aesthetics/visual-references/palette-swatches.html
 	"name": "kiln",
@@ -16,7 +16,7 @@
 			},
 			"accent": {
 				"primary": "#cd3c00",
-				"secondary": "#e0002b"
+				"secondary": "#740068"
 			},
 			"border": "#ffded1",
 			"selection": "#ffdfc6",

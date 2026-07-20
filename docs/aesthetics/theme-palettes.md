@@ -44,7 +44,7 @@ All palettes built from [Reasonable Colors](https://www.reasonable.work/colors/)
 
 ## Theme 3: Kiln
 
-*Light, warm. Terracotta. Orange and cinnamon earth tones, red glaze accents.*
+*Light, warm. Terracotta. Orange and cinnamon earth tones, plum glaze accents.*
 
 | Role | Hex | Source |
 |------|-----|--------|
@@ -53,7 +53,7 @@ All palettes built from [Reasonable Colors](https://www.reasonable.work/colors/)
 | fg.primary | `#401600` | orange-6 |
 | fg.muted | `#752100` | orange-5 |
 | accent.primary | `#cd3c00` | orange-4 |
-| accent.secondary | `#e0002b` | red-4 |
+| accent.secondary | `#740068` | magenta-5 |
 | border | `#ffded1` | orange-2 |
 | selection | `#ffdfc6` | cinnamon-2 |
 | energy.deep | `#cd3c00` | orange-4 |
