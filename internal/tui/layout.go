@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"image/color"
-
 	"charm.land/lipgloss/v2"
 )
 
@@ -122,62 +120,92 @@ func focusFraction(pane FocusedPane, focus FocusedPane, anim *FocusAnimState) fl
 	}
 }
 
-// paneStyle builds the Lipgloss style for a pane box, blending its border
-// colour and width between the unfocused and focused rest states according
-// to frac (see focusFraction). At frac==0 this renders identically to the
-// old flat-border unfocused style; at frac==1, identically to the old
-// wrapping-set gradient blend (AccentPrimary → AccentSecondary →
-// AccentPrimary) used for the focused pane, which closes seamlessly at the
-// top-left corner per the BorderForegroundBlend docstring guidance for
-// closed borders. widthNudge is the extra (or fewer, if negative) columns to
-// apply to the outer box width at this frac — see Render for why this must
-// never feed back into LeftWidth/RightWidth.
-func (l *Layout) paneStyle(width int, frac float64, widthNudge int) lipgloss.Style {
-	style := lipgloss.NewStyle().
-		Width(width + widthNudge).
-		Height(l.PaneHeight()).
-		MaxHeight(l.PaneHeight()).
+// paneBaseStyle builds the Lipgloss style shared by both of a pane's rest
+// states (flat unfocused, gradient focused) — every property except the
+// border's foreground colour, which callers set via BorderForeground /
+// BorderForegroundBlend before rendering. Splitting this out lets
+// renderPaneBorder build the two endpoint strings paneStyle's cross-dissolve
+// needs without duplicating the box geometry twice.
+func (l *Layout) paneBaseStyle(width, height int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		MaxHeight(height).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderBackground(l.theme.BgPrimary()).
 		Background(l.theme.BgPrimary()).
 		Foreground(l.theme.FgPrimary())
-
-	border := l.theme.Border()
-	a, b, c := blendStopColours(border, l.theme.AccentPrimary(), l.theme.AccentSecondary(), frac)
-	if frac <= 0 {
-		style = style.BorderForeground(border)
-	} else {
-		style = style.BorderForegroundBlend(a, b, c)
-	}
-
-	return style
 }
 
-// blendStopColours interpolates the three BorderForegroundBlend stops
-// (accent1 → accent2 → accent1, wrapping) from the flat unfocused border
-// colour toward that gradient at fraction t. At t==0 all three stops equal
-// `border` (visually a flat border); at t==1 they reproduce the original
-// AccentPrimary → AccentSecondary → AccentPrimary gradient exactly.
-func blendStopColours(border, accent1, accent2 color.Color, t float64) (color.Color, color.Color, color.Color) {
-	a := lerpColour(border, accent1, t)
-	b := lerpColour(border, accent2, t)
-	return a, b, a
+// renderPaneBorder renders content in a pane box of the given dimensions,
+// blending between the flat unfocused border and the wrapping-set gradient
+// border (AccentPrimary → AccentSecondary → AccentPrimary, closing
+// seamlessly at the top-left corner per the BorderForegroundBlend docstring
+// guidance for closed borders) at fraction frac.
+//
+// At frac<=0/>=1 this is a single lipgloss render, identical to the pre-VP.6
+// hard-snap output. For an in-between frac it renders BOTH rest states at
+// the same dimensions and cross-dissolves them (see crossDissolveRendered)
+// rather than interpolating the gradient's 3 colour stops directly — see
+// that function's doc for why: stop-interpolation let a theme whose border
+// colour sits much closer to one accent than the other (e.g. peat) produce
+// a colour patch that visibly detached from the border and travelled around
+// it, since the two accent stops moved at very different perceptual speeds.
+func (l *Layout) renderPaneBorder(content string, width, height int, frac float64) string {
+	base := l.paneBaseStyle(width, height)
+	border := l.theme.Border()
+
+	if frac <= 0 {
+		return base.BorderForeground(border).Render(content)
+	}
+	focused := base.BorderForegroundBlend(
+		l.theme.AccentPrimary(),
+		l.theme.AccentSecondary(),
+		l.theme.AccentPrimary(),
+	).Render(content)
+	if frac >= 1 {
+		return focused
+	}
+	unfocused := base.BorderForeground(border).Render(content)
+	return crossDissolveRendered(unfocused, focused, frac)
+}
+
+// logoThickBorder is lipgloss's stock thick-weight border: heavy edge/line
+// characters paired with square heavy corners, so the box reads as one
+// consistent weight all the way round rather than mixing a heavy edge with
+// a thin single-stroke curve at the corners.
+var logoThickBorder = lipgloss.Border{
+	Top:          "━",
+	Bottom:       "━",
+	Left:         "┃",
+	Right:        "┃",
+	TopLeft:      "┏",
+	TopRight:     "┓",
+	BottomLeft:   "┗",
+	BottomRight:  "┛",
+	MiddleLeft:   "┣",
+	MiddleRight:  "┫",
+	Middle:       "╋",
+	MiddleTop:    "┳",
+	MiddleBottom: "┻",
 }
 
 // logoStyle returns the bordered Lipgloss style for the logo box that sits atop
 // the right-hand detail column. height is the OUTER box height (LogoHeight),
 // which includes the 2 border rows; the wordmark content is centred vertically
-// and horizontally within the box. The border is always a thick gradient blend
-// (AccentPrimary → AccentSecondary → AccentPrimary) — the same treatment as a
-// focused pane's border — since the logo is permanently on show rather than
-// toggling focused/unfocused like the list and detail panes.
+// and horizontally within the box. The border is always a thick gradient
+// blend (AccentPrimary → AccentSecondary → AccentPrimary) — the same colour
+// treatment as a focused pane's border, weight matched to the logo's
+// permanent-focus status, with square corners matching the thick edge weight
+// — since the logo is permanently on show rather than toggling
+// focused/unfocused like the list and detail panes.
 func (l *Layout) logoStyle(width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Height(height).
 		MaxHeight(height).
 		Align(lipgloss.Center, lipgloss.Center).
-		BorderStyle(lipgloss.ThickBorder()).
+		BorderStyle(logoThickBorder).
 		BorderForegroundBlend(
 			l.theme.AccentPrimary(),
 			l.theme.AccentSecondary(),
@@ -188,32 +216,15 @@ func (l *Layout) logoStyle(width, height int) lipgloss.Style {
 		Foreground(l.theme.AccentPrimary())
 }
 
-// detailPaneStyle returns the pane style for the right-hand detail column,
-// sized to PaneHeight() minus the logo height so that logo + detail together
-// fill the full pane height. frac and widthNudge behave as in paneStyle.
-func (l *Layout) detailPaneStyle(width int, frac float64, widthNudge int, logoH int) lipgloss.Style {
+// detailPaneHeight returns the height for the right-hand detail column,
+// sized to PaneHeight() minus the logo height so that logo + detail
+// together fill the full pane height.
+func (l *Layout) detailPaneHeight(logoH int) int {
 	h := l.PaneHeight() - logoH
 	if h < 1 {
 		h = 1
 	}
-	style := lipgloss.NewStyle().
-		Width(width + widthNudge).
-		Height(h).
-		MaxHeight(h).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderBackground(l.theme.BgPrimary()).
-		Background(l.theme.BgPrimary()).
-		Foreground(l.theme.FgPrimary())
-
-	border := l.theme.Border()
-	a, b, c := blendStopColours(border, l.theme.AccentPrimary(), l.theme.AccentSecondary(), frac)
-	if frac <= 0 {
-		style = style.BorderForeground(border)
-	} else {
-		style = style.BorderForegroundBlend(a, b, c)
-	}
-
-	return style
+	return h
 }
 
 // Render assembles the full TUI frame from the rendered pane strings and the
@@ -222,13 +233,11 @@ func (l *Layout) detailPaneStyle(width int, frac float64, widthNudge int, logoH 
 // produced by RenderLogo(RightWidth(), theme).
 //
 // anim carries the VP.6 focus-transition spring state (nil = no transition
-// in flight, renders identically to the pre-VP.6 hard snap). The ±1-column
-// width nudge applied to the gaining/losing pane's OUTER box width here is
-// deliberately local to this function: LeftWidth()/RightWidth() (and
-// therefore RenderLogo's width and the detail viewport's content width,
-// which callers compute from those same methods) are never perturbed, so
-// leftView/rightView/logoView content never needs to reflow mid-transition —
-// only the box each already-rendered string is placed into changes size.
+// in flight, renders identically to the pre-VP.6 hard snap). Only the
+// border colour animates — an earlier version also nudged the focused
+// pane's width by 1 column, but that grow/shrink read as visually
+// distracting rather than as focus affordance, so pane widths are always
+// exactly LeftWidth()/RightWidth() regardless of focus or transition state.
 func (l *Layout) Render(
 	leftView string,
 	rightView string,
@@ -244,38 +253,12 @@ func (l *Layout) Render(
 	leftFrac := focusFraction(FocusLeft, focus, anim)
 	rightFrac := focusFraction(FocusRight, focus, anim)
 
-	// The gaining pane grows by up to 1 column as it nears full focus; the
-	// other pane shrinks by the same amount so the total row width is
-	// unchanged (JoinHorizontal requires the row to still fill the terminal).
-	leftNudge := 0
-	rightNudge := 0
-	if anim != nil {
-		switch anim.To {
-		case FocusLeft:
-			leftNudge = roundNudge(anim.Progress)
-			rightNudge = -leftNudge
-		case FocusRight:
-			rightNudge = roundNudge(anim.Progress)
-			leftNudge = -rightNudge
-		}
-	}
-
-	leftBox := l.paneStyle(lw, leftFrac, leftNudge).Render(leftView)
+	leftBox := l.renderPaneBorder(leftView, lw, l.PaneHeight(), leftFrac)
 	logoBox := l.logoStyle(rw, logoH).Render(logoView)
-	detailBox := l.detailPaneStyle(rw, rightFrac, rightNudge, logoH).Render(rightView)
+	detailBox := l.renderPaneBorder(rightView, rw, l.detailPaneHeight(logoH), rightFrac)
 
 	rightColumn := lipgloss.JoinVertical(lipgloss.Left, logoBox, detailBox)
 	row := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightColumn)
 
 	return lipgloss.JoinVertical(lipgloss.Left, row, statusBarView)
-}
-
-// roundNudge converts a [0,1] spring progress into a 0/1 column nudge,
-// rounding at the midpoint so the width settles exactly at 1 once the
-// transition completes rather than drifting from float accumulation.
-func roundNudge(progress float64) int {
-	if progress >= 0.5 {
-		return 1
-	}
-	return 0
 }
