@@ -143,3 +143,84 @@ func between(v, lo, hi uint32) bool {
 	}
 	return v >= lo && v <= hi
 }
+
+// TestCrossDissolveAtZeroReturnsFromExactly checks the t<=0 short-circuit
+// returns `from` byte-for-byte, so a settled/never-animated pane renders
+// identically to the pre-VP.6 flat-border output.
+func TestCrossDissolveAtZeroReturnsFromExactly(t *testing.T) {
+	from := "\x1b[38;2;10;20;30mA\x1b[m"
+	to := "\x1b[38;2;200;210;220mA\x1b[m"
+	if got := crossDissolveRendered(from, to, 0); got != from {
+		t.Errorf("crossDissolveRendered(from, to, 0) = %q, want %q", got, from)
+	}
+}
+
+// TestCrossDissolveAtOneReturnsToExactly mirrors the above for t>=1.
+func TestCrossDissolveAtOneReturnsToExactly(t *testing.T) {
+	from := "\x1b[38;2;10;20;30mA\x1b[m"
+	to := "\x1b[38;2;200;210;220mA\x1b[m"
+	if got := crossDissolveRendered(from, to, 1); got != to {
+		t.Errorf("crossDissolveRendered(from, to, 1) = %q, want %q", got, to)
+	}
+}
+
+// TestCrossDissolveFlatVsGradientDoesNotCollapse is a regression test for
+// the anchor-desync bug (VP.6 follow-up): a flat BorderForeground render
+// collapses same-coloured consecutive characters into ONE escape run
+// covering the whole span, while a BorderForegroundBlend render emits one
+// escape PER character. Zipping by escape-run index (the first
+// implementation of crossDissolveRendered) paired the flat side's single
+// multi-character run against only the gradient side's first character,
+// so the entire span rendered as one uniform blended colour instead of a
+// per-position fade — exactly the "colour patch detaches and travels"
+// artefact this function exists to prevent. Expanding to one cell per rune
+// before zipping (ansiColourCells) fixes this: each of the 3 characters
+// below must end up a DIFFERENT colour, tracking its own position in the
+// gradient side, not one shared colour for the whole run.
+func TestCrossDissolveFlatVsGradientDoesNotCollapse(t *testing.T) {
+	flat := "\x1b[38;2;0;68;60mABC\x1b[m"
+	gradient := "\x1b[38;2;0;158;140mA\x1b[38;2;90;150;110mB\x1b[38;2;190;127;46mC\x1b[m"
+
+	got := crossDissolveRendered(flat, gradient, 0.5)
+	cells := ansiColourCells(got)
+
+	var coloured []color.Color
+	for _, c := range cells {
+		if c.colour != nil {
+			coloured = append(coloured, c.colour)
+		}
+	}
+	if len(coloured) != 3 {
+		t.Fatalf("expected 3 coloured cells in blended output, got %d (%v)", len(coloured), coloured)
+	}
+	if coloured[0] == coloured[1] || coloured[1] == coloured[2] || coloured[0] == coloured[2] {
+		t.Errorf("blended cells collapsed to a shared colour instead of tracking each position independently: %v", coloured)
+	}
+}
+
+// TestCrossDissolveEachCellStaysBetweenItsOwnEndpoints checks that no
+// blended cell's colour falls outside the range spanned by that SAME
+// position's own from/to colours — the core correctness guarantee that
+// prevents any position's colour from racing ahead of or lagging behind
+// its neighbours in a way that would look like a travelling patch.
+func TestCrossDissolveEachCellStaysBetweenItsOwnEndpoints(t *testing.T) {
+	from := "\x1b[38;2;0;68;60mAB\x1b[m"
+	to := "\x1b[38;2;0;158;140mA\x1b[38;2;190;127;46mB\x1b[m"
+
+	for _, frac := range []float64{0.1, 0.3, 0.5, 0.7, 0.9} {
+		got := crossDissolveRendered(from, to, frac)
+		gotCells := ansiColourCells(got)
+		fromCells := ansiColourCells(from)
+		toCells := ansiColourCells(to)
+
+		for i := range gotCells {
+			gr, gg, gb, _ := gotCells[i].colour.RGBA()
+			fr, fg, fb, _ := fromCells[i].colour.RGBA()
+			tr, tg, tb, _ := toCells[i].colour.RGBA()
+			if !between(gr, fr, tr) || !between(gg, fg, tg) || !between(gb, fb, tb) {
+				t.Errorf("frac=%.1f cell[%d] colour out of its own [from,to] range: got=(%d,%d,%d) from=(%d,%d,%d) to=(%d,%d,%d)",
+					frac, i, gr, gg, gb, fr, fg, fb, tr, tg, tb)
+			}
+		}
+	}
+}
