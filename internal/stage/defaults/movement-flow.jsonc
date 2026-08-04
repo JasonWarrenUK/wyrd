@@ -1,0 +1,6 @@
+{
+	// A movement is Expected while forecast, then Cleared once it has settled.
+	"name": "movement-flow",
+	"stages": ["Expected", "Cleared"],
+	"cycle": "terminate"
+}

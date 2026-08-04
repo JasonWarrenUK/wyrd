@@ -1,0 +1,7 @@
+{
+	// Movement — a dated money movement; Expected while forecast, Cleared once settled.
+	"name": "Movement",
+	"stage_group": "movement-flow",
+	"glyph": "⇄",
+	"colour": "#5f8dd3"
+}

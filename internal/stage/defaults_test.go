@@ -12,8 +12,8 @@ func TestDefaultStageGroupsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultStageGroups() error: %v", err)
 	}
-	if len(groups) != 6 {
-		t.Fatalf("expected 6 groups, got %d", len(groups))
+	if len(groups) != 7 {
+		t.Fatalf("expected 7 groups, got %d", len(groups))
 	}
 }
 
@@ -63,6 +63,11 @@ func TestDefaultStageGroupsContents(t *testing.T) {
 			stages: []string{"Active", "Closed"},
 			cycle:  types.CycleTerminate,
 		},
+		{
+			name:   "movement-flow",
+			stages: []string{"Expected", "Cleared"},
+			cycle:  types.CycleTerminate,
+		},
 	}
 
 	for _, tc := range cases {
@@ -93,12 +98,13 @@ func TestDefaultStageGroupsCycles(t *testing.T) {
 	}
 
 	wantCycle := map[string]types.CycleBehaviour{
-		"task-flow":    types.CycleTerminate,
-		"event-flow":   types.CycleTerminate,
-		"content-flow": types.CycleTerminate,
-		"habit-flow":   types.CycleLoop,
-		"project-flow": types.CycleTerminate,
-		"budget-flow":  types.CycleTerminate,
+		"task-flow":     types.CycleTerminate,
+		"event-flow":    types.CycleTerminate,
+		"content-flow":  types.CycleTerminate,
+		"habit-flow":    types.CycleLoop,
+		"project-flow":  types.CycleTerminate,
+		"budget-flow":   types.CycleTerminate,
+		"movement-flow": types.CycleTerminate,
 	}
 
 	for _, g := range groups {
