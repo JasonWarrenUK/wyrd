@@ -114,15 +114,15 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 **Goal:** Money movements are first-class nodes (kind `movement`, stage group `expected → cleared`) linked to budgets via `draws_from`/`adds_to` edges. Spends, income, and transfers are edge-topology variants of one model: `draws_from` only = spend; `adds_to` only = income; both = transfer. Bottom-up budgeting derives the envelope from expected movements. A movement is a dated event, not an abstract relationship — hence node plus edges rather than a payload edge.
 
-- [ ] **SP.7** — Movement node data model — register a `movement` kind in `stage.DefaultKinds`; new baked-in `movement-flow` stage group (`expected → cleared`, terminate); add `draws_from` and `adds_to` to the built-in edge types; movement nodes carry the amount in `Properties`, the transaction date in `Date.About`, and the note in `Body` _(depends on SL.3, SL.5)_
 - [ ] **SP.2** — Bottom-up budgets — effective allocation = sum of stage-`expected` movements drawing from the category in the upcoming period _(blocked — depends on SP.8)_
 - [ ] **SP.4** — Surface bottom-up allocation in TUI — budget detail pane and progress bars use the effective allocation; derived allocations visually distinguished from explicitly set ones _(blocked — depends on SP.2, SP.3)_
 - [ ] **SP.5** — Income recording — `wyrd income` CLI subcommand creates a movement node with an `adds_to` edge (mirrors `wyrd spend`); the previous `Direction`-field design is superseded by edge topology _(blocked — depends on SP.8)_
 - [ ] **SP.6** — TUI income capture form — `bi:` capture-bar prefix opens a huh movement form (amount, source/note, date); delegates to the SP.5 income path; creates a node, so it carries the SL.7 form pattern _(blocked — depends on SL.7b, SP.5)_
-- [ ] **SP.8** — Budget engine over movements — `RecordSpend` creates a movement node plus a `draws_from` edge to the budget instead of appending to `spend_log`; `Compute` derives spent from cleared movements in the current period (net = draws_from − adds_to); the embedded `spend_log` representation is deleted outright — the dual-shape handling in `budget.SpendLog` and the CP.16 spend_log-preservation tests retire with it (pre-production, no migration) _(blocked — depends on SP.7)_
+- [ ] **SP.8** — Budget engine over movements — `RecordSpend` creates a movement node plus a `draws_from` edge to the budget instead of appending to `spend_log`; `Compute` derives spent from cleared movements in the current period (net = draws_from − adds_to); the embedded `spend_log` representation is deleted outright — the dual-shape handling in `budget.SpendLog` and the CP.16 spend_log-preservation tests retire with it (pre-production, no migration) _(depends on SP.7)_
 - [ ] **SP.9** — Budget detail pane lists movements — rework SP.3's spend-events section to read movement nodes via edges: amount, date, stage, and counterpart category for transfers _(blocked — depends on SP.8)_
 - [ ] **SP.10** — Transfer recording — `wyrd transfer` CLI creates a single movement node with both a `draws_from` and an `adds_to` edge; the unbalanced-transfer state is unrepresentable by construction _(blocked — depends on SP.8)_
 - [ ] **SP.11** — TUI transfer capture form — `bt:` capture-bar prefix opens a huh form (from-category, to-category, amount, date); delegates to the SP.10 transfer path _(blocked — depends on SL.7b, SP.10)_
+- [x] **SP.7** — Movement node data model — registered the `Movement` kind in `stage.DefaultKinds` (`internal/stage/kinds/movement.jsonc`); new baked-in `movement-flow` stage group (`Expected → Cleared`, terminate, `internal/stage/defaults/movement-flow.jsonc`); added `draws_from`/`adds_to` to the built-in edge types (movement is always `From`, budget always `To`); typed accessor API in new `internal/movement` package (`Movement`, `FromNode`, `ApplyTo`, `Validate`, `Amount` coercion helper) — movement nodes carry the amount in `Properties["amount"]`, the transaction date in `Date.About`, and the note in `Body`
 - [x] **SP.3** — Spend events in budget detail pane
 - [x] **SP.1** — Dated spend entries — `SpendEntry.Date` across `RecordSpend`, `SpendOptions`, `--date` CLI flag, TUI spend form
 
@@ -569,7 +569,7 @@ graph LR
 	DA.7 --> DA.9
 	DA.8 --> M7
 	DA.9 --> M7
-	class CO.3,DL.4,NW.1,RT.6,RT.7,RT.8,SK.1,SL.10,SP.7,TD.1,TD.2,TD.3,VP.7,VP.8 todo
-	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SL.14,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.8,SP.9 blocked
-	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,SL.1,SL.11,SL.12,SL.13,SL.15,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
+	class CO.3,DL.4,NW.1,RT.6,RT.7,RT.8,SK.1,SL.10,SP.8,TD.1,TD.2,TD.3,VP.7,VP.8 todo
+	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SL.14,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9 blocked
+	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,SL.1,SL.11,SL.12,SL.13,SL.15,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```
