@@ -22,13 +22,15 @@ type SpendOptions struct {
 	Date string
 }
 
-// Spend logs a spend entry by delegating to budget.RecordSpend.
-func Spend(store types.StoreFS, index types.GraphIndex, opts SpendOptions) error {
+// Spend logs a spend entry by delegating to budget.RecordSpend. The returned
+// warning is non-empty when the entry duplicates an existing date+note pair;
+// the caller decides where to print it.
+func Spend(store types.StoreFS, index types.GraphIndex, opts SpendOptions) (warning string, err error) {
 	if opts.Category == "" {
-		return &types.ValidationError{Field: "category", Message: "spend category must not be empty"}
+		return "", &types.ValidationError{Field: "category", Message: "spend category must not be empty"}
 	}
 	if opts.Amount <= 0 {
-		return &types.ValidationError{Field: "amount", Message: "spend amount must be greater than zero"}
+		return "", &types.ValidationError{Field: "amount", Message: "spend amount must be greater than zero"}
 	}
 
 	return budget.RecordSpend(store, index, opts.Category, opts.Amount, opts.Note, opts.Date, time.Now())

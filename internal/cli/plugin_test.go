@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -59,8 +60,7 @@ func TestPluginList_WithPlugins(t *testing.T) {
 			Executable:  name,
 		}
 		data, _ := json.Marshal(manifest)
-		// Write as manifest.jsonc (store reads manifest.jsonc).
-		if err := os.WriteFile(filepath.Join(pluginDir, "manifest.jsonc"), data, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(pluginDir, "plugin.jsonc"), data, 0o644); err != nil {
 			t.Fatalf("writing manifest: %v", err)
 		}
 	}
@@ -99,7 +99,7 @@ func TestPluginInstall_EmptyPath(t *testing.T) {
 func TestPluginInstall_FromDirectory(t *testing.T) {
 	s, storeDir := newPluginTestStore(t)
 
-	// Create a temp plugin directory with a plugin.json manifest.
+	// Create a temp plugin directory with a plugin.jsonc manifest.
 	pluginSrc := t.TempDir()
 	manifest := map[string]interface{}{
 		"name":            "testplugin",
@@ -110,8 +110,8 @@ func TestPluginInstall_FromDirectory(t *testing.T) {
 		"capabilities":    []string{},
 	}
 	data, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.json"), data, 0o644); err != nil {
-		t.Fatalf("writing plugin.json: %v", err)
+	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.jsonc"), data, 0o644); err != nil {
+		t.Fatalf("writing plugin.jsonc: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -124,8 +124,86 @@ func TestPluginInstall_FromDirectory(t *testing.T) {
 	if _, err := os.Stat(destDir); err != nil {
 		t.Errorf("plugin directory not found at %s: %v", destDir, err)
 	}
-	if _, err := os.Stat(filepath.Join(destDir, "plugin.json")); err != nil {
-		t.Errorf("plugin.json not found in destination: %v", err)
+	if _, err := os.Stat(filepath.Join(destDir, "plugin.jsonc")); err != nil {
+		t.Errorf("plugin.jsonc not found in destination: %v", err)
+	}
+}
+
+// TestPluginInstall_ThenList_RoundTrip is the integration test the manifest
+// filename mismatch evaded: install used plugin.json while the store read
+// manifest.jsonc, so installed plugins were invisible to `wyrd plugin list`.
+func TestPluginInstall_ThenList_RoundTrip(t *testing.T) {
+	s, _ := newPluginTestStore(t)
+
+	pluginSrc := t.TempDir()
+	manifest := map[string]interface{}{
+		"name":            "roundtrip",
+		"version":         "2.0.0",
+		"description":     "Round-trip test plugin",
+		"executable":      "roundtrip",
+		"executable_type": "binary",
+		"capabilities":    []string{},
+	}
+	data, _ := json.Marshal(manifest)
+	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.jsonc"), data, 0o644); err != nil {
+		t.Fatalf("writing plugin.jsonc: %v", err)
+	}
+
+	var installBuf bytes.Buffer
+	if err := cli.PluginInstall(s, pluginSrc, &installBuf); err != nil {
+		t.Fatalf("PluginInstall: %v", err)
+	}
+
+	var listBuf bytes.Buffer
+	if err := cli.PluginList(s, &listBuf); err != nil {
+		t.Fatalf("PluginList: %v", err)
+	}
+	output := listBuf.String()
+	if !strings.Contains(output, "roundtrip") {
+		t.Errorf("installed plugin missing from list output: %q", output)
+	}
+	if !strings.Contains(output, "2.0.0") {
+		t.Errorf("expected version 2.0.0 in list output: %q", output)
+	}
+}
+
+// TestPluginInstall_ZipSlipRejected ensures a crafted zip entry cannot write
+// outside the extraction directory.
+func TestPluginInstall_ZipSlipRejected(t *testing.T) {
+	s, _ := newPluginTestStore(t)
+
+	// Build a zip whose entry path climbs out of the extraction dir.
+	zipDir := t.TempDir()
+	zipPath := filepath.Join(zipDir, "evil.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("creating zip: %v", err)
+	}
+	w := zip.NewWriter(f)
+	entry, err := w.Create("../evil.txt")
+	if err != nil {
+		t.Fatalf("adding zip entry: %v", err)
+	}
+	if _, err := entry.Write([]byte("escaped")); err != nil {
+		t.Fatalf("writing zip entry: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("closing zip writer: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("closing zip file: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = cli.PluginInstall(s, zipPath, &buf)
+	if err == nil {
+		t.Fatal("expected zip-slip entry to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes") {
+		t.Errorf("expected an escape error, got: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(zipDir, "evil.txt")); statErr == nil {
+		t.Error("zip-slip entry was written outside the extraction directory")
 	}
 }
 
@@ -134,7 +212,7 @@ func TestPluginInstall_FromDirectory(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestExtractJSONField exercises the internal extractJSONField helper via
-// PluginInstall — we create plugin.json files with various content and
+// PluginInstall — we create plugin.jsonc files with various content and
 // confirm the name is extracted (or not) as expected.
 
 func TestExtractJSONField_HappyPath(t *testing.T) {
@@ -142,8 +220,8 @@ func TestExtractJSONField_HappyPath(t *testing.T) {
 
 	pluginSrc := t.TempDir()
 	content := `{"name": "simple-plugin", "version": "1.0.0", "executable": "x", "capabilities": []}`
-	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("writing plugin.json: %v", err)
+	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.jsonc"), []byte(content), 0o644); err != nil {
+		t.Fatalf("writing plugin.jsonc: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -161,8 +239,8 @@ func TestExtractJSONField_MissingNameField(t *testing.T) {
 	pluginSrc := t.TempDir()
 	// No "name" field in the manifest.
 	content := `{"version": "1.0.0", "executable": "x"}`
-	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("writing plugin.json: %v", err)
+	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.jsonc"), []byte(content), 0o644); err != nil {
+		t.Fatalf("writing plugin.jsonc: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -178,8 +256,8 @@ func TestExtractJSONField_EscapedQuoteInName(t *testing.T) {
 	pluginSrc := t.TempDir()
 	// Valid JSON — name contains an escaped quote character.
 	content := `{"name": "test\"plugin", "version": "1.0.0", "executable": "x", "capabilities": []}`
-	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("writing plugin.json: %v", err)
+	if err := os.WriteFile(filepath.Join(pluginSrc, "plugin.jsonc"), []byte(content), 0o644); err != nil {
+		t.Fatalf("writing plugin.jsonc: %v", err)
 	}
 
 	var buf bytes.Buffer

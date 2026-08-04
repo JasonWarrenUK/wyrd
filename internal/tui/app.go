@@ -99,6 +99,12 @@ type Model struct {
 	// leftPane is the left-side content (schedule / view / ritual).
 	leftPane PaneModel
 
+	// dashboardCols is the column set resolved at startup (saved dashboard
+	// view columns when present, package default otherwise). Dashboard
+	// refreshes re-read the view but fall back to this, so custom columns
+	// survive captures, edits, archives and stage shifts.
+	dashboardCols []string
+
 	// rightPane is the right-side content (detail / editor).
 	rightPane PaneModel
 
@@ -317,9 +323,9 @@ func New(cfg Config) (Model, error) {
 	// and columns. Individual keys in view.Queries override only the matching
 	// category; missing keys fall back to DefaultDashboardQuery.
 	var leftPane PaneModel = NewEmptyPane(theme)
+	cols := dashboardColumns
 	if cfg.QueryRunner != nil {
 		dq := DefaultDashboardQuery()
-		cols := dashboardColumns
 		if cfg.Store != nil {
 			if view, err := cfg.Store.ReadView("dashboard"); err == nil {
 				dq = DashboardQueryFromView(view)
@@ -422,6 +428,7 @@ func New(cfg Config) (Model, error) {
 		storePath:          storePath,
 		layout:             layout,
 		leftPane:           leftPane,
+		dashboardCols:      cols,
 		rightPane:          NewEmptyPane(theme),
 		focus:              FocusLeft,
 		prevFocus:          FocusLeft,
@@ -726,7 +733,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Render detail asynchronously so Glamour initialisation doesn't
 			// block the event loop. The right pane shows a placeholder until
 			// the detailReadyMsg arrives.
-			m.rightPane = NewEmptyPane(m.theme)
+			m.rightPane = m.sizedEmptyPane(m.theme)
 			cmd := m.renderDetailAsync(msg.nodeID)
 			if m.index != nil {
 				if node, err := m.index.GetNode(msg.nodeID); err == nil {
@@ -753,7 +760,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case formSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		return m.handleCaptureSubmit(captureSubmitMsg{nodeID: msg.nodeID, label: msg.label})
@@ -767,40 +774,29 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		return m, nil
 
 	case editSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		return m.handleEditSubmit(msg)
 
 	case spendSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		m.statusBar.SetCaptureText(fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category))
-		if m.queryRunner != nil {
-			dq := DefaultDashboardQuery()
-			if m.store != nil {
-				if view, err := m.store.ReadView("dashboard"); err == nil {
-					dq = DashboardQueryFromView(view)
-				}
-			}
-			if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-				lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
-				sized, _ := lp.Update(tea.WindowSizeMsg{
-					Width:  m.layout.TotalWidth(),
-					Height: m.layout.TotalHeight(),
-				})
-				m.leftPane = sized
-			}
+		captureText := fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category)
+		if msg.warning != "" {
+			captureText += "; warning: " + msg.warning
 		}
+		m.statusBar.SetCaptureText(captureText)
+		m.refreshDashboard()
 		return m, m.clearCaptureCmd()
 
 	case stageFormSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		// Rebuild the in-memory stage-group registry so the new group is
@@ -819,7 +815,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
@@ -1046,24 +1042,7 @@ func (m Model) handleCaptureKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // shows a brief confirmation in the status bar.
 func (m Model) handleCaptureSubmit(msg captureSubmitMsg) (tea.Model, tea.Cmd) {
 	m.statusBar.SetCaptureText("Created " + msg.label)
-
-	if m.queryRunner != nil {
-		dq := DefaultDashboardQuery()
-		if m.store != nil {
-			if view, err := m.store.ReadView("dashboard"); err == nil {
-				dq = DashboardQueryFromView(view)
-			}
-		}
-		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
-			sized, _ := lp.Update(tea.WindowSizeMsg{
-				Width:  m.layout.TotalWidth(),
-				Height: m.layout.TotalHeight(),
-			})
-			m.leftPane = sized
-		}
-	}
-
+	m.refreshDashboard()
 	return m, m.clearCaptureCmd()
 }
 
@@ -1125,23 +1104,7 @@ func (m Model) handleEditNode() (tea.Model, tea.Cmd) {
 // updated, and shows a brief confirmation in the status bar.
 func (m Model) handleEditSubmit(msg editSubmitMsg) (tea.Model, tea.Cmd) {
 	m.statusBar.SetCaptureText("Updated " + msg.label)
-
-	if m.queryRunner != nil {
-		dq := DefaultDashboardQuery()
-		if m.store != nil {
-			if view, err := m.store.ReadView("dashboard"); err == nil {
-				dq = DashboardQueryFromView(view)
-			}
-		}
-		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
-			sized, _ := lp.Update(tea.WindowSizeMsg{
-				Width:  m.layout.TotalWidth(),
-				Height: m.layout.TotalHeight(),
-			})
-			m.leftPane = sized
-		}
-	}
+	m.refreshDashboard()
 
 	// Re-render the detail pane so the right side shows the updated content.
 	detailCmd := m.renderDetailAsync(msg.nodeID)
@@ -1191,23 +1154,10 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	m.statusBar.SetCaptureText("Archived " + label)
 
 	// Refresh the dashboard so the archived node disappears from the list.
-	if m.queryRunner != nil {
-		dq := DefaultDashboardQuery()
-		if view, err := m.store.ReadView("dashboard"); err == nil {
-			dq = DashboardQueryFromView(view)
-		}
-		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
-			sized, _ := lp.Update(tea.WindowSizeMsg{
-				Width:  m.layout.TotalWidth(),
-				Height: m.layout.TotalHeight(),
-			})
-			m.leftPane = sized
-		}
-	}
+	m.refreshDashboard()
 
 	// Clear the right pane and return focus to the list.
-	m.rightPane = NewEmptyPane(m.theme)
+	m.rightPane = m.sizedEmptyPane(m.theme)
 	m.focus = FocusLeft
 	m.syncKeyHints()
 
@@ -1283,22 +1233,7 @@ func (m Model) handleStageShift(dir int) (tea.Model, tea.Cmd) {
 	m.statusBar.SetCaptureText("Stage: " + oldStage + " → " + newStage)
 
 	// Refresh the dashboard so the updated stage is reflected in the list.
-	if m.queryRunner != nil {
-		dq := DefaultDashboardQuery()
-		if m.store != nil {
-			if view, err := m.store.ReadView("dashboard"); err == nil {
-				dq = DashboardQueryFromView(view)
-			}
-		}
-		if result, err := RunDashboard(m.queryRunner, m.clock, dq); err == nil {
-			nlp := newNodeListPane(result, m.theme, m.staleThresholdDays)
-			sized, _ := nlp.Update(tea.WindowSizeMsg{
-				Width:  m.layout.TotalWidth(),
-				Height: m.layout.TotalHeight(),
-			})
-			m.leftPane = sized
-		}
-	}
+	m.refreshDashboard()
 
 	// Re-render the detail pane so the right side shows the new stage.
 	detailCmd := m.renderDetailAsync(nodeID)
@@ -1346,7 +1281,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	if lp, ok := m.leftPane.(nodeListPane); ok {
 		m.leftPane = newNodeListPane(lp.result, t, lp.staleThresholdDays)
 	} else if _, ok := m.leftPane.(emptyPane); ok {
-		m.leftPane = NewEmptyPane(t)
+		m.leftPane = m.sizedEmptyPane(t)
 	}
 
 	// Always replace the right pane — never leave a stale viewportPane (old
@@ -1360,7 +1295,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 		}
 	}
 	if !rerendered {
-		m.rightPane = NewEmptyPane(t)
+		m.rightPane = m.sizedEmptyPane(t)
 	}
 
 	m.syncKeyHints()
@@ -1464,6 +1399,48 @@ func (m *Model) StatusBar() *StatusBar {
 // renderDetailAsync returns a tea.Cmd that renders the detail pane in a
 // goroutine, sending a detailReadyMsg when complete. This keeps the event
 // loop responsive while Glamour processes markdown.
+// refreshDashboard re-runs the dashboard queries and remounts the node list
+// pane sized to the current layout. It re-reads the saved dashboard view for
+// both the queries and the column set, falling back to the columns resolved
+// at startup — previously the refresh sites dropped the columns argument, so
+// custom view columns silently reverted to the defaults after any capture,
+// edit, archive or stage shift. No-op when no query runner is wired, or when
+// the refreshed query fails (the stale list beats an empty one).
+func (m *Model) refreshDashboard() {
+	if m.queryRunner == nil {
+		return
+	}
+	dq := DefaultDashboardQuery()
+	cols := m.dashboardCols
+	if m.store != nil {
+		if view, err := m.store.ReadView("dashboard"); err == nil {
+			dq = DashboardQueryFromView(view)
+			if len(view.Columns) > 0 {
+				cols = view.Columns
+			}
+		}
+	}
+	if result, err := RunDashboard(m.queryRunner, m.clock, dq, cols); err == nil {
+		lp := newNodeListPane(result, m.theme, m.staleThresholdDays)
+		sized, _ := lp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.leftPane = sized
+	}
+}
+
+// sizedEmptyPane returns an empty pane pre-sized from the current layout, so
+// placeholders mounted between resize events (form close, node selection,
+// theme switch) still pad their background to the pane width.
+func (m Model) sizedEmptyPane(theme *ActiveTheme) PaneModel {
+	p := NewEmptyPane(theme)
+	if w := m.layout.TotalWidth(); w > 0 {
+		p, _ = p.Update(tea.WindowSizeMsg{Width: w, Height: m.layout.TotalHeight()})
+	}
+	return p
+}
+
 func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
 	return func() tea.Msg {
 		pane := m.renderDetail(nodeID)
@@ -1475,11 +1452,11 @@ func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
 // Returns an emptyPane when the index is unavailable or the node is not found.
 func (m Model) renderDetail(nodeID string) PaneModel {
 	if m.index == nil || nodeID == "" {
-		return NewEmptyPane(m.theme)
+		return m.sizedEmptyPane(m.theme)
 	}
 	node, err := m.index.GetNode(nodeID)
 	if err != nil {
-		return NewEmptyPane(m.theme)
+		return m.sizedEmptyPane(m.theme)
 	}
 
 	// Collect all edges connected to this node.

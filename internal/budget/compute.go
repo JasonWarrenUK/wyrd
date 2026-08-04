@@ -127,18 +127,51 @@ func periodStart(period string, now time.Time) time.Time {
 	}
 }
 
-// sumCurrentPeriod filters spend entries to the current period and returns the total.
+// periodEnd returns the exclusive end of the budget period that contains now
+// (i.e. the start of the next period). An unknown period returns the zero
+// time, which sumCurrentPeriod treats as unbounded, mirroring periodStart.
+func periodEnd(period string, now time.Time) time.Time {
+	start := periodStart(period, now)
+	if start.IsZero() {
+		return time.Time{}
+	}
+	y, m, d := start.Date()
+	loc := start.Location()
+
+	switch period {
+	case "week":
+		return time.Date(y, m, d+7, 0, 0, 0, 0, loc)
+	case "month":
+		return time.Date(y, m+1, 1, 0, 0, 0, 0, loc)
+	case "quarter":
+		return time.Date(y, m+3, 1, 0, 0, 0, 0, loc)
+	case "year":
+		return time.Date(y+1, time.January, 1, 0, 0, 0, 0, loc)
+	default:
+		return time.Time{}
+	}
+}
+
+// sumCurrentPeriod filters spend entries to the current period and returns the
+// total. Entries outside the period at either end are excluded — without the
+// upper bound, a future-dated entry (supported via `wyrd spend --date`) would
+// inflate the current period and could flip its status to Over today.
 func sumCurrentPeriod(entries []types.SpendEntry, period string, now time.Time) float64 {
 	start := periodStart(period, now)
+	end := periodEnd(period, now)
 	var total float64
 	for _, e := range entries {
 		t, err := time.Parse("2006-01-02", e.Date)
 		if err != nil {
 			continue
 		}
-		if !t.Before(start) {
-			total += e.Amount
+		if t.Before(start) {
+			continue
 		}
+		if !end.IsZero() && !t.Before(end) {
+			continue
+		}
+		total += e.Amount
 	}
 	return total
 }

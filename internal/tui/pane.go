@@ -52,20 +52,31 @@ type PaneModel interface {
 // emptyPane is the default PaneModel shown when no content has been mounted.
 type emptyPane struct {
 	theme *ActiveTheme
+	width int
 }
 
-// Update is a no-op for the empty pane.
-func (e emptyPane) Update(_ tea.Msg) (PaneModel, tea.Cmd) {
+// Update tracks the pane width from resize events; all other messages are
+// ignored. Width matches viewportPane's calculation so the placeholder pads
+// to the same interior width as the content that replaces it.
+func (e emptyPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
+	if wmsg, ok := msg.(tea.WindowSizeMsg); ok {
+		e.width = wmsg.Width/2 - 2
+		if e.width < 1 {
+			e.width = 1
+		}
+	}
 	return e, nil
 }
 
-// View renders a muted placeholder message.
+// View renders a muted placeholder message, padded to the pane width per the
+// PaneModel contract so the theme background reaches the pane edge. Before
+// the first resize the width is zero and PadLines passes content through.
 func (e emptyPane) View() string {
 	if e.theme == nil {
 		return "No content"
 	}
-	style := e.theme.StyleMuted()
-	return style.Render("No content")
+	content := e.theme.StyleMuted().Render("No content")
+	return PadLines(content, e.width, e.theme.BgPrimary())
 }
 
 // KeyBindings returns an empty slice — the empty pane handles nothing.

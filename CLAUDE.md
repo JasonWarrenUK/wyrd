@@ -60,7 +60,7 @@ Store layout on disk:
   views/{name}.jsonc
   rituals/{name}.jsonc
   themes/{name}.jsonc
-  plugins/{name}/manifest.jsonc
+  plugins/{name}/plugin.jsonc
   config.jsonc
 ```
 

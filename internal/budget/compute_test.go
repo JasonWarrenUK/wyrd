@@ -191,3 +191,61 @@ func TestCompute_NilProperties(t *testing.T) {
 		t.Errorf("expected zero allocation, got %g", summary.Allocated)
 	}
 }
+
+func TestCompute_FutureDatedEntryExcluded(t *testing.T) {
+	// fixedNow is 2026-03-15; an April entry must not count toward March.
+	entries := []types.SpendEntry{
+		{Date: "2026-03-10", Amount: 20},
+		{Date: "2026-04-02", Amount: 500, Note: "future-dated"},
+	}
+	node := budgetNode(100, 0.8, "month", entries)
+	summary := Compute(node, fixedNow)
+
+	if summary.Spent != 20 {
+		t.Errorf("expected future-dated entry excluded (spent 20), got %g", summary.Spent)
+	}
+	if summary.Status != BudgetOK {
+		t.Errorf("expected OK status, got %s", summary.Status)
+	}
+}
+
+func TestPeriodEnd_Boundaries(t *testing.T) {
+	// fixedNow is Sunday 2026-03-15. Week is Monday-anchored, so the
+	// containing week is Mon 2026-03-09 .. Sun 2026-03-15.
+	cases := []struct {
+		period string
+		want   time.Time
+	}{
+		{"week", time.Date(2026, 3, 16, 0, 0, 0, 0, time.UTC)},
+		{"month", time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)},
+		{"quarter", time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)},
+		{"year", time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)},
+	}
+	for _, c := range cases {
+		got := periodEnd(c.period, fixedNow)
+		if !got.Equal(c.want) {
+			t.Errorf("periodEnd(%q): expected %v, got %v", c.period, c.want, got)
+		}
+	}
+	if !periodEnd("unknown", fixedNow).IsZero() {
+		t.Error("periodEnd of an unknown period should be zero (unbounded)")
+	}
+}
+
+func TestSumCurrentPeriod_BoundaryDates(t *testing.T) {
+	// Month period at fixedNow (2026-03-15): [2026-03-01, 2026-04-01).
+	entries := []types.SpendEntry{
+		{Date: "2026-02-28", Amount: 1}, // before start — excluded
+		{Date: "2026-03-01", Amount: 2}, // first day — included
+		{Date: "2026-03-31", Amount: 4}, // last day — included
+		{Date: "2026-04-01", Amount: 8}, // exclusive end — excluded
+	}
+	if got := sumCurrentPeriod(entries, "month", fixedNow); got != 6 {
+		t.Errorf("expected boundary-aware total 6, got %g", got)
+	}
+
+	// Unknown period keeps the historical include-everything behaviour.
+	if got := sumCurrentPeriod(entries, "made-up", fixedNow); got != 15 {
+		t.Errorf("expected unknown period to include everything (15), got %g", got)
+	}
+}

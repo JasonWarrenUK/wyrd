@@ -36,8 +36,10 @@ func PluginInstall(store types.StoreFS, sourcePath string, out io.Writer) error 
 		return fmt.Errorf("unsupported plugin source format — provide a directory or .zip file")
 	}
 
-	// Read the manifest to get the plugin name.
-	manifestPath := filepath.Join(pluginDir, "plugin.json")
+	// Read the manifest to get the plugin name. plugin.jsonc is the canonical
+	// manifest filename (see docs/schema/plugin-manifest.md), shared with the
+	// store reader and the plugin manager's Discover.
+	manifestPath := filepath.Join(pluginDir, "plugin.jsonc")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return fmt.Errorf("reading plugin manifest from %q: %w", manifestPath, err)
@@ -114,9 +116,17 @@ func extractPluginZip(zipPath string) (string, error) {
 	}
 
 	for _, f := range r.File {
+		// Guard against zip-slip: filepath.Clean preserves leading "..", so a
+		// crafted entry name could escape tmpDir. Resolve then verify the
+		// destination stays inside the extraction directory.
 		dest := filepath.Join(tmpDir, filepath.Clean(f.Name))
+		if !strings.HasPrefix(dest, filepath.Clean(tmpDir)+string(os.PathSeparator)) {
+			return "", fmt.Errorf("plugin zip entry %q escapes the extraction directory", f.Name)
+		}
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(dest, 0o755)
+			if err := os.MkdirAll(dest, 0o755); err != nil {
+				return "", err
+			}
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
