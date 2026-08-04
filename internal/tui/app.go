@@ -789,7 +789,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncKeyHints()
 		captureText := fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category)
 		if msg.warning != "" {
-			captureText += " — warning: " + msg.warning
+			captureText += "; warning: " + msg.warning
 		}
 		m.statusBar.SetCaptureText(captureText)
 		m.refreshDashboard()
