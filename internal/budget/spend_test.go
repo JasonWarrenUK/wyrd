@@ -122,7 +122,7 @@ func TestRecordSpend_AppendsEntry(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"groceries", 42.50, "weekly shop", "", spendNow)
+	_, err := RecordSpend(store, index, "groceries", 42.50, "weekly shop", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestRecordSpend_AppendsToExistingLog(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"transport", 15, "bus pass", "", spendNow)
+	_, err := RecordSpend(store, index, "transport", 15, "bus pass", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestRecordSpend_BumpsModified(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"dining", 30, "lunch", "", spendNow)
+	_, err := RecordSpend(store, index, "dining", 30, "lunch", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestRecordSpend_CategoryNotFound(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"nonexistent-category", 10, "test", "", spendNow)
+	_, err := RecordSpend(store, index, "nonexistent-category", 10, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected an error for unknown category, got nil")
 	}
@@ -210,7 +210,7 @@ func TestRecordSpend_CategoryNotFound_ListsAvailable(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(grocery, transport)
 
-	_, err := RecordSpend(store, index,"nonexistent", 10, "test", "", spendNow)
+	_, err := RecordSpend(store, index, "nonexistent", 10, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected an error, got nil")
 	}
@@ -235,7 +235,7 @@ func TestRecordSpend_CategoryNotFound_NoBudgetNodes(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex() // no nodes at all
 
-	_, err := RecordSpend(store, index,"anything", 10, "test", "", spendNow)
+	_, err := RecordSpend(store, index, "anything", 10, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected an error, got nil")
 	}
@@ -251,7 +251,7 @@ func TestRecordSpend_InvalidAmount_Zero(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"groceries", 0, "test", "", spendNow)
+	_, err := RecordSpend(store, index, "groceries", 0, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected validation error for zero amount, got nil")
 	}
@@ -267,7 +267,7 @@ func TestRecordSpend_InvalidAmount_Negative(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"groceries", -5, "refund", "", spendNow)
+	_, err := RecordSpend(store, index, "groceries", -5, "refund", "", spendNow)
 	if err == nil {
 		t.Fatal("expected validation error for negative amount, got nil")
 	}
@@ -278,7 +278,7 @@ func TestRecordSpend_ExplicitDate(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"groceries", 10, "back-dated shop", "2026-01-10", spendNow)
+	_, err := RecordSpend(store, index, "groceries", 10, "back-dated shop", "2026-01-10", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestRecordSpend_InvalidDate(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"groceries", 10, "test", "not-a-date", spendNow)
+	_, err := RecordSpend(store, index, "groceries", 10, "test", "not-a-date", spendNow)
 	if err == nil {
 		t.Fatal("expected validation error for bad date, got nil")
 	}
@@ -389,7 +389,7 @@ func TestRecordSpend_PeriodFiltering(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	_, err := RecordSpend(store, index,"fitness", 50, "gym membership", "", spendNow)
+	_, err := RecordSpend(store, index, "fitness", 50, "gym membership", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
