@@ -88,7 +88,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 **Goal:** README and docs include polished screenshots (via `freeze`) and animated gifs (via `vhs`) showing the TUI in action.
 
-- [ ] **DA.1** — Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites
+- [x] **DA.1** — Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites
 - [ ] **DA.2** — Capture freeze screenshot of main TUI view (node list + detail pane) for README hero _(blocked — depends on CP.15, DA.1, DL.2, DL.5, NW.2, SL.11, SL.12, SL.14, SL.7c, VP.6, VP.7, VP.8, MA, MB, MC, MF)_
 - [ ] **DA.3** — Capture freeze screenshot of budget view with progress bars _(blocked — depends on DA.1, SP.11, SP.4, SP.6, SP.9, VP.6, VP.7, VP.8, MF, MG)_
 - [ ] **DA.4** — Capture freeze screenshot of schedule view _(blocked — depends on DA.1, VP.6, VP.7, VP.8, MF)_
@@ -105,7 +105,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 **Goal:** `wyrd compact` moves archived nodes to `archive/` and handles orphaned edges. A `--dry-run` flag shows what would be moved.
 
 - [x] **CO.2** — `wyrd compact` — orphan edge handling: archive edges linked to archived nodes. Shipped as part of CO.1's implementation: `internal/cli/compact.go` identifies edges touching archived nodes and moves them to `archive/edges/` (previewed under `--dry-run`, counts reported in the summary); tested by `TestCompact_MovesOrphanEdges` _(depends on CO.1)_
-- [ ] **CO.3** — TUI compaction — `:compact` palette command; shows dry-run preview in an overlay, confirm executes, reports moved/detached counts _(depends on CO.2)_
+- [ ] **CO.3** — TUI compaction — `:compact` palette command; shows dry-run preview in an overlay, confirm executes, reports moved/detached counts
 - [x] **CO.1** — `wyrd compact` — move archived nodes to `archive/` directory with `--dry-run` flag
 
 ---
@@ -169,7 +169,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [x] **DL.1** — Derive `isBlocked` at query time from `blocks` edges — a node is blocked if any node pointing to it via a `blocks` edge has stage != terminal; expose as `n.isBlocked` computed property in the query engine. Terminality comes from the stage group model (`StageGroup.IsTerminal`, SL.2) _(depends on DL.6, SL.2, SL.8)_
 - [x] **DL.3** — Staleness indicator — compute days since `date.modified`; left pane shows a muted badge on nodes idle > configurable threshold (default 14d); staleness needs nothing from the status lattice. Implemented as `n.daysSinceModified` (raw day-count, not a boolean) so the property doubles as a DL.4 ranking key via `ORDER BY`; the idle threshold lives at the presentation boundary (`types.IsStale`, config, TUI) rather than in the query engine, so no `WithStalenessThreshold` engine option was needed. Note for DL.4: `ORDER BY n.daysSinceModified` requires the property to also appear in `RETURN` — the engine's ORDER BY sorts on already-projected columns, not re-evaluated expressions
 - [x] **DL.2** — TUI: blocked badge on list items where `n.isBlocked` is true; detail pane shows BLOCKED BY section listing blocking nodes _(depends on DL.1)_
-- [ ] **DL.4** — Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages _(depends on DL.3, SL.8)_
+- [ ] **DL.4** — Backlog triage query — surfaces M highest-priority backlog items (low stages, highest staleness) plus one serendipitous pick; implemented as a saved view. Stage-based ranking needs queryable stages
 - [ ] **DL.5** — Dashboard calmness threshold — when active-stage node count drops below configurable N, dashboard automatically appends backlog triage results as a separate section; N and M configurable in `config.jsonc` _(blocked — depends on DL.4)_
 - [x] **DL.6** — Thread Kind + StageGroup registries into the query engine so it can resolve stage terminality — add a `WithStageResolver(kinds, groups)` EngineOption (nil-safe, matching the existing `WithLogger` pattern in `internal/query/engine.go`); update the two CLI query paths (`queryCmd`, `viewCmd` in `cmd/wyrd/main.go`) to build and pass the registries, matching the TUI path, which already builds them. Enables stage-terminality resolution for computed properties like `isBlocked` (DL.1). An unresolvable blocker (empty stage, unknown kind, or no registries wired) is treated as still blocking (presence blocks), surfaced distinctly from a confirmed non-terminal block rather than silently.
 
@@ -249,296 +249,327 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 ```mermaid
 graph LR
-	classDef done fill:#c3e6cb,stroke:#1e7e34
-	classDef open fill:#d4edda,stroke:#28a745
-	classDef blocked fill:#f8d7da,stroke:#dc3545
-	classDef paused fill:#e2e3f3,stroke:#5a6ab0,stroke-dasharray:4 3
-	classDef deferred fill:#e2e3e5,stroke:#6c757d,stroke-dasharray:2 4,font-style:italic
-	classDef external fill:#fff3cd,stroke:#d39e00,stroke-dasharray:4 3,font-style:italic
-	classDef mile fill:#cce5ff,stroke:#004085,font-weight:bold
-
-	M3[M3: Capture & Forms]:::mile
-	M5[M5: Logging & Observability]:::mile
-	M6[M6: Rituals & Workflows]:::mile
-	M7[M7: Documentation Assets]:::mile
-	M8[M8: Compaction]:::mile
-	MG[MG: Spend Depth]:::mile
-	MA[MA: Status Lattice]:::mile
-	MB[MB: Node Types Expansion]:::mile
-	MC[MC: Backlog]:::mile
-	MD[MD: Skeins]:::mile
-	ME[ME: Tech Debt]:::mile
-	MF[MF: Visual Polish]:::mile
-	MH[MH: Sync Integrity]:::mile
-	MI[MI: Query Correctness]:::mile
-
-	%% Milestone 3: Capture & Forms
-	CP13 --> CP14
-	CP0 --> M3
-	CP1 --> M3
-	CP10 --> M3
-	CP11 --> M3
-	CP14 --> M3
-	CP15 --> M3
-	CP16 --> M3
-	CP17 --> M3
-	CP2 --> M3
-	CP3 --> M3
-	CP4 --> M3
-	CP5 --> M3
-	CP6 --> M3
-	CP7 --> M3
-	CP8 --> M3
-	CP9 --> M3
-
-	%% Milestone 5: Logging & Observability
-	LG2 --> LG7
-	LG2 --> LG6
-	LG2 --> LG5
-	LG2 --> LG4
-	LG2 --> LG3
-	LG1 --> LG2
-	LG3 --> M5
-	LG4 --> M5
-	LG5 --> M5
-	LG6 --> M5
-	LG7 --> M5
-
-	%% Milestone 6: Rituals & Workflows
-	RT5 --> RT6
-	RT2 --> RT7
-	RT2 --> RT8
-	RT2 --> RT5
-	CP1 --> RT4
-	RT2 --> RT4
-	RT2 --> RT3
-	CP1 --> RT1
-	RT2 --> RT9
-	RT5 --> RT9
-	RT2 --> RT10
-	RT1 --> M6
-	RT3 --> M6
-	RT4 --> M6
-	RT6 --> M6
-	RT7 --> M6
-	RT8 --> M6
-	RT9 --> M6
-	RT10 --> M6
-
-	%% Milestone 7: Documentation Assets
-	CP15 --> DA2
-	DA1 --> DA2
-	DL2 --> DA2
-	DL5 --> DA2
-	NW2 --> DA2
-	SL11 --> DA2
-	SL12 --> DA2
-	SL14 --> DA2
-	SL7c --> DA2
-	VP1 --> DA2
-	VP2 --> DA2
-	VP3 --> DA2
-	VP5 --> DA2
-	VP6 --> DA2
-	VP7 --> DA2
-	VP8 --> DA2
-	DA1 --> DA3
-	SP11 --> DA3
-	SP4 --> DA3
-	SP6 --> DA3
-	SP9 --> DA3
-	VP1 --> DA3
-	VP2 --> DA3
-	VP3 --> DA3
-	VP5 --> DA3
-	VP6 --> DA3
-	VP7 --> DA3
-	VP8 --> DA3
-	DA1 --> DA4
-	VP1 --> DA4
-	VP2 --> DA4
-	VP3 --> DA4
-	VP5 --> DA4
-	VP6 --> DA4
-	VP7 --> DA4
-	VP8 --> DA4
-	CP2 --> DA5
-	DA1 --> DA5
-	SL11 --> DA5
-	SL12 --> DA5
-	SL14 --> DA5
-	SL7c --> DA5
-	VP1 --> DA5
-	VP2 --> DA5
-	VP3 --> DA5
-	VP5 --> DA5
-	VP6 --> DA5
-	VP7 --> DA5
-	VP8 --> DA5
-	DA1 --> DA6
-	RT5 --> DA6
-	RT6 --> DA6
-	RT7 --> DA6
-	RT8 --> DA6
-	VP1 --> DA6
-	VP2 --> DA6
-	VP3 --> DA6
-	VP5 --> DA6
-	VP6 --> DA6
-	VP7 --> DA6
-	VP8 --> DA6
-	DA1 --> DA7
-	VP1 --> DA7
-	VP2 --> DA7
-	VP3 --> DA7
-	VP5 --> DA7
-	VP6 --> DA7
-	VP7 --> DA7
-	VP8 --> DA7
-	DA2 --> DA8
-	DA3 --> DA8
-	DA4 --> DA8
-	DA5 --> DA9
-	DA6 --> DA9
-	DA7 --> DA9
-	MA --> DA2
-	MB --> DA2
-	MC --> DA2
-	MF --> DA2
-	MF --> DA3
-	MG --> DA3
-	MF --> DA4
-	MA --> DA5
-	MF --> DA5
-	M6 --> DA6
-	MF --> DA6
-	MF --> DA7
-	DA8 --> M7
-	DA9 --> M7
-
-	%% Milestone 8: Compaction
-	CO1 --> CO2
-	CO2 --> CO3
-	CO3 --> M8
-
-	%% Milestone G: Spend Depth
-	SL3 --> SP7
-	SL5 --> SP7
-	SP8 --> SP2
-	SP2 --> SP4
-	SP3 --> SP4
-	SP8 --> SP5
-	SL7b --> SP6
-	SP5 --> SP6
-	SP7 --> SP8
-	SP8 --> SP9
-	SP8 --> SP10
-	SL7b --> SP11
-	SP10 --> SP11
-	SP1 --> MG
-	SP11 --> MG
-	SP4 --> MG
-	SP6 --> MG
-	SP9 --> MG
-
-	%% Milestone A: Status Lattice
-	SL4 --> SL10
-	CP16 --> SL14
-	SL10 --> SL14
-	SL11 --> SL14
-	SL13 --> SL14
-	SL6 --> SL14
-	SL3 --> SL12
-	SL13 --> SL11
-	SL3 --> SL13
-	CP16 --> SL7c
-	SL7b --> SL7c
-	SL7a --> SL7b
-	CP16 --> SL7a
-	SL6 --> SL7a
-	SL15 --> SL9
-	SL15 --> SL6
-	SL5 --> SL15
-	SL4 --> SL5
-	SL3 --> SL4
-	SL2 --> SL3
-	SL1 --> SL2
-	SL8 --> SL8b
-	SL1 --> SL8
-	SL12 --> MA
-	SL14 --> MA
-	SL7c --> MA
-	SL8b --> MA
-	SL9 --> MA
-
-	%% Milestone B: Node Types Expansion
-	SL7b --> NW1
-	NW1 --> NW2
-	SL8 --> NW2
-	NW2 --> MB
-
-	%% Milestone C: Backlog
-	DL6 --> DL1
-	SL2 --> DL1
-	SL8 --> DL1
-	DL1 --> DL2
-	DL3 --> DL4
-	SL8 --> DL4
-	DL4 --> DL5
-	DL2 --> MC
-	DL5 --> MC
-
-	%% Milestone D: Skeins
-	SK1 --> SK2
-	SK2 --> SK3
-	SK3 --> SK4
-	SK4 --> MD
-
-	%% Milestone E: Tech Debt
-	SL3 --> TD2
-	TD1 --> ME
-	TD2 --> ME
-	TD3 --> ME
-	TD4 --> ME
-	TD5 --> ME
-	TD6 --> ME
-	TD7 --> ME
-	TD8 --> ME
-	TD9 --> ME
-	TD10 --> ME
-	TD11 --> ME
-
-	%% Milestone F: Visual Polish
-	VP4 --> VP6
-	CP17 --> VP7
-	CP17 --> VP8
-	VP9 --> VP5
-	SL7c --> VP2
-	VP1 --> MF
-	VP2 --> MF
-	VP3 --> MF
-	VP5 --> MF
-	VP6 --> MF
-	VP7 --> MF
-	VP8 --> MF
-
-	%% Milestone H: Sync Integrity
-	TD1 --> SY2
-	SY1 --> SY5
-	SY2 --> SY5
-	SY3 --> SY5
-	SY4 --> SY5
-	SY5 --> MH
-
-	%% Milestone I: Query Correctness
-	QC1 --> MI
-	QC2 --> MI
-	QC3 --> MI
-	QC4 --> MI
-	QC5 --> MI
-	QC6 --> MI
-
-	class CO3 & DA1 & DL4 & NW1 & QC1 & QC2 & QC3 & QC4 & QC5 & QC6 & RT6 & RT7 & RT9 & RT10 & SK1 & SL10 & SP7 & SY1 & SY3 & SY4 & TD1 & TD2 & TD3 & TD5 & TD6 & TD7 & TD8 & TD9 & TD10 & TD11 & VP7 & VP8 open
-	class DA2 & DA3 & DA4 & DA5 & DA6 & DA7 & DA8 & DA9 & DL5 & NW2 & SK2 & SK3 & SK4 & SL14 & SP2 & SP4 & SP5 & SP6 & SP8 & SP9 & SP10 & SP11 & SY2 & SY5 blocked
-	class CO1 & CO2 & CP0 & CP1 & CP2 & CP3 & CP4 & CP5 & CP6 & CP7 & CP8 & CP9 & CP10 & CP11 & CP13 & CP14 & CP15 & CP16 & CP17 & DL1 & DL2 & DL3 & DL6 & LG1 & LG2 & LG3 & LG4 & LG5 & LG6 & LG7 & RT1 & RT2 & RT3 & RT4 & RT5 & RT8 & SL1 & SL2 & SL3 & SL4 & SL5 & SL6 & SL7a & SL7b & SL7c & SL8 & SL8b & SL9 & SL11 & SL12 & SL13 & SL15 & SP1 & SP3 & TD4 & VP1 & VP2 & VP3 & VP4 & VP5 & VP6 & VP9 done
+	classDef todo fill:#f6f6f6,stroke:#6f6f6f,color:#6f6f6f
+	classDef blocked fill:#fff8f6,stroke:#e0002b,color:#e0002b,stroke-width:2px
+	classDef paused fill:#fdf4ff,stroke:#b01fe3,color:#b01fe3,stroke-dasharray:4 3
+	classDef deferred fill:#fff8f3,stroke:#ac5c00,color:#ac5c00,stroke-dasharray:2 4,font-style:italic
+	classDef done fill:#e0ffd9,stroke:#008217,color:#008217
+	classDef outOfScope fill:#f6f6f6,stroke:#e2e2e2,color:#e2e2e2,stroke-dasharray:2 2
+	classDef mile fill:#e3f7ff,stroke:#007590,color:#007590,font-weight:bold
+	classDef external fill:#fff9e5,stroke:#7d6f00,color:#7d6f00,stroke-dasharray:4 3,font-style:italic
+	CP.17["CP.17: Dismissable capture-bar messages — added…"]
+	CP.15["CP.15: Rename capture prefixes — `s:` → `bs:` (…"]
+	CP.16["CP.16: Fix edit-mode node data loss — `(formPan…"]
+	CP.13["CP.13: Add `budget.jsonc` starter template"]
+	CP.14["CP.14: Budget creation form — `huh`-based form…"]
+	CP.11["CP.11: Edge management in edit form"]
+	CP.10["CP.10: Edit existing node — `ctrl+o` opens pre-…"]
+	CP.9["CP.9: Allow node creation without linking"]
+	CP.8["CP.8: Wire capture bar focus to open appropriat…"]
+	CP.7["CP.7: Spend entry form (`bs:` prefix; formerly…"]
+	CP.6["CP.6: Wire link-to-selected on form submit"]
+	CP.5["CP.5: Configure huh textarea in all three forms"]
+	CP.4["CP.4: Note creation form (`n:` prefix)"]
+	CP.3["CP.3: Journal entry form (`j:` prefix)"]
+	CP.2["CP.2: Task creation form (`t:` prefix)"]
+	CP.1["CP.1: Add `charm.land/huh/v2` dependency"]
+	CP.0["CP.0: Wire capture bar"]
+	M3["M3: Milestone 3: Capture & Forms"]:::mile
+	LG.1["LG.1: Add `github.com/charmbracelet/log` depend…"]
+	LG.2["LG.2: Initialise logger in `main.go`; write to…"]
+	LG.7["LG.7: Add TUI debug overlay (`:log` command in…"]
+	LG.6["LG.6: Thread logger through query engine"]
+	LG.5["LG.5: Thread logger through sync"]
+	LG.4["LG.4: Thread logger through store operations"]
+	LG.3["LG.3: Add `--log-level` flag and `WYRD_LOG_LEVE…"]
+	M5["M5: Milestone 5: Logging & Observability"]:::mile
+	RT.2["RT.2: Mount ritual runner in a full-screen over…"]
+	RT.7["RT.7: Action step execution — the step type is…"]
+	RT.8["RT.8: Palette ritual command — `:ritual <name>`…"]
+	RT.5["RT.5: Gate step"]
+	RT.6["RT.6: Persist ritual deferral timestamp — the `…"]
+	RT.4["RT.4: Prompt steps — implemented with a `bubble…"]
+	RT.3["RT.3: Query steps in ritual — `query_summary` a…"]
+	RT.1["RT.1: Ritual scheduler on startup"]
+	M6["M6: Milestone 6: Rituals & Workflows"]:::mile
+	DA.1["DA.1: Install `freeze` and `vhs` (via Homebrew…"]
+	CO.1["CO.1: `wyrd compact` — move archived nodes to `…"]
+	CO.2["CO.2: `wyrd compact` — orphan edge handling: de…"]
+	CO.3["CO.3: TUI compaction — `:compact` palette comma…"]
+	M8["M8: Milestone 8: Compaction"]:::mile
+	SP.3["SP.3: Spend events in budget detail pane"]
+	SP.1["SP.1: Dated spend entries — `SpendEntry.Date` a…"]
+	SL.1["SL.1: Add `kind` and `stage` fields to Node str…"]
+	SL.2["SL.2: Define stage group data model — `StageGro…"]
+	SL.3["SL.3: Ship three baked-in default stage groups…"]
+	SL.12["SL.12: Stage group view in TUI — bare `:stages`…"]
+	SL.13["SL.13: User stage-group registry — `stages.json…"]
+	SL.11["SL.11: Create stage groups in TUI — `:stages ne…"]
+	SL.4["SL.4: Add `kinds.jsonc` config file — `types.Ki…"]
+	SL.10["SL.10: Create kinds in TUI — `:kind new` palett…"]
+	SL.5["SL.5: Ship default kinds: Task, Goblin, Habit,…"]
+	SP.7["SP.7: Movement node data model — register a `mo…"]
+	SP.8["SP.8: Budget engine over movements — `RecordSpe…"]
+	SP.2["SP.2: Bottom-up budgets — effective allocation…"]
+	SP.4["SP.4: Surface bottom-up allocation in TUI — bud…"]
+	SP.5["SP.5: Income recording — `wyrd income` CLI subc…"]
+	SP.9["SP.9: Budget detail pane lists movements — rewo…"]
+	SP.10["SP.10: Transfer recording — `wyrd transfer` CLI…"]
+	SL.15["SL.15: TUI: show `Kind` and `Stage` in the deta…"]
+	SL.9["SL.9: Kind registry view in TUI — `:kinds` pale…"]
+	SL.6["SL.6: TUI: advance stage (`]`) and retreat stag…"]
+	SL.14["SL.14: Stage remap on group reassignment — when…"]
+	SL.7a["SL.7a: TUI: kind selection in task create form…"]
+	SL.7b["SL.7b: TUI: kind selection in remaining create…"]
+	SP.6["SP.6: TUI income capture form — `bi:` capture-b…"]
+	SP.11["SP.11: TUI transfer capture form — `bt:` captur…"]
+	MG["MG: Milestone G: Spend Depth"]:::mile
+	SL.7c["SL.7c: TUI: kind selection in edit forms — all…"]
+	SL.8["SL.8: Query engine: `n.kind` and `n.stage` as f…"]
+	SL.8b["SL.8b: TUI grouping for kind/stage — `detectGro…"]
+	MA["MA: Milestone A: Status Lattice"]:::mile
+	NW.1["NW.1: Add `bookmark` node type with `url` prope…"]
+	NW.2["NW.2: Add `answers` edge type; wire into edge m…"]
+	MB["MB: Milestone B: Node Types Expansion"]:::mile
+	DL.3["DL.3: Staleness indicator — compute days since…"]
+	DL.4["DL.4: Backlog triage query — surfaces M highest…"]
+	DL.5["DL.5: Dashboard calmness threshold — when activ…"]
+	DL.6["DL.6: Thread Kind + StageGroup registries into…"]
+	DL.1["DL.1: Derive `isBlocked` at query time from `bl…"]
+	DL.2["DL.2: TUI: blocked badge on list items where `n…"]
+	MC["MC: Milestone C: Backlog"]:::mile
+	SK.1["SK.1: Define skein data model — a named partial…"]
+	SK.2["SK.2: Store: read/write skeins via StoreFS; exp…"]
+	SK.3["SK.3: Query engine: resolve skein references at…"]
+	SK.4["SK.4: TUI: skein management via palette — `:ske…"]
+	MD["MD: Milestone D: Skeins"]:::mile
+	TD.1["TD.1: Consolidate JSONC parsing — four duplicat…"]
+	TD.2["TD.2: ADR: unify default-asset lifecycle — them…"]
+	TD.3["TD.3: Edge `Modified` timestamp — restructure `…"]
+	TD.4["TD.4: `gofmt` cleanup — originally scoped to `c…"]
+	ME["ME: Milestone E: Tech Debt"]:::mile
+	VP.1["VP.1: Logo/title pane atop the detail column —…"]
+	VP.3["VP.3: Theme-derived glamour stylesheet — build…"]
+	VP.4["VP.4: Gradient focus border — replace the flat…"]
+	VP.6["VP.6: Spring-eased pane focus transition — anim…"]
+	VP.7["VP.7: Auto-generated key-hint footer — replace…"]
+	VP.8["VP.8: Stepped sync progress bar — `wyrd sync` s…"]
+	VP.9["VP.9: Fix overlay panel overflow — resolved as…"]
+	VP.5["VP.5: Floating modal overlays via compositor —…"]
+	VP.2["VP.2: Wyrd-themed `huh` forms — `wyrdHuhTheme`…"]
+	MF["MF: Milestone F: Visual Polish"]:::mile
+	DA.2["DA.2: Capture freeze screenshot of main TUI vie…"]
+	DA.3["DA.3: Capture freeze screenshot of budget view…"]
+	DA.4["DA.4: Capture freeze screenshot of schedule view"]
+	DA.5["DA.5: Write VHS tape for task creation flow (ca…"]
+	DA.6["DA.6: Write VHS tape for ritual run (startup pr…"]
+	DA.7["DA.7: Write VHS tape for `wyrd sync` (stage → c…"]
+	DA.8["DA.8: Integrate screenshots and gifs into READM…"]
+	DA.9["DA.9: Store VHS tapes in `docs/vhs/` directory;…"]
+	M7["M7: Milestone 7: Documentation Assets"]:::mile
+	CP.17 --> M3
+	CP.17 --> VP.7
+	CP.17 --> VP.8
+	CP.15 --> M3
+	CP.15 --> DA.2
+	CP.16 --> M3
+	CP.16 --> SL.14
+	CP.16 --> SL.7a
+	CP.16 --> SL.7c
+	CP.13 --> CP.14
+	CP.14 --> M3
+	CP.11 --> M3
+	CP.10 --> M3
+	CP.9 --> M3
+	CP.8 --> M3
+	CP.7 --> M3
+	CP.6 --> M3
+	CP.5 --> M3
+	CP.4 --> M3
+	CP.3 --> M3
+	CP.2 --> M3
+	CP.2 --> DA.5
+	CP.1 --> M3
+	CP.1 --> RT.4
+	CP.1 --> RT.1
+	CP.0 --> M3
+	LG.1 --> LG.2
+	LG.2 --> LG.7
+	LG.2 --> LG.6
+	LG.2 --> LG.5
+	LG.2 --> LG.4
+	LG.2 --> LG.3
+	LG.7 --> M5
+	LG.6 --> M5
+	LG.5 --> M5
+	LG.4 --> M5
+	LG.3 --> M5
+	RT.2 --> RT.7
+	RT.2 --> RT.8
+	RT.2 --> RT.5
+	RT.2 --> RT.4
+	RT.2 --> RT.3
+	RT.7 --> M6
+	RT.7 --> DA.6
+	RT.8 --> M6
+	RT.8 --> DA.6
+	RT.5 --> RT.6
+	RT.5 --> DA.6
+	RT.6 --> M6
+	RT.6 --> DA.6
+	RT.4 --> M6
+	RT.3 --> M6
+	RT.1 --> M6
+	M6 --> DA.6
+	DA.1 --> DA.2
+	DA.1 --> DA.3
+	DA.1 --> DA.4
+	DA.1 --> DA.5
+	DA.1 --> DA.6
+	DA.1 --> DA.7
+	CO.1 --> CO.2
+	CO.2 --> CO.3
+	CO.3 --> M8
+	SP.3 --> SP.4
+	SP.1 --> MG
+	SL.1 --> SL.2
+	SL.1 --> SL.8
+	SL.2 --> SL.3
+	SL.2 --> DL.1
+	SL.3 --> SL.12
+	SL.3 --> SL.13
+	SL.3 --> SL.4
+	SL.3 --> SP.7
+	SL.3 --> TD.2
+	SL.12 --> MA
+	SL.12 --> DA.2
+	SL.12 --> DA.5
+	SL.13 --> SL.11
+	SL.13 --> SL.14
+	SL.11 --> SL.14
+	SL.11 --> DA.2
+	SL.11 --> DA.5
+	SL.4 --> SL.10
+	SL.4 --> SL.5
+	SL.10 --> SL.14
+	SL.5 --> SP.7
+	SL.5 --> SL.15
+	SP.7 --> SP.8
+	SP.8 --> SP.2
+	SP.8 --> SP.5
+	SP.8 --> SP.9
+	SP.8 --> SP.10
+	SP.2 --> SP.4
+	SP.4 --> MG
+	SP.4 --> DA.3
+	SP.5 --> SP.6
+	SP.9 --> MG
+	SP.9 --> DA.3
+	SP.10 --> SP.11
+	SL.15 --> SL.9
+	SL.15 --> SL.6
+	SL.9 --> MA
+	SL.6 --> SL.14
+	SL.6 --> SL.7a
+	SL.14 --> MA
+	SL.14 --> DA.2
+	SL.14 --> DA.5
+	SL.7a --> SL.7b
+	SL.7b --> SP.6
+	SL.7b --> SP.11
+	SL.7b --> SL.7c
+	SL.7b --> NW.1
+	SP.6 --> MG
+	SP.6 --> DA.3
+	SP.11 --> MG
+	SP.11 --> DA.3
+	MG --> DA.3
+	SL.7c --> MA
+	SL.7c --> VP.2
+	SL.7c --> DA.2
+	SL.7c --> DA.5
+	SL.8 --> SL.8b
+	SL.8 --> NW.2
+	SL.8 --> DL.4
+	SL.8 --> DL.1
+	SL.8b --> MA
+	MA --> DA.2
+	MA --> DA.5
+	NW.1 --> NW.2
+	NW.2 --> MB
+	NW.2 --> DA.2
+	MB --> DA.2
+	DL.3 --> DL.4
+	DL.4 --> DL.5
+	DL.5 --> MC
+	DL.5 --> DA.2
+	DL.6 --> DL.1
+	DL.1 --> DL.2
+	DL.2 --> MC
+	DL.2 --> DA.2
+	MC --> DA.2
+	SK.1 --> SK.2
+	SK.2 --> SK.3
+	SK.3 --> SK.4
+	SK.4 --> MD
+	TD.1 --> ME
+	TD.2 --> ME
+	TD.3 --> ME
+	TD.4 --> ME
+	VP.1 --> MF
+	VP.3 --> MF
+	VP.4 --> VP.6
+	VP.6 --> MF
+	VP.6 --> DA.2
+	VP.6 --> DA.3
+	VP.6 --> DA.4
+	VP.6 --> DA.5
+	VP.6 --> DA.6
+	VP.6 --> DA.7
+	VP.7 --> MF
+	VP.7 --> DA.2
+	VP.7 --> DA.3
+	VP.7 --> DA.4
+	VP.7 --> DA.5
+	VP.7 --> DA.6
+	VP.7 --> DA.7
+	VP.8 --> MF
+	VP.8 --> DA.2
+	VP.8 --> DA.3
+	VP.8 --> DA.4
+	VP.8 --> DA.5
+	VP.8 --> DA.6
+	VP.8 --> DA.7
+	VP.9 --> VP.5
+	VP.5 --> MF
+	VP.5 --> DA.2
+	VP.5 --> DA.3
+	VP.5 --> DA.4
+	VP.5 --> DA.5
+	VP.5 --> DA.6
+	VP.5 --> DA.7
+	VP.2 --> MF
+	VP.2 --> DA.2
+	VP.2 --> DA.3
+	VP.2 --> DA.4
+	VP.2 --> DA.5
+	VP.2 --> DA.6
+	VP.2 --> DA.7
+	MF --> DA.2
+	MF --> DA.3
+	MF --> DA.4
+	MF --> DA.5
+	MF --> DA.6
+	MF --> DA.7
+	DA.2 --> DA.8
+	DA.3 --> DA.8
+	DA.4 --> DA.8
+	DA.5 --> DA.9
+	DA.6 --> DA.9
+	DA.7 --> DA.9
+	DA.8 --> M7
+	DA.9 --> M7
+	class CO.3,DL.4,NW.1,RT.6,RT.7,RT.8,SK.1,SL.10,SP.7,TD.1,TD.2,TD.3,VP.7,VP.8 todo
+	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SL.14,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.8,SP.9 blocked
+	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,SL.1,SL.11,SL.12,SL.13,SL.15,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```
