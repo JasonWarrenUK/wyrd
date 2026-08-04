@@ -1,6 +1,6 @@
 # ADR-008: Envelope Budgeting Without Financial Tracking
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-08-04 — see Amendment below)
 
 ## Context
 
@@ -21,3 +21,9 @@ Edges to other nodes (projects, tasks) are optional, enabling queries like "how 
 **Positive:** minimal implementation surface. `wyrd spend records 18.50 "Discogs"` is the entire input interface. Envelopes are regular nodes; they work with the existing query engine, views, and ritual system. The budget view follows the "consequences visible" philosophy (progress bars, status glyphs).
 
 **Negative:** no automated data entry. Every spend is manual. No reconciliation against actual bank transactions. Users wanting real financial tracking would need to build it as a plugin or use a separate tool.
+
+## Amendment (2026-08-04)
+
+Roadmap Milestone G (Spend Depth) supersedes the embedded `spend_log` design. Money movements become first-class nodes (kind `movement`, stage group `expected → cleared`) linked to budget envelopes via `draws_from`/`adds_to` edges; spends, income and transfers are edge-topology variants of one model, and bottom-up budgeting derives the envelope from expected movements. The "rejected: transaction nodes" alternative above is therefore reversed — the reversal is scoped, though: movements are still manual entries in the graph, and the rejections of bank sync, CSV import and privacy partitioning all stand.
+
+Rationale (from the Milestone G goal statement): a movement is a dated event, not an abstract relationship, hence node plus edges rather than a payload edge or an embedded log; the embedded representation cannot express income, transfers or expected-vs-cleared status. `spend_log` is deleted outright when SP.8 lands (pre-production, no migration).
