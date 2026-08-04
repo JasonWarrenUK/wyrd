@@ -726,7 +726,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Render detail asynchronously so Glamour initialisation doesn't
 			// block the event loop. The right pane shows a placeholder until
 			// the detailReadyMsg arrives.
-			m.rightPane = NewEmptyPane(m.theme)
+			m.rightPane = m.sizedEmptyPane(m.theme)
 			cmd := m.renderDetailAsync(msg.nodeID)
 			if m.index != nil {
 				if node, err := m.index.GetNode(msg.nodeID); err == nil {
@@ -753,7 +753,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case formSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		return m.handleCaptureSubmit(captureSubmitMsg{nodeID: msg.nodeID, label: msg.label})
@@ -767,17 +767,17 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		return m, nil
 
 	case editSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		return m.handleEditSubmit(msg)
 
 	case spendSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		captureText := fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category)
@@ -804,7 +804,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case stageFormSubmitMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		// Rebuild the in-memory stage-group registry so the new group is
@@ -823,7 +823,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:
-		m.rightPane = NewEmptyPane(m.theme)
+		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
 		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
@@ -1211,7 +1211,7 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	}
 
 	// Clear the right pane and return focus to the list.
-	m.rightPane = NewEmptyPane(m.theme)
+	m.rightPane = m.sizedEmptyPane(m.theme)
 	m.focus = FocusLeft
 	m.syncKeyHints()
 
@@ -1350,7 +1350,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	if lp, ok := m.leftPane.(nodeListPane); ok {
 		m.leftPane = newNodeListPane(lp.result, t, lp.staleThresholdDays)
 	} else if _, ok := m.leftPane.(emptyPane); ok {
-		m.leftPane = NewEmptyPane(t)
+		m.leftPane = m.sizedEmptyPane(t)
 	}
 
 	// Always replace the right pane — never leave a stale viewportPane (old
@@ -1364,7 +1364,7 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 		}
 	}
 	if !rerendered {
-		m.rightPane = NewEmptyPane(t)
+		m.rightPane = m.sizedEmptyPane(t)
 	}
 
 	m.syncKeyHints()
@@ -1468,6 +1468,17 @@ func (m *Model) StatusBar() *StatusBar {
 // renderDetailAsync returns a tea.Cmd that renders the detail pane in a
 // goroutine, sending a detailReadyMsg when complete. This keeps the event
 // loop responsive while Glamour processes markdown.
+// sizedEmptyPane returns an empty pane pre-sized from the current layout, so
+// placeholders mounted between resize events (form close, node selection,
+// theme switch) still pad their background to the pane width.
+func (m Model) sizedEmptyPane(theme *ActiveTheme) PaneModel {
+	p := NewEmptyPane(theme)
+	if w := m.layout.TotalWidth(); w > 0 {
+		p, _ = p.Update(tea.WindowSizeMsg{Width: w, Height: m.layout.TotalHeight()})
+	}
+	return p
+}
+
 func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
 	return func() tea.Msg {
 		pane := m.renderDetail(nodeID)
@@ -1479,11 +1490,11 @@ func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
 // Returns an emptyPane when the index is unavailable or the node is not found.
 func (m Model) renderDetail(nodeID string) PaneModel {
 	if m.index == nil || nodeID == "" {
-		return NewEmptyPane(m.theme)
+		return m.sizedEmptyPane(m.theme)
 	}
 	node, err := m.index.GetNode(nodeID)
 	if err != nil {
-		return NewEmptyPane(m.theme)
+		return m.sizedEmptyPane(m.theme)
 	}
 
 	// Collect all edges connected to this node.
