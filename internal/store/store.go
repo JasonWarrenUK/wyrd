@@ -429,9 +429,11 @@ func (s *Store) WriteStages(groups []types.StageGroup) error {
 	return writeJSONC(path, groups)
 }
 
-// ReadPluginManifest reads a plugin's manifest by plugin name.
+// ReadPluginManifest reads a plugin's manifest by plugin name. plugin.jsonc
+// is the canonical manifest filename (docs/schema/plugin-manifest.md), shared
+// with PluginInstall and the plugin manager's Discover.
 func (s *Store) ReadPluginManifest(name string) (*types.PluginManifest, error) {
-	path := filepath.Join(s.path, "plugins", name, "manifest.jsonc")
+	path := filepath.Join(s.path, "plugins", name, "plugin.jsonc")
 	data, err := readJSONC(path)
 	if err != nil {
 		if isNotExist(err) {

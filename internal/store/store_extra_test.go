@@ -487,7 +487,7 @@ func TestReadPluginManifest_Found(t *testing.T) {
 		"executable_type": "binary",
 		"capabilities":    []string{"sync"},
 	}
-	manifestPath := filepath.Join(pluginDir, "manifest.jsonc")
+	manifestPath := filepath.Join(pluginDir, "plugin.jsonc")
 	if err := writeJSONC(manifestPath, manifestData); err != nil {
 		t.Fatalf("writing manifest: %v", err)
 	}
@@ -520,7 +520,7 @@ func TestAllPluginManifests(t *testing.T) {
 			"executable_type": "binary",
 			"capabilities":    []string{},
 		}
-		if err := writeJSONC(filepath.Join(pluginDir, "manifest.jsonc"), data); err != nil {
+		if err := writeJSONC(filepath.Join(pluginDir, "plugin.jsonc"), data); err != nil {
 			t.Fatalf("writing manifest for %s: %v", name, err)
 		}
 	}
