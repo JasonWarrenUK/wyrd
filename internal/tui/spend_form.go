@@ -14,9 +14,11 @@ import (
 
 // spendSubmitMsg is emitted by a spendFormPane when the user successfully
 // records a spend entry. The entry has already been written to the store.
+// warning is non-empty when the entry duplicated an existing date+note pair.
 type spendSubmitMsg struct {
 	category string
 	amount   float64
+	warning  string
 }
 
 // spendFormPane wraps a huh.Form for recording spend entries. It satisfies
@@ -196,11 +198,12 @@ func (f spendFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			// as a safe fallback.
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
-		if err := budget.RecordSpend(f.store, f.index, f.category, amount, f.note, f.date, f.clock.Now()); err != nil {
+		warning, err := budget.RecordSpend(f.store, f.index, f.category, amount, f.note, f.date, f.clock.Now())
+		if err != nil {
 			return f, func() tea.Msg { return formCancelMsg{} }
 		}
 		return f, tea.Batch(cmd, func() tea.Msg {
-			return spendSubmitMsg{category: f.category, amount: amount}
+			return spendSubmitMsg{category: f.category, amount: amount, warning: warning}
 		})
 
 	case huh.StateAborted:

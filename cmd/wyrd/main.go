@@ -559,13 +559,17 @@ Use --date YYYY-MM-DD to back-date or future-date the entry; defaults to today.`
 			if err != nil {
 				return err
 			}
-			if err := cli.Spend(s, s.Index(), cli.SpendOptions{
+			warning, err := cli.Spend(s, s.Index(), cli.SpendOptions{
 				Category: args[0],
 				Amount:   amount,
 				Note:     args[2],
 				Date:     dateFlag,
-			}); err != nil {
+			})
+			if err != nil {
 				return err
+			}
+			if warning != "" {
+				fmt.Fprintln(os.Stderr, "warning: "+warning)
 			}
 			fmt.Fprintln(os.Stdout, "Spend recorded.")
 			return nil

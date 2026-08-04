@@ -780,7 +780,11 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = NewEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		m.statusBar.SetCaptureText(fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category))
+		captureText := fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category)
+		if msg.warning != "" {
+			captureText += " — warning: " + msg.warning
+		}
+		m.statusBar.SetCaptureText(captureText)
 		if m.queryRunner != nil {
 			dq := DefaultDashboardQuery()
 			if m.store != nil {

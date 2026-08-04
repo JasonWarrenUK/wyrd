@@ -15,7 +15,7 @@ func TestSpend_EmptyCategory(t *testing.T) {
 	}
 	defer s.Close()
 
-	err = cli.Spend(s, s.Index(), cli.SpendOptions{Category: "", Amount: 10.0})
+	_, err = cli.Spend(s, s.Index(), cli.SpendOptions{Category: "", Amount: 10.0})
 	if err == nil {
 		t.Fatal("expected validation error for empty category")
 	}
@@ -32,7 +32,7 @@ func TestSpend_ZeroAmount(t *testing.T) {
 	}
 	defer s.Close()
 
-	err = cli.Spend(s, s.Index(), cli.SpendOptions{Category: "groceries", Amount: 0})
+	_, err = cli.Spend(s, s.Index(), cli.SpendOptions{Category: "groceries", Amount: 0})
 	if err == nil {
 		t.Fatal("expected validation error for zero amount")
 	}
@@ -60,13 +60,16 @@ func TestSpend_Valid(t *testing.T) {
 		t.Fatalf("UpdateNode (set category): %v", err)
 	}
 
-	err = cli.Spend(s, s.Index(), cli.SpendOptions{
+	warning, err := cli.Spend(s, s.Index(), cli.SpendOptions{
 		Category: "groceries",
 		Amount:   25.50,
 		Note:     "oat milk and bread",
 	})
 	if err != nil {
 		t.Fatalf("Spend returned unexpected error: %v", err)
+	}
+	if warning != "" {
+		t.Errorf("expected no warning for a fresh entry, got: %s", warning)
 	}
 
 	// Read back the node and verify the spend_log entry was written.

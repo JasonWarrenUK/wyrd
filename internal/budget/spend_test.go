@@ -12,11 +12,15 @@ import (
 
 // mockStore implements types.StoreFS for testing. Only WriteNode is exercised here.
 type mockStore struct {
-	written []*types.Node
+	written  []*types.Node
+	writeErr error // returned by WriteNode when non-nil
 }
 
 func (m *mockStore) ReadNode(id string) (*types.Node, error) { return nil, nil }
 func (m *mockStore) WriteNode(node *types.Node) error {
+	if m.writeErr != nil {
+		return m.writeErr
+	}
 	m.written = append(m.written, node)
 	return nil
 }
@@ -118,7 +122,7 @@ func TestRecordSpend_AppendsEntry(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "groceries", 42.50, "weekly shop", "", spendNow)
+	_, err := RecordSpend(store, index,"groceries", 42.50, "weekly shop", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -151,7 +155,7 @@ func TestRecordSpend_AppendsToExistingLog(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "transport", 15, "bus pass", "", spendNow)
+	_, err := RecordSpend(store, index,"transport", 15, "bus pass", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -170,7 +174,7 @@ func TestRecordSpend_BumpsModified(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "dining", 30, "lunch", "", spendNow)
+	_, err := RecordSpend(store, index,"dining", 30, "lunch", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -186,7 +190,7 @@ func TestRecordSpend_CategoryNotFound(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "nonexistent-category", 10, "test", "", spendNow)
+	_, err := RecordSpend(store, index,"nonexistent-category", 10, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected an error for unknown category, got nil")
 	}
@@ -206,7 +210,7 @@ func TestRecordSpend_CategoryNotFound_ListsAvailable(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(grocery, transport)
 
-	err := RecordSpend(store, index, "nonexistent", 10, "test", "", spendNow)
+	_, err := RecordSpend(store, index,"nonexistent", 10, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected an error, got nil")
 	}
@@ -231,7 +235,7 @@ func TestRecordSpend_CategoryNotFound_NoBudgetNodes(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex() // no nodes at all
 
-	err := RecordSpend(store, index, "anything", 10, "test", "", spendNow)
+	_, err := RecordSpend(store, index,"anything", 10, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected an error, got nil")
 	}
@@ -247,7 +251,7 @@ func TestRecordSpend_InvalidAmount_Zero(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "groceries", 0, "test", "", spendNow)
+	_, err := RecordSpend(store, index,"groceries", 0, "test", "", spendNow)
 	if err == nil {
 		t.Fatal("expected validation error for zero amount, got nil")
 	}
@@ -263,7 +267,7 @@ func TestRecordSpend_InvalidAmount_Negative(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "groceries", -5, "refund", "", spendNow)
+	_, err := RecordSpend(store, index,"groceries", -5, "refund", "", spendNow)
 	if err == nil {
 		t.Fatal("expected validation error for negative amount, got nil")
 	}
@@ -274,7 +278,7 @@ func TestRecordSpend_ExplicitDate(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "groceries", 10, "back-dated shop", "2026-01-10", spendNow)
+	_, err := RecordSpend(store, index,"groceries", 10, "back-dated shop", "2026-01-10", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -293,12 +297,86 @@ func TestRecordSpend_InvalidDate(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "groceries", 10, "test", "not-a-date", spendNow)
+	_, err := RecordSpend(store, index,"groceries", 10, "test", "not-a-date", spendNow)
 	if err == nil {
 		t.Fatal("expected validation error for bad date, got nil")
 	}
 	if _, ok := err.(*types.ValidationError); !ok {
 		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+}
+
+func TestRecordSpend_WritesCloneNotIndexPointer(t *testing.T) {
+	node := newBudgetNodeForSpend("b-clone", "groceries", nil)
+	store := &mockStore{}
+	index := newMockIndex(node)
+
+	_, err := RecordSpend(store, index, "groceries", 12, "shop", "", spendNow)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if store.written[0] == node {
+		t.Fatal("RecordSpend wrote the index's live node pointer; expected a clone")
+	}
+	if _, exists := node.Properties["spend_log"]; exists {
+		t.Error("index node gained a spend_log entry; RecordSpend must not mutate the index copy")
+	}
+}
+
+func TestRecordSpend_WriteFailureLeavesIndexUntouched(t *testing.T) {
+	node := newBudgetNodeForSpend("b-fail", "groceries", nil)
+	originalModified := node.Modified
+	store := &mockStore{writeErr: &types.ConflictError{Message: "disk full"}}
+	index := newMockIndex(node)
+
+	_, err := RecordSpend(store, index, "groceries", 12, "shop", "", spendNow)
+	if err == nil {
+		t.Fatal("expected the write error to propagate, got nil")
+	}
+
+	if _, exists := node.Properties["spend_log"]; exists {
+		t.Error("index node was mutated despite the write failing")
+	}
+	if !node.Modified.Equal(originalModified) {
+		t.Error("index node's Modified was bumped despite the write failing")
+	}
+}
+
+func TestRecordSpend_DuplicateReturnsWarning(t *testing.T) {
+	existing := []types.SpendEntry{
+		{Date: "2026-03-15", Amount: 5, Note: "coffee"},
+	}
+	node := newBudgetNodeForSpend("b-dup", "groceries", existing)
+	store := &mockStore{}
+	index := newMockIndex(node)
+
+	warning, err := RecordSpend(store, index, "groceries", 5, "coffee", "", spendNow)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if warning == "" {
+		t.Fatal("expected a duplicate warning, got empty string")
+	}
+	for _, want := range []string{"groceries", "2026-03-15", "coffee"} {
+		if !strings.Contains(warning, want) {
+			t.Errorf("expected warning to mention %q, got: %s", want, warning)
+		}
+	}
+
+	// The duplicate is still recorded.
+	entries := SpendLog(store.written[0])
+	if len(entries) != 2 {
+		t.Fatalf("expected the duplicate to be appended anyway (2 entries), got %d", len(entries))
+	}
+
+	// A non-duplicate returns no warning.
+	warning, err = RecordSpend(store, index, "groceries", 7, "fresh note", "", spendNow)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if warning != "" {
+		t.Errorf("expected no warning for a fresh entry, got: %s", warning)
 	}
 }
 
@@ -311,7 +389,7 @@ func TestRecordSpend_PeriodFiltering(t *testing.T) {
 	store := &mockStore{}
 	index := newMockIndex(node)
 
-	err := RecordSpend(store, index, "fitness", 50, "gym membership", "", spendNow)
+	_, err := RecordSpend(store, index,"fitness", 50, "gym membership", "", spendNow)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -20,6 +20,10 @@ import (
 //  6. Persist the node via store.WriteNode.
 //
 // date is an optional explicit date string (YYYY-MM-DD). Pass empty to default to now.
+//
+// The returned warning is non-empty when a duplicate date+note entry already
+// exists; the entry is still recorded and the caller decides how to surface it
+// (the CLI prints to stderr, the TUI shows the status bar).
 func RecordSpend(
 	store types.StoreFS,
 	index types.GraphIndex,
@@ -28,9 +32,9 @@ func RecordSpend(
 	note string,
 	date string,
 	now time.Time,
-) error {
+) (warning string, err error) {
 	if amount <= 0 {
-		return &types.ValidationError{
+		return "", &types.ValidationError{
 			Field:   "amount",
 			Message: fmt.Sprintf("amount must be positive, got %g", amount),
 		}
@@ -41,17 +45,22 @@ func RecordSpend(
 	if dateStr == "" {
 		dateStr = now.Format("2006-01-02")
 	} else if _, err := time.Parse("2006-01-02", dateStr); err != nil {
-		return &types.ValidationError{
+		return "", &types.ValidationError{
 			Field:   "date",
 			Message: fmt.Sprintf("date must be YYYY-MM-DD, got %q", dateStr),
 		}
 	}
 
-	// Locate the budget node for this category.
+	// Locate the budget node for this category, then work on a clone: the
+	// index returns its live pointer, and mutating that in place would
+	// desynchronise the index from disk if the write below fails (and race
+	// concurrent index readers). WriteNode re-reads from disk on success,
+	// so the index still picks up the change.
 	node, err := findBudgetNode(index, category)
 	if err != nil {
-		return err
+		return "", err
 	}
+	node = node.Clone()
 
 	// Initialise the properties map if it has somehow arrived nil.
 	if node.Properties == nil {
@@ -60,11 +69,10 @@ func RecordSpend(
 
 	entries := SpendLog(node)
 
-	// Warn on duplicate date+note (non-fatal — caller receives nil but duplicate is logged).
+	// Duplicate date+note is non-fatal: record it anyway, return the warning.
 	for _, e := range entries {
 		if e.Date == dateStr && e.Note == note {
-			// Duplicate detected — emit a warning to stderr but continue.
-			fmt.Printf("warning: duplicate spend entry for category %q on %s with note %q\n", category, dateStr, note)
+			warning = fmt.Sprintf("duplicate spend entry for category %q on %s with note %q", category, dateStr, note)
 			break
 		}
 	}
@@ -78,7 +86,10 @@ func RecordSpend(
 	node.Properties["spend_log"] = entries
 	node.Modified = now
 
-	return store.WriteNode(node)
+	if err := store.WriteNode(node); err != nil {
+		return "", err
+	}
+	return warning, nil
 }
 
 // findBudgetNode searches the index for a budget node matching the given category.
