@@ -82,8 +82,13 @@ type StoreFS interface {
 
 	// ReadKinds reads the user's kind registry from kinds.jsonc in the store's
 	// parent directory (alongside config.jsonc). A missing file returns an
-	// empty registry and no error. Writing is SL.10.
+	// empty registry and no error.
 	ReadKinds() (*KindRegistry, error)
+
+	// WriteKinds persists the user-defined kinds to kinds.jsonc, overwriting
+	// the file. The caller is responsible for reading existing kinds and
+	// appending before calling WriteKinds to avoid data loss. SL.10.
+	WriteKinds(kinds []Kind) error
 
 	// ReadStages reads the user's stage-group registry from stages.jsonc in
 	// the store's parent directory (alongside config.jsonc). A missing file

@@ -105,6 +105,7 @@ func (s *errStoreFS) ReadTheme(_ string) (*types.Theme, error)       { return ni
 func (s *errStoreFS) ReadConfig() (*types.Config, error)             { return nil, nil }
 func (s *errStoreFS) WriteConfig(_ *types.Config) error              { return nil }
 func (s *errStoreFS) ReadKinds() (*types.KindRegistry, error)        { return types.NewKindRegistry(nil), nil }
+func (s *errStoreFS) WriteKinds(_ []types.Kind) error                { return nil }
 func (s *errStoreFS) ReadStages() (*types.StageGroupRegistry, error) {
 	if s.readErr != nil {
 		return nil, s.readErr

@@ -1273,6 +1273,21 @@ func notEmpty(fieldName string) func(string) error {
 	}
 }
 
+// caseInsensitiveNameCollision reports whether candidate matches any of
+// existingNames ignoring case. Registries (KindRegistry, StageGroupRegistry)
+// key entries by exact name, so "Task" and "task" would otherwise coexist as
+// visually confusable entries — this is used by kind/stage-group creation
+// forms to reject that case at the field level, alongside the exact-match
+// check the registry's own Lookup already performs.
+func caseInsensitiveNameCollision(candidate string, existingNames []string) bool {
+	for _, n := range existingNames {
+		if strings.EqualFold(n, candidate) {
+			return true
+		}
+	}
+	return false
+}
+
 // validateNonNegativeNumber returns a validation function that rejects empty,
 // non-numeric, and negative values. Zero is allowed.
 func validateNonNegativeNumber(fieldName string) func(string) error {

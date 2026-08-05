@@ -390,6 +390,15 @@ func (s *Store) ReadKinds() (*types.KindRegistry, error) {
 	return types.NewKindRegistry(valid), nil
 }
 
+// WriteKinds persists the user-defined kinds to kinds.jsonc in the store's
+// parent directory (alongside config.jsonc), overwriting any existing file.
+// The slice is written as a JSON array; existing JSONC comments are not
+// preserved (consistent with WriteStages/WriteConfig). SL.10.
+func (s *Store) WriteKinds(kinds []types.Kind) error {
+	path := filepath.Join(s.path, "..", "kinds.jsonc")
+	return writeJSONC(path, kinds)
+}
+
 // ReadStages reads the user's stage-group registry from stages.jsonc in the
 // store's parent directory (alongside config.jsonc). A missing file yields an
 // empty registry and no error — first run is not a failure. Individual groups
