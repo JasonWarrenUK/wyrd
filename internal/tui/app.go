@@ -33,6 +33,9 @@ type openHelpOverlayMsg struct{}
 // openKindsOverlayMsg is emitted when the :kinds command is invoked.
 type openKindsOverlayMsg struct{}
 
+// openKindFormMsg is emitted when the :kinds new command is invoked.
+type openKindFormMsg struct{}
+
 // openStageFormMsg is emitted when the :stages new command is invoked.
 type openStageFormMsg struct{}
 
@@ -399,14 +402,16 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
-	// Wire up the "kinds" command.
+	// Wire up the "kinds" command. ":kinds" lists all kinds (SL.9); ":kinds
+	// new" opens the kind creation form (SL.10).
 	palette.Register(Command{
 		Name:        "kinds",
-		Description: "Show registered kinds",
+		Description: "List kinds (kinds new to create)",
 		Execute: func(args []string) tea.Cmd {
-			return func() tea.Msg {
-				return openKindsOverlayMsg{}
+			if len(args) > 0 && args[0] == "new" {
+				return func() tea.Msg { return openKindFormMsg{} }
 			}
+			return func() tea.Msg { return openKindsOverlayMsg{} }
 		},
 	})
 
@@ -618,6 +623,22 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stagesOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
+	case openKindFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
+
 	case openStageFormMsg:
 		// Guard against clobbering an active form.
 		if _, isForm := m.rightPane.(formActivePane); isForm {
@@ -793,6 +814,31 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.statusBar.SetCaptureText(captureText)
 		m.refreshDashboard()
+		return m, m.clearCaptureCmd()
+
+	case kindFormSubmitMsg:
+		m.rightPane = m.sizedEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		// Rebuild the in-memory kind registry so the new kind is usable
+		// in-session without restarting. DefaultKinds is sync.Once-cached, so
+		// re-calling it is cheap.
+		if m.store != nil {
+			if defaults, err := stage.DefaultKinds(); err == nil {
+				if userReg, err := m.store.ReadKinds(); err == nil {
+					m.kinds = stage.MergeKinds(defaults, userReg.All())
+					m.kindsOverlay.kinds = m.kinds
+				}
+			}
+		}
+		m.statusBar.SetCaptureText(fmt.Sprintf("Created kind %q", msg.name))
+		return m, m.clearCaptureCmd()
+
+	case kindFormErrorMsg:
+		m.rightPane = m.sizedEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		m.statusBar.SetCaptureText("Could not save kind: " + msg.err.Error())
 		return m, m.clearCaptureCmd()
 
 	case stageFormSubmitMsg:

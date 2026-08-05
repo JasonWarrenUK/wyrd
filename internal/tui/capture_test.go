@@ -61,6 +61,7 @@ func (s *captureStore) WriteConfig(_ *types.Config) error              { return 
 func (s *captureStore) ReadKinds() (*types.KindRegistry, error) {
 	return types.NewKindRegistry(nil), nil
 }
+func (s *captureStore) WriteKinds(_ []types.Kind) error { return nil }
 func (s *captureStore) ReadStages() (*types.StageGroupRegistry, error) {
 	return types.NewStageGroupRegistry(nil), nil
 }

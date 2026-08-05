@@ -69,6 +69,7 @@ func (s *formTestStore) WriteConfig(_ *types.Config) error              { return
 func (s *formTestStore) ReadKinds() (*types.KindRegistry, error) {
 	return types.NewKindRegistry(nil), nil
 }
+func (s *formTestStore) WriteKinds(_ []types.Kind) error { return nil }
 func (s *formTestStore) ReadStages() (*types.StageGroupRegistry, error) {
 	return types.NewStageGroupRegistry(nil), nil
 }

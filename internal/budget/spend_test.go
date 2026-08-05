@@ -41,6 +41,7 @@ func (m *mockStore) ReadTheme(name string) (*types.Theme, error)           { ret
 func (m *mockStore) ReadConfig() (*types.Config, error)                    { return nil, nil }
 func (m *mockStore) WriteConfig(cfg *types.Config) error                   { return nil }
 func (m *mockStore) ReadKinds() (*types.KindRegistry, error)               { return types.NewKindRegistry(nil), nil }
+func (m *mockStore) WriteKinds(_ []types.Kind) error                       { return nil }
 func (m *mockStore) ReadStages() (*types.StageGroupRegistry, error) {
 	return types.NewStageGroupRegistry(nil), nil
 }
