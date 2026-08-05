@@ -491,3 +491,34 @@ func TestWyrdHuhThemeNoBackgroundBleed(t *testing.T) {
 	assertBg("Focused.Card", styles.Focused.Card.GetBackground())
 	assertBg("Blurred.Card", styles.Blurred.Card.GetBackground())
 }
+
+// TestCaseInsensitiveNameCollision covers the kind/stage-group name
+// collision check: registries key entries by exact name, so without this
+// helper "Task" and "task" could coexist as visually confusable entries.
+func TestCaseInsensitiveNameCollision(t *testing.T) {
+	existing := []string{"Task", "Habit", "Goblin"}
+
+	tests := []struct {
+		name      string
+		candidate string
+		want      bool
+	}{
+		{"exact match", "Task", true},
+		{"case-differing match", "task", true},
+		{"case-differing match, mixed case", "TASK", true},
+		{"no match", "Errand", false},
+		{"empty candidate against non-empty list", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := caseInsensitiveNameCollision(tt.candidate, existing); got != tt.want {
+				t.Errorf("caseInsensitiveNameCollision(%q, %v) = %v, want %v", tt.candidate, existing, got, tt.want)
+			}
+		})
+	}
+
+	if caseInsensitiveNameCollision("Anything", nil) {
+		t.Error("caseInsensitiveNameCollision against nil slice should be false")
+	}
+}

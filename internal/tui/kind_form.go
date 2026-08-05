@@ -93,16 +93,16 @@ func newKindFormPane(
 		}
 	}
 
-	// Name validator: non-empty and not colliding with any existing kind name.
+	// Name validator: non-empty and not colliding (case-insensitively) with
+	// any existing kind name — "Task" and "task" would otherwise coexist as
+	// visually confusable kinds.
 	validateName := func(s string) error {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			return fmt.Errorf("name is required")
 		}
-		if kinds != nil {
-			if _, exists := kinds.Lookup(s); exists {
-				return fmt.Errorf("%q already exists — choose a different name", s)
-			}
+		if kinds != nil && caseInsensitiveNameCollision(s, kinds.Names()) {
+			return fmt.Errorf("%q already exists — choose a different name", s)
 		}
 		return nil
 	}

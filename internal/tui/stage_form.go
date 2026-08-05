@@ -78,16 +78,16 @@ func newStageFormPane(
 		cycle: string(types.CycleTerminate), // sensible default
 	}
 
-	// Name validator: non-empty and not colliding with any existing group name.
+	// Name validator: non-empty and not colliding (case-insensitively) with
+	// any existing group name — "Active" and "active" would otherwise coexist
+	// as visually confusable groups.
 	validateName := func(s string) error {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			return fmt.Errorf("name is required")
 		}
-		if groups != nil {
-			if _, exists := groups.Lookup(s); exists {
-				return fmt.Errorf("%q already exists — choose a different name", s)
-			}
+		if groups != nil && caseInsensitiveNameCollision(s, groups.Names()) {
+			return fmt.Errorf("%q already exists — choose a different name", s)
 		}
 		return nil
 	}
