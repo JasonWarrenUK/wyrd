@@ -136,6 +136,16 @@ func newKindFormPane(
 		return opts
 	}
 
+	// Stage group validator: catches the empty-registry case at the field
+	// itself, rather than leaving it to surface only from kind.Validate() at
+	// submit time once every other field has already been filled in.
+	validateStageGroup := func(s string) error {
+		if s == "" {
+			return fmt.Errorf("no stage groups available — create one with :stages new first")
+		}
+		return nil
+	}
+
 	group := huh.NewGroup(
 		huh.NewInput().
 			Title("Name").
@@ -159,7 +169,8 @@ func newKindFormPane(
 			Title("Stage group").
 			Description("The progression this kind's nodes move through.").
 			Options(groupOptions()...).
-			Value(&f.stageGroup),
+			Value(&f.stageGroup).
+			Validate(validateStageGroup),
 	)
 
 	f.form = huh.NewForm(group).

@@ -187,6 +187,53 @@ func TestKindFormDefaults(t *testing.T) {
 	}
 }
 
+// TestKindFormRejectsEmptyStageGroup verifies that submitting with no stage
+// group selected (the state left behind when groups is nil or empty, since
+// the huh.Select then has no options to seed a default from) is rejected by
+// kind.Validate() before any write reaches the store. The stage-group select
+// itself also carries a field validator for the same case (see
+// validateStageGroup in kind_form.go); this test locks in the belt-and-braces
+// fallback that catches it regardless.
+func TestKindFormRejectsEmptyStageGroup(t *testing.T) {
+	store := &errKindsStoreFS{}
+
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newKindFormPane(theme, store, nil, nil) // nil groups -> f.stageGroup stays ""
+	f.name = "Errand"
+	f.glyph = "!"
+	f.colour = "#9b70ff"
+	f.form.State = huh.StateCompleted
+	_, cmd := f.Update(tea.KeyPressMsg{})
+
+	if store.written {
+		t.Error("WriteKinds should not be called when stage group is empty")
+	}
+
+	msg := collectMsg(cmd)
+	var found bool
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, fn := range batch {
+			if m := fn(); m != nil {
+				if _, ok := m.(kindFormErrorMsg); ok {
+					found = true
+				}
+				if _, ok := m.(kindFormSubmitMsg); ok {
+					t.Error("kindFormSubmitMsg emitted despite empty stage group")
+				}
+			}
+		}
+	} else if _, ok := msg.(kindFormErrorMsg); ok {
+		found = true
+	}
+	if !found {
+		t.Errorf("expected kindFormErrorMsg for empty stage group, got %T", msg)
+	}
+}
+
 // errKindsStoreFS is a minimal StoreFS implementation whose ReadKinds and
 // WriteKinds return the configured errors, and whose WriteKinds records
 // whether it was called and what was written.
