@@ -132,8 +132,8 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 **Goal:** Nodes have a `kind` and a `stage`. Stage groups define named progressions. The TUI advances/retreats stage with a keypress. The lattice is fully user-configurable via `kinds.jsonc`.
 
-- [ ] **SL.10** — Create kinds in TUI — `:kind new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` _(depends on SL.4)_
-- [ ] **SL.14** — Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.11), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via `UpdateNode` (the SL.6 stage-write path); until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) _(blocked — depends on CP.16, SL.10, SL.11, SL.13, SL.6)_
+- [x] **SL.10** — Create kinds in TUI — `:kinds new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` via new `StoreFS.WriteKinds`; in-session kind registry rebuilt on submit so the new kind is usable without a restart (matches `:stages`/`:stages new` precedent rather than the originally-scoped `:kind new`)
+- [ ] **SL.14** — Stage remap on group reassignment — when a kind's stage group changes (via SL.10 kind edit) or a group's stage list is edited in place (via SL.11), existing nodes of that kind may hold a stage absent from the new group; a remap prompt asks the user to map each orphaned stage to a target stage in the new group (default: name-match if one exists, else the group's first stage); nodes are rewritten via `UpdateNode` (the SL.6 stage-write path); until remapped, orphaned stages leave nodes untouched (`StageGroup.Next`/`Prev` already return `ok==false` for unknown stages) _(depends on CP.16, SL.10, SL.11, SL.13, SL.6)_
 - [x] **SL.12** — Stage group view in TUI — bare `:stages` palette command opens a read-only modal overlay listing every stage group (baked-in and user-defined); each row shows the group name, a `(custom)` provenance marker for user-defined groups, the cycle behaviour (`terminate` / `loop ↺` / `loop→<target> ↺`), and the full ordered stage progression (`A → B → C`); scrollable viewport, `esc`/`q` closes; `stagesOverlay` struct in `internal/tui/stages_overlay.go` mirroring `kindsOverlay`; composited via `compositeOverlay`; registry refreshed in-session after `:stages new` submits _(depends on SL.3)_
 - [x] **SL.11** — Create stage groups in TUI — `:stages new` palette command opens a two-group `huh` form: group 1 collects name (validated against the merged registry to prevent collision), ordered stages (one per line, `huh.NewText`), and cycle behaviour select; group 2 (hidden unless `loop-to-stage`) offers a loop-target select whose options are dynamically populated from the stages entered in group 1 via `huh.Select.OptionsFunc`; on submit, the form reads existing user groups via `store.ReadStages()`, appends the new `types.StageGroup`, and writes the full slice via a new `store.WriteStages([]types.StageGroup)` (mirrors `WriteConfig`); the in-memory registry is rebuilt in-session by re-merging via `stage.MergeStageGroups`, reassigning `m.stageGroups` and `m.kindsOverlay.stageGroups`; `StoreFS` interface extended with `WriteStages`; 6 test-mock stubs updated; `stage_form.go` is a new non-node form pane modelled on `spend_form.go`; status-bar confirmation with 2s auto-clear; `parseStages` helper; `NewStageFormPane` exported for tests _(depends on SL.13)_
 - [x] **SL.13** — User stage-group registry — `stages.jsonc` in the store's parent directory (sibling of `config.jsonc`) holds user-defined stage groups, loaded at startup and merged with the baked-in defaults (user groups shadow defaults of the same name via `MergeStageGroups`); `StageGroup.Validate` added to `internal/types/stage.go` (non-empty name, ≥1 stage, `loop-to-stage` requires a valid `loop_target`); `(*Store).ReadStages()` in `internal/store/store.go` mirrors `ReadKinds` (missing file → empty registry, lenient per-entry skip, whole-file failure → `ParseError`); `StoreFS` interface extended with `ReadStages`; 6 test-mock stubs updated; `main.go` now calls `s.ReadStages()` non-fatally and passes user groups to `MergeStageGroups`; `ResolveStageGroup` and all TUI consumers required no changes — the merged registry was already threaded through _(depends on SL.3)_
@@ -306,9 +306,9 @@ graph LR
 	SL.13["SL.13: User stage-group registry — `stages.json…"]
 	SL.11["SL.11: Create stage groups in TUI — `:stages ne…"]
 	SL.4["SL.4: Add `kinds.jsonc` config file — `types.Ki…"]
-	SL.10["SL.10: Create kinds in TUI — `:kind new` palett…"]
+	SL.10["SL.10: Create kinds in TUI — `:kinds new` palet…"]
 	SL.5["SL.5: Ship default kinds: Task, Goblin, Habit,…"]
-	SP.7["SP.7: Movement node data model — register a `mo…"]
+	SP.7["SP.7: Movement node data model — registered the…"]
 	SP.8["SP.8: Budget engine over movements — `RecordSpe…"]
 	SP.2["SP.2: Bottom-up budgets — effective allocation…"]
 	SP.4["SP.4: Surface bottom-up allocation in TUI — bud…"]
@@ -569,7 +569,7 @@ graph LR
 	DA.7 --> DA.9
 	DA.8 --> M7
 	DA.9 --> M7
-	class CO.3,DL.4,NW.1,RT.6,RT.7,RT.8,SK.1,SL.10,SP.8,TD.1,TD.2,TD.3,VP.7,VP.8 todo
-	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SL.14,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9 blocked
-	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,SL.1,SL.11,SL.12,SL.13,SL.15,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
+	class CO.3,DL.4,NW.1,RT.6,RT.7,RT.8,SK.1,SL.14,SP.8,TD.1,TD.2,TD.3,VP.7,VP.8 todo
+	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9 blocked
+	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,SL.1,SL.10,SL.11,SL.12,SL.13,SL.15,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```
