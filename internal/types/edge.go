@@ -20,6 +20,15 @@ const (
 
 	// EdgePrecedes indicates the source should happen before the target (soft preference).
 	EdgePrecedes EdgeType = "precedes"
+
+	// EdgeDrawsFrom indicates the source movement draws money from the target
+	// budget. The movement is always From and the budget always To, so
+	// GraphIndex.EdgesTo(budgetID) enumerates a budget's movements.
+	EdgeDrawsFrom EdgeType = "draws_from"
+
+	// EdgeAddsTo indicates the source movement adds money to the target
+	// budget. Same direction convention as EdgeDrawsFrom.
+	EdgeAddsTo EdgeType = "adds_to"
 )
 
 // Edge represents a directed relationship between two nodes in the graph.

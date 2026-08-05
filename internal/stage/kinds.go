@@ -19,9 +19,10 @@ var (
 	kindsErr   error
 )
 
-// DefaultKinds returns the seven baked-in default kinds: Task, Goblin, Habit,
-// Event, Travel, Talk, and Project. Results are parsed once and cached; each
-// call returns a fresh defensive copy so callers cannot mutate the cache.
+// DefaultKinds returns the eleven baked-in default kinds: Task, Goblin,
+// Habit, Event, Travel, Talk, Project, Journal, Note, Budget, and Movement.
+// Results are parsed once and cached; each call returns a fresh defensive
+// copy so callers cannot mutate the cache.
 //
 // The returned slice is ordered lexicographically by filename, which is
 // alphabetical by kind file name — not by Name field. Use MergeKinds to

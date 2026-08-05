@@ -24,10 +24,10 @@ var (
 	defaultsErr   error
 )
 
-// DefaultStageGroups returns the five baked-in stage groups: task-flow,
-// event-flow, content-flow, habit-flow, and project-flow. Results are parsed
-// once and cached; each call returns a fresh defensive copy so callers cannot
-// mutate the cache.
+// DefaultStageGroups returns the seven baked-in stage groups: task-flow,
+// event-flow, content-flow, habit-flow, project-flow, budget-flow, and
+// movement-flow. Results are parsed once and cached; each call returns a
+// fresh defensive copy so callers cannot mutate the cache.
 func DefaultStageGroups() ([]types.StageGroup, error) {
 	defaultsOnce.Do(func() {
 		defaultsCache, defaultsErr = loadDefaults()
