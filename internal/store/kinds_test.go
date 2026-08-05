@@ -187,3 +187,107 @@ func TestReadKindsParseError(t *testing.T) {
 		t.Errorf("ParseError.Source = %q, want %q", pe.Source, "kinds.jsonc")
 	}
 }
+
+func TestWriteKindsRoundTrip(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	kinds := []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#9b70ff"},
+		{Name: "Chore", StageGroup: "habit-flow", Glyph: "~", Colour: "#d57300"},
+	}
+
+	if err := s.WriteKinds(kinds); err != nil {
+		t.Fatalf("WriteKinds() error = %v", err)
+	}
+
+	// Confirm the file is at the parent location, not the store root.
+	parentPath := filepath.Join(parent, "kinds.jsonc")
+	if _, err := os.Stat(parentPath); err != nil {
+		t.Fatalf("kinds.jsonc not at parent dir: %v", err)
+	}
+	storePath := filepath.Join(s.path, "kinds.jsonc")
+	if _, err := os.Stat(storePath); err == nil {
+		t.Error("kinds.jsonc unexpectedly written to store root; expected parent only")
+	}
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() after WriteKinds: error = %v", err)
+	}
+	if all := reg.All(); len(all) != 2 {
+		t.Fatalf("len(All()) = %d, want 2", len(all))
+	}
+
+	errand, ok := reg.Lookup("Errand")
+	if !ok {
+		t.Fatal("Lookup(Errand) ok = false after write+read round-trip")
+	}
+	if errand.StageGroup != "task-flow" {
+		t.Errorf("Errand.StageGroup = %q, want %q", errand.StageGroup, "task-flow")
+	}
+	if errand.Glyph != "!" {
+		t.Errorf("Errand.Glyph = %q, want %q", errand.Glyph, "!")
+	}
+
+	_, ok = reg.Lookup("Chore")
+	if !ok {
+		t.Error("Lookup(Chore) ok = false after write+read round-trip")
+	}
+}
+
+func TestWriteKindsOverwrite(t *testing.T) {
+	s, _ := newKindsTestStore(t)
+
+	// Write an initial set.
+	initial := []types.Kind{
+		{Name: "KindA", StageGroup: "task-flow", Glyph: "A", Colour: "#111111"},
+	}
+	if err := s.WriteKinds(initial); err != nil {
+		t.Fatalf("WriteKinds() initial: error = %v", err)
+	}
+
+	// Overwrite with a different set — KindA should be gone, KindB present.
+	updated := []types.Kind{
+		{Name: "KindB", StageGroup: "event-flow", Glyph: "B", Colour: "#222222"},
+	}
+	if err := s.WriteKinds(updated); err != nil {
+		t.Fatalf("WriteKinds() overwrite: error = %v", err)
+	}
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() after overwrite: error = %v", err)
+	}
+	if _, ok := reg.Lookup("KindA"); ok {
+		t.Error("Lookup(KindA) ok = true after overwrite: old kind should be gone")
+	}
+	if _, ok := reg.Lookup("KindB"); !ok {
+		t.Error("Lookup(KindB) ok = false: new kind should be present")
+	}
+}
+
+func TestWriteKindsIntoExistingParent(t *testing.T) {
+	// Writing kinds into a parent dir that already holds a kinds.jsonc (e.g.
+	// hand-authored) must overwrite it cleanly rather than merging or erroring.
+	s, parent := newKindsTestStore(t)
+
+	writeKindsFixture(t, parent, `[{"name": "HandWritten", "stage_group": "task-flow", "glyph": "#", "colour": "#333333"}]`)
+
+	updated := []types.Kind{
+		{Name: "FromForm", StageGroup: "task-flow", Glyph: "$", Colour: "#444444"},
+	}
+	if err := s.WriteKinds(updated); err != nil {
+		t.Fatalf("WriteKinds() over existing file: error = %v", err)
+	}
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() after WriteKinds: error = %v", err)
+	}
+	if _, ok := reg.Lookup("HandWritten"); ok {
+		t.Error("Lookup(HandWritten) ok = true: hand-authored kind should have been overwritten")
+	}
+	if _, ok := reg.Lookup("FromForm"); !ok {
+		t.Error("Lookup(FromForm) ok = false: new kind should be present")
+	}
+}
