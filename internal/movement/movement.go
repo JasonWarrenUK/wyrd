@@ -115,7 +115,9 @@ func FromNode(node *types.Node) (Movement, error) {
 // property are all stamped from the Movement's fields.
 //
 // Passing nil creates a fresh node (without an ID — the caller or store
-// assigns that).
+// assigns that). Types is likewise left untouched: ApplyTo is not a
+// complete node builder, so callers persisting a fresh movement must set
+// Types themselves before writing.
 //
 // The clone-then-mutate shape matches the established invariant at
 // budget.RecordSpend: the index hands back a live pointer, and mutating it
