@@ -36,6 +36,14 @@ type openKindsOverlayMsg struct{}
 // openKindFormMsg is emitted when the :kinds new command is invoked.
 type openKindFormMsg struct{}
 
+// openKindEditFormMsg is emitted when the :kinds edit <name> command is
+// invoked. name is the raw, possibly-empty argument text — resolution
+// (lookup, case-insensitive fallback, not-found handling) happens in the
+// mount handler, which has the registries the command closure doesn't.
+type openKindEditFormMsg struct {
+	name string
+}
+
 // openStageFormMsg is emitted when the :stages new command is invoked.
 type openStageFormMsg struct{}
 
@@ -74,6 +82,21 @@ func (m *Model) clearCaptureCmd() tea.Cmd {
 	return tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
 		return captureConfirmClearMsg{gen: gen}
 	})
+}
+
+// lookupKindFold finds a kind by case-insensitive name match, for command
+// entry points like ":kinds edit task" where a user types casually rather
+// than matching the registry's exact stored casing. On ambiguity (two
+// entries differing only by case — possible via a hand-edited kinds.jsonc)
+// prefers an exact match if one somehow exists, else the first match in
+// registry order.
+func lookupKindFold(kinds *types.KindRegistry, name string) (types.Kind, bool) {
+	for _, n := range kinds.Names() {
+		if strings.EqualFold(n, name) {
+			return kinds.Lookup(n)
+		}
+	}
+	return types.Kind{}, false
 }
 
 // orphanAdvisory re-scans the graph against the current registries and, if
@@ -424,13 +447,22 @@ func New(cfg Config) (Model, error) {
 	})
 
 	// Wire up the "kinds" command. ":kinds" lists all kinds (SL.9); ":kinds
-	// new" opens the kind creation form (SL.10).
+	// new" opens the kind creation form (SL.10); ":kinds edit <name>" opens
+	// the kind edit form pre-populated from the existing entry (SL.16).
 	palette.Register(Command{
 		Name:        "kinds",
-		Description: "List kinds (kinds new to create)",
+		Description: "List kinds (kinds new | kinds edit <name>)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openKindFormMsg{} }
+			}
+			if len(args) > 0 && args[0] == "edit" {
+				// strings.Join collapses runs of internal whitespace in a
+				// multi-word name, which is acceptable — strings.Fields
+				// tokenising the raw command line has already destroyed that
+				// information by the time args reaches here.
+				name := strings.Join(args[1:], " ")
+				return func() tea.Msg { return openKindEditFormMsg{name: name} }
 			}
 			return func() tea.Msg { return openKindsOverlayMsg{} }
 		},
@@ -654,6 +686,41 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, nil)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
+
+	case openKindEditFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		if msg.name == "" {
+			m.statusBar.SetCaptureText("Usage: :kinds edit <name>")
+			return m, m.clearCaptureCmd()
+		}
+		if m.kinds == nil {
+			m.statusBar.SetCaptureText("Edit unavailable: no kind registry")
+			return m, m.clearCaptureCmd()
+		}
+		k, ok := m.kinds.Lookup(msg.name)
+		if !ok {
+			// Exact lookup failed — try case-insensitive, matching the
+			// collision validator's own case-insensitivity, so ":kinds edit
+			// task" finds "Task" the way a user typing casually would expect.
+			k, ok = lookupKindFold(m.kinds, msg.name)
+		}
+		if !ok {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No kind %q — see :kinds", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, &k)
 		initCmd := fp.form.Init()
 		sized, _ := fp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
