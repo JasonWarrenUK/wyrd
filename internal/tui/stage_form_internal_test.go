@@ -79,13 +79,18 @@ func TestParseStages(t *testing.T) {
 
 // errStoreFS is a minimal StoreFS implementation whose ReadStages and
 // WriteStages return the configured errors, and whose WriteStages records
-// whether it was called. updateErrIDs/updateCalls support remapFormPane
-// tests: a node ID present in updateErrIDs fails on UpdateNode, and every
-// call (successful or not) is recorded in updateCalls in order.
+// whether it was called and what was written. seed, when non-nil, is what
+// ReadStages returns instead of an empty registry — edit-mode tests use this
+// to exercise replace-by-name against a populated user file. updateErrIDs/
+// updateCalls support remapFormPane tests: a node ID present in updateErrIDs
+// fails on UpdateNode, and every call (successful or not) is recorded in
+// updateCalls in order.
 type errStoreFS struct {
-	readErr  error
-	writeErr error
-	written  bool
+	readErr     error
+	writeErr    error
+	seed        []types.StageGroup
+	written     bool
+	lastWritten []types.StageGroup
 
 	updateErrIDs map[string]bool
 	updateCalls  []string
@@ -119,18 +124,32 @@ func (s *errStoreFS) ReadStages() (*types.StageGroupRegistry, error) {
 	if s.readErr != nil {
 		return nil, s.readErr
 	}
-	return types.NewStageGroupRegistry(nil), nil
+	return types.NewStageGroupRegistry(s.seed), nil
 }
-func (s *errStoreFS) WriteStages(_ []types.StageGroup) error { s.written = true; return s.writeErr }
+func (s *errStoreFS) WriteStages(groups []types.StageGroup) error {
+	s.written = true
+	s.lastWritten = groups
+	return s.writeErr
+}
 func (s *errStoreFS) StorePath() string                      { return "/tmp/err-store" }
 
-// driveToCompleted pre-populates the form fields on f and forces
-// form.State to StateCompleted, then calls f.Update with a no-op message
-// so the StateCompleted branch runs. Returns the emitted tea.Cmd.
+// driveToCompleted pre-populates the form fields on f with the standard test
+// values and forces form.State to StateCompleted, then calls f.Update with a
+// no-op message so the StateCompleted branch runs. Returns the emitted
+// tea.Cmd.
 func driveToCompleted(f stageFormPane) (stageFormPane, tea.Cmd) {
-	f.name = "test-flow"
-	f.stagesRaw = "Open\nDone"
-	f.cycle = string(types.CycleTerminate)
+	return driveToCompletedWith(f, "test-flow", "Open\nDone", string(types.CycleTerminate), "")
+}
+
+// driveToCompletedWith is the parameterised form of driveToCompleted, letting
+// edit-mode tests drive the form to completion with arbitrary field values
+// (e.g. re-submitting an existing group's name to exercise the
+// replace-by-name path, or a different name to exercise rename).
+func driveToCompletedWith(f stageFormPane, name, stagesRaw, cycle, loopTarget string) (stageFormPane, tea.Cmd) {
+	f.name = name
+	f.stagesRaw = stagesRaw
+	f.cycle = cycle
+	f.loopTarget = loopTarget
 	f.form.State = huh.StateCompleted
 	updated, cmd := f.Update(tea.KeyPressMsg{}) // msg type doesn't matter; State drives the branch
 	return updated.(stageFormPane), cmd

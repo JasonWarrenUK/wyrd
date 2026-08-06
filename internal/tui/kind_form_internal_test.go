@@ -17,14 +17,24 @@ import (
 // errStoreFS mock defined in stage_form_internal_test.go.
 // ---------------------------------------------------------------------------
 
-// driveKindFormToCompleted pre-populates the form fields on f and forces
-// form.State to StateCompleted, then calls f.Update with a no-op message so
-// the StateCompleted branch runs. Returns the emitted tea.Cmd.
+// driveKindFormToCompleted pre-populates the form fields on f with the
+// standard test values and forces form.State to StateCompleted, then calls
+// f.Update with a no-op message so the StateCompleted branch runs. Returns
+// the emitted tea.Cmd.
 func driveKindFormToCompleted(f kindFormPane) (kindFormPane, tea.Cmd) {
-	f.name = "Errand"
-	f.glyph = "!"
-	f.colour = "#9b70ff"
-	f.stageGroup = "task-flow"
+	return driveKindFormToCompletedWith(f, "Errand", "!", "#9b70ff", "task-flow")
+}
+
+// driveKindFormToCompletedWith is the parameterised form of
+// driveKindFormToCompleted, letting edit-mode tests drive the form to
+// completion with arbitrary field values (e.g. re-submitting an existing
+// kind's name to exercise the replace-by-name path, or a different name to
+// exercise rename).
+func driveKindFormToCompletedWith(f kindFormPane, name, glyph, colour, stageGroup string) (kindFormPane, tea.Cmd) {
+	f.name = name
+	f.glyph = glyph
+	f.colour = colour
+	f.stageGroup = stageGroup
 	f.form.State = huh.StateCompleted
 	updated, cmd := f.Update(tea.KeyPressMsg{}) // msg type doesn't matter; State drives the branch
 	return updated.(kindFormPane), cmd
@@ -236,10 +246,13 @@ func TestKindFormRejectsEmptyStageGroup(t *testing.T) {
 
 // errKindsStoreFS is a minimal StoreFS implementation whose ReadKinds and
 // WriteKinds return the configured errors, and whose WriteKinds records
-// whether it was called and what was written.
+// whether it was called and what was written. seed, when non-nil, is what
+// ReadKinds returns instead of an empty registry — edit-mode tests use this
+// to exercise replace-by-name against a populated user file.
 type errKindsStoreFS struct {
 	readErr     error
 	writeErr    error
+	seed        []types.Kind
 	written     bool
 	lastWritten []types.Kind
 }
@@ -266,7 +279,7 @@ func (s *errKindsStoreFS) ReadKinds() (*types.KindRegistry, error) {
 	if s.readErr != nil {
 		return nil, s.readErr
 	}
-	return types.NewKindRegistry(nil), nil
+	return types.NewKindRegistry(s.seed), nil
 }
 func (s *errKindsStoreFS) WriteKinds(kinds []types.Kind) error {
 	s.written = true
