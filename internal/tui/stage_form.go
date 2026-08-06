@@ -6,13 +6,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // stageFormSubmitMsg is emitted by a stageFormPane when the user successfully
-// creates a stage group. The group has already been written to stages.jsonc.
+// creates or edits a stage group. The group has already been written to
+// stages.jsonc. renamedFrom is non-empty when the submit renamed an existing
+// group — the mount handler uses it to trigger the whole-registry rename
+// cascade (stage.RenameStageGroup) before rebuilding the registries.
 type stageFormSubmitMsg struct {
-	name string
+	name        string
+	renamedFrom string
 }
 
 // stageFormErrorMsg is emitted when a stage group cannot be saved. The form
@@ -21,24 +26,48 @@ type stageFormErrorMsg struct {
 	err error
 }
 
-// stageFormPane wraps a huh.Form for creating user-defined stage groups. It
-// satisfies both PaneModel and formActivePane. Unlike formPane, it does not
-// create a new node — it writes a StageGroup to the user stage-group registry
-// (stages.jsonc) in the store's parent directory.
+// stageFormPane wraps a huh.Form for creating or editing user-defined stage
+// groups. It satisfies both PaneModel and formActivePane. Unlike formPane,
+// it does not create a new node — it writes a StageGroup to the user
+// stage-group registry (stages.jsonc) in the store's parent directory.
 //
 // The form uses two huh groups: group 1 collects the name, stages, and cycle
 // behaviour; group 2 (hidden unless cycle == loop-to-stage) collects the loop
 // target from a dynamic select populated from the stages entered in group 1.
+// In edit mode, an optional leading Note (see kindFormPane's isDefault Note)
+// is prepended to group 1 when the entry being edited shadows a built-in.
 type stageFormPane struct {
 	form  *huh.Form
 	store types.StoreFS
 	theme *ActiveTheme
+
+	// groups is the merged registry, retained so the submit branch can run
+	// the same collision check as the huh field validator — belt-and-braces
+	// for a name that never passed through huh's own validation (mirrors
+	// kindFormPane.kinds).
+	groups *types.StageGroupRegistry
 
 	// Field values — written by huh via pointer accessors.
 	name       string // unique stage group name
 	stagesRaw  string // newline-separated stage names, entered by the user
 	cycle      string // CycleBehaviour constant string
 	loopTarget string // only used when cycle == loop-to-stage
+
+	// originalName is set in edit mode to the group's name at construction
+	// time. Empty in create mode. Used at submit to decide replace-by-name
+	// vs append (upsertStageGroup) and to detect a rename
+	// (name != originalName).
+	originalName string
+
+	// isDefault is true when originalName matches a baked-in default group.
+	// Drives the "overriding a built-in" warning Note.
+	isDefault bool
+
+	// editing mirrors the constructor's editing parameter — nil in create
+	// mode, otherwise the entry being edited. Retained (rather than just
+	// originalName) so the submit branch's belt-and-braces collision check
+	// can reuse checkStageGroupNameCollision.
+	editing *types.StageGroup
 
 	width  int
 	height int
@@ -54,42 +83,79 @@ var _ formActivePane = stageFormPane{}
 // isFormActive satisfies the formActivePane marker interface.
 func (stageFormPane) isFormActive() {}
 
-// NewStageFormPane builds a stageFormPane. Exported for use in tests.
+// NewStageFormPane builds a stageFormPane in create mode. Exported for use
+// in tests.
 func NewStageFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	groups *types.StageGroupRegistry,
 ) PaneModel {
-	return newStageFormPane(theme, store, groups)
+	return newStageFormPane(theme, store, groups, nil)
+}
+
+// NewStageEditFormPane builds a stageFormPane in edit mode, pre-populated
+// from existing. Exported for use in tests.
+func NewStageEditFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	groups *types.StageGroupRegistry,
+	existing types.StageGroup,
+) PaneModel {
+	return newStageFormPane(theme, store, groups, &existing)
 }
 
 // newStageFormPane builds a stageFormPane. groups is the merged stage-group
 // registry (baked-in defaults + existing user groups); it is used to validate
 // name collisions so the user cannot silently shadow a default or overwrite an
-// existing custom group.
+// existing custom group. editing is nil in create mode; when non-nil, the
+// form seeds every field from *editing and switches submit from append to
+// replace-by-name (see upsertStageGroup).
 func newStageFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	groups *types.StageGroupRegistry,
+	editing *types.StageGroup,
 ) stageFormPane {
 	f := stageFormPane{
-		store: store,
-		theme: theme,
-		cycle: string(types.CycleTerminate), // sensible default
+		store:  store,
+		theme:  theme,
+		groups: groups,
+		cycle:  string(types.CycleTerminate), // sensible default
+	}
+
+	if editing != nil {
+		// Seed before building the huh fields — huh binds by pointer, so the
+		// fields below must be set to their final starting values first
+		// (mirrors remap_form.go's f.choices[i] = orphan.Suggested ordering
+		// and kindFormPane's identical seed-before-build sequencing).
+		f.name = editing.Name
+		f.originalName = editing.Name
+		f.editing = editing
+		f.stagesRaw = strings.Join(editing.Stages, "\n") // inverse of parseStages
+		f.cycle = string(editing.Cycle)
+		f.loopTarget = editing.LoopTarget
+
+		if defaults, err := stage.DefaultStageGroups(); err == nil {
+			for _, d := range defaults {
+				if d.Name == editing.Name {
+					f.isDefault = true
+					break
+				}
+			}
+		}
 	}
 
 	// Name validator: non-empty and not colliding (case-insensitively) with
 	// any existing group name — "Active" and "active" would otherwise coexist
-	// as visually confusable groups.
+	// as visually confusable groups. In edit mode, the group's own current
+	// name is exempted from the collision check (exact-match removal — see
+	// excludeName's doc comment for why this must not be case-insensitive).
 	validateName := func(s string) error {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			return fmt.Errorf("name is required")
 		}
-		if groups != nil && caseInsensitiveNameCollision(s, groups.Names()) {
-			return fmt.Errorf("%q already exists — choose a different name", s)
-		}
-		return nil
+		return checkStageGroupNameCollision(s, groups, editing)
 	}
 
 	// Stages validator: at least one non-blank stage, no duplicates.
@@ -108,8 +174,23 @@ func newStageFormPane(
 		return nil
 	}
 
-	// Group 1: name, stages (one per line), cycle behaviour.
-	group1 := huh.NewGroup(
+	group1Fields := []huh.Field{}
+
+	// Overriding-a-built-in warning: only shown when editing a baked-in
+	// default. huh.Note defaults to skip:true (excluded from tab order), so
+	// this costs no extra keypress — it's purely informational. Mirrors
+	// kindFormPane's identical Note.
+	if f.isDefault {
+		group1Fields = append(group1Fields, huh.NewNote().
+			Title("Overriding a built-in").
+			Description(fmt.Sprintf(
+				"%q is built in. Saving writes a full copy to your stages.jsonc "+
+					"that permanently overrides it — including any future "+
+					"improvements to the built-in version. Every kind still "+
+					"pointing at the built-in version is shadowed too.", editing.Name)))
+	}
+
+	group1Fields = append(group1Fields,
 		huh.NewInput().
 			Title("Name").
 			Description("Unique identifier for this stage group (e.g. review-flow)").
@@ -134,6 +215,12 @@ func newStageFormPane(
 			).
 			Value(&f.cycle),
 	)
+
+	// Group 1: name, stages (one per line), cycle behaviour.
+	group1 := huh.NewGroup(group1Fields...)
+	if editing != nil {
+		group1 = group1.Title(fmt.Sprintf("Edit stage group %q", editing.Name))
+	}
 
 	// Group 2: loop target — shown only when cycle == loop-to-stage.
 	// OptionsFunc re-evaluates the options whenever f.stagesRaw changes, so
@@ -224,6 +311,10 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			e := err
 			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
+		if err := checkStageGroupNameCollision(group.Name, f.groups, f.editing); err != nil {
+			e := err
+			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
+		}
 
 		// Read existing user groups. A failed read is treated as fatal rather
 		// than silently falling back to an empty slice — WriteStages overwrites
@@ -234,15 +325,40 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			e := fmt.Errorf("reading existing stage groups: %w", err)
 			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
-		existing := append(reg.All(), group)
+
+		renamed := f.originalName != "" && group.Name != f.originalName
+		existing := upsertStageGroup(reg.All(), group, f.originalName)
+
+		// Renaming a shadowed default (or a not-yet-shadowed one) would
+		// otherwise un-shadow the built-in group under its old name — see
+		// kindFormPane's identical tombstone reasoning. RenameStageGroup
+		// (run after this write succeeds, in the mount handler) repoints
+		// every kind off the old group name, so the tombstone is inert once
+		// that cascade lands — it exists purely to keep the group registry
+		// from resurrecting the default.
+		if renamed && f.isDefault {
+			if defaults, derr := stage.DefaultStageGroups(); derr == nil {
+				for _, d := range defaults {
+					if d.Name == f.originalName {
+						existing = append(existing, d)
+						break
+					}
+				}
+			}
+		}
+
 		if err := f.store.WriteStages(existing); err != nil {
 			e := err
 			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
 
 		name := group.Name
+		renamedFrom := ""
+		if renamed {
+			renamedFrom = f.originalName
+		}
 		return f, tea.Batch(cmd, func() tea.Msg {
-			return stageFormSubmitMsg{name: name}
+			return stageFormSubmitMsg{name: name, renamedFrom: renamedFrom}
 		})
 
 	case huh.StateAborted:
@@ -277,3 +393,46 @@ func (f stageFormPane) KeyBindings() []KeyBinding {
 
 // HandleFocusLost is a no-op for stage form panes.
 func (f stageFormPane) HandleFocusLost() tea.Cmd { return nil }
+
+// checkStageGroupNameCollision applies the same collision rule the huh field
+// validator uses, callable as a belt-and-braces check at submit time —
+// mirrors checkKindNameCollision in kind_form.go; see that function's doc
+// comment for why both the huh validator and a submit-time check are needed,
+// and for the case-only-rename-must-check-before-exemption reasoning.
+func checkStageGroupNameCollision(name string, groups *types.StageGroupRegistry, editing *types.StageGroup) error {
+	if editing != nil && name != editing.Name && strings.EqualFold(name, editing.Name) {
+		return fmt.Errorf("changing only the capitalisation of %q is not supported", editing.Name)
+	}
+	if groups == nil {
+		return nil
+	}
+	names := groups.Names()
+	if editing != nil {
+		names = excludeName(names, editing.Name)
+	}
+	if !caseInsensitiveNameCollision(name, names) {
+		return nil
+	}
+	return fmt.Errorf("%q already exists — choose a different name", name)
+}
+
+// upsertStageGroup returns entries with the group matching originalName
+// replaced in place, or group appended when no entry matches. originalName
+// is "" in create mode, which always appends. Matching is exact — the
+// registry keys entries by exact name. Mirrors upsertKind in kind_form.go;
+// see that function's doc comment for the full reasoning (replace-in-place
+// preserves display order; "not found" naturally covers both create and
+// shadowing a not-yet-overridden default with no special-casing needed).
+func upsertStageGroup(entries []types.StageGroup, group types.StageGroup, originalName string) []types.StageGroup {
+	if originalName != "" {
+		for i, e := range entries {
+			if e.Name == originalName {
+				out := make([]types.StageGroup, len(entries))
+				copy(out, entries)
+				out[i] = group
+				return out
+			}
+		}
+	}
+	return append(entries, group)
+}

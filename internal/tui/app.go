@@ -759,7 +759,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, isForm := m.rightPane.(formActivePane); isForm {
 			return m, nil
 		}
-		fp := newStageFormPane(m.theme, m.store, m.stageGroups)
+		fp := newStageFormPane(m.theme, m.store, m.stageGroups, nil)
 		initCmd := fp.form.Init()
 		sized, _ := fp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
