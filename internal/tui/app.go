@@ -653,7 +653,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, isForm := m.rightPane.(formActivePane); isForm {
 			return m, nil
 		}
-		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups)
+		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, nil)
 		initCmd := fp.form.Init()
 		sized, _ := fp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),

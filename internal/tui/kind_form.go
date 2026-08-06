@@ -8,13 +8,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // kindFormSubmitMsg is emitted by a kindFormPane when the user successfully
-// creates a kind. The kind has already been written to kinds.jsonc.
+// creates or edits a kind. The kind has already been written to kinds.jsonc.
+// renamedFrom is non-empty when the submit renamed an existing kind — the
+// mount handler uses it to trigger the whole-graph rename cascade
+// (stage.RenameKind) before rebuilding the registry.
 type kindFormSubmitMsg struct {
-	name string
+	name        string
+	renamedFrom string
 }
 
 // kindFormErrorMsg is emitted when a kind cannot be saved. The form closes
@@ -27,23 +32,48 @@ type kindFormErrorMsg struct {
 // Matches the convention used throughout the theme system.
 var hexColourPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
-// kindFormPane wraps a huh.Form for creating user-defined kinds. It satisfies
-// both PaneModel and formActivePane. Like stageFormPane, it does not create a
-// new node — it writes a Kind to the user kind registry (kinds.jsonc) in the
-// store's parent directory.
+// kindFormPane wraps a huh.Form for creating or editing user-defined kinds.
+// It satisfies both PaneModel and formActivePane. Like stageFormPane, it does
+// not create a new node — it writes a Kind to the user kind registry
+// (kinds.jsonc) in the store's parent directory.
 //
 // Unlike stageFormPane, the form is a single huh group: every field is
-// always visible, there is no conditional second group.
+// always visible (plus an optional leading Note in edit mode — see below),
+// there is no conditional second group.
 type kindFormPane struct {
 	form  *huh.Form
 	store types.StoreFS
 	theme *ActiveTheme
+
+	// kinds is the merged registry, retained so the submit branch can run
+	// the same collision check as the huh field validator — belt-and-braces
+	// for a name that never passed through huh's own validation (e.g. a
+	// test driving StateCompleted directly, matching the existing pattern
+	// for the empty-stage-group case below).
+	kinds *types.KindRegistry
 
 	// Field values — written by huh via pointer accessors.
 	name       string // unique kind name
 	glyph      string // single-rune display glyph
 	colour     string // hex colour, e.g. "#9b70ff"
 	stageGroup string // name of the stage group this kind progresses through
+
+	// originalName is set in edit mode to the kind's name at construction
+	// time. Empty in create mode. Used at submit to decide replace-by-name
+	// vs append (upsertKind) and to detect a rename (name != originalName).
+	originalName string
+
+	// editing mirrors the constructor's editing parameter — nil in create
+	// mode, otherwise the entry being edited. Retained (rather than just
+	// originalName) so the submit branch's belt-and-braces collision check
+	// can reuse checkKindNameCollision, which needs the full types.Kind for
+	// its name-exemption logic, not just the name string.
+	editing *types.Kind
+
+	// isDefault is true when originalName matches a baked-in default kind.
+	// Drives the "overriding a built-in" warning Note and, on rename, the
+	// tombstone-shadow handling (see kind_form.go's submit branch).
+	isDefault bool
 
 	width  int
 	height int
@@ -59,30 +89,47 @@ var _ formActivePane = kindFormPane{}
 // isFormActive satisfies the formActivePane marker interface.
 func (kindFormPane) isFormActive() {}
 
-// NewKindFormPane builds a kindFormPane. Exported for use in tests.
+// NewKindFormPane builds a kindFormPane in create mode. Exported for use in
+// tests.
 func NewKindFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	kinds *types.KindRegistry,
 	groups *types.StageGroupRegistry,
 ) PaneModel {
-	return newKindFormPane(theme, store, kinds, groups)
+	return newKindFormPane(theme, store, kinds, groups, nil)
+}
+
+// NewKindEditFormPane builds a kindFormPane in edit mode, pre-populated from
+// existing. Exported for use in tests.
+func NewKindEditFormPane(
+	theme *ActiveTheme,
+	store types.StoreFS,
+	kinds *types.KindRegistry,
+	groups *types.StageGroupRegistry,
+	existing types.Kind,
+) PaneModel {
+	return newKindFormPane(theme, store, kinds, groups, &existing)
 }
 
 // newKindFormPane builds a kindFormPane. kinds is the merged kind registry
 // (baked-in defaults + existing user kinds); it is used to validate name
 // collisions so the user cannot silently shadow a default or overwrite an
 // existing custom kind. groups is the merged stage-group registry, used to
-// populate the stage-group select.
+// populate the stage-group select. editing is nil in create mode; when
+// non-nil, the form seeds every field from *editing and switches submit from
+// append to replace-by-name (see upsertKind).
 func newKindFormPane(
 	theme *ActiveTheme,
 	store types.StoreFS,
 	kinds *types.KindRegistry,
 	groups *types.StageGroupRegistry,
+	editing *types.Kind,
 ) kindFormPane {
 	f := kindFormPane{
 		store:  store,
 		theme:  theme,
+		kinds:  kinds,
 		glyph:  "·",                   // mirrors the kindsOverlay blank-glyph fallback
 		colour: theme.tier.FG.Primary, // mirrors the kindsOverlay blank-colour fallback
 	}
@@ -93,18 +140,46 @@ func newKindFormPane(
 		}
 	}
 
+	if editing != nil {
+		// Seed before building the huh fields — huh binds by pointer, so the
+		// fields below must be set to their final starting values first
+		// (mirrors remap_form.go's f.choices[i] = orphan.Suggested ordering).
+		f.name = editing.Name
+		f.originalName = editing.Name
+		f.editing = editing
+		f.stageGroup = editing.StageGroup
+		// A hand-edited kinds.jsonc entry can have a blank glyph/colour
+		// (Kind.Validate only requires Name and StageGroup) — apply the same
+		// fallbacks create mode uses rather than opening the form already
+		// failing validateGlyph/validateColour on an unedited field.
+		if editing.Glyph != "" {
+			f.glyph = editing.Glyph
+		}
+		if editing.Colour != "" {
+			f.colour = editing.Colour
+		}
+
+		if defaults, err := stage.DefaultKinds(); err == nil {
+			for _, d := range defaults {
+				if d.Name == editing.Name {
+					f.isDefault = true
+					break
+				}
+			}
+		}
+	}
+
 	// Name validator: non-empty and not colliding (case-insensitively) with
 	// any existing kind name — "Task" and "task" would otherwise coexist as
-	// visually confusable kinds.
+	// visually confusable kinds. In edit mode, the kind's own current name is
+	// exempted from the collision check (exact-match removal — see
+	// excludeName's doc comment for why this must not be case-insensitive).
 	validateName := func(s string) error {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			return fmt.Errorf("name is required")
 		}
-		if kinds != nil && caseInsensitiveNameCollision(s, kinds.Names()) {
-			return fmt.Errorf("%q already exists — choose a different name", s)
-		}
-		return nil
+		return checkKindNameCollision(s, kinds, editing)
 	}
 
 	// Glyph validator: exactly one rune (glyphs may be multi-byte, so count
@@ -146,7 +221,21 @@ func newKindFormPane(
 		return nil
 	}
 
-	group := huh.NewGroup(
+	fields := []huh.Field{}
+
+	// Overriding-a-built-in warning: only shown when editing a baked-in
+	// default. huh.Note defaults to skip:true (excluded from tab order), so
+	// this costs no extra keypress — it's purely informational.
+	if f.isDefault {
+		fields = append(fields, huh.NewNote().
+			Title("Overriding a built-in").
+			Description(fmt.Sprintf(
+				"%q is built in. Saving writes a full copy to your kinds.jsonc "+
+					"that permanently overrides it — including any future "+
+					"improvements to the built-in version.", editing.Name)))
+	}
+
+	fields = append(fields,
 		huh.NewInput().
 			Title("Name").
 			Description("Unique identifier for this kind (e.g. Errand)").
@@ -172,6 +261,11 @@ func newKindFormPane(
 			Value(&f.stageGroup).
 			Validate(validateStageGroup),
 	)
+
+	group := huh.NewGroup(fields...)
+	if editing != nil {
+		group = group.Title(fmt.Sprintf("Edit kind %q", editing.Name))
+	}
 
 	f.form = huh.NewForm(group).
 		WithTheme(wyrdHuhTheme(theme)).
@@ -223,6 +317,10 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			e := err
 			return f, tea.Batch(cmd, func() tea.Msg { return kindFormErrorMsg{err: e} })
 		}
+		if err := checkKindNameCollision(kind.Name, f.kinds, f.editing); err != nil {
+			e := err
+			return f, tea.Batch(cmd, func() tea.Msg { return kindFormErrorMsg{err: e} })
+		}
 
 		// Read existing user kinds. A failed read is treated as fatal rather
 		// than silently falling back to an empty slice — WriteKinds overwrites
@@ -235,15 +333,42 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			e := fmt.Errorf("reading existing kinds: %w", err)
 			return f, tea.Batch(cmd, func() tea.Msg { return kindFormErrorMsg{err: e} })
 		}
-		existing := append(reg.All(), kind)
+
+		renamed := f.originalName != "" && kind.Name != f.originalName
+		existing := upsertKind(reg.All(), kind, f.originalName)
+
+		// Renaming a shadowed default (or a not-yet-shadowed one) would
+		// otherwise un-shadow the built-in under its old name — the embedded
+		// copy reappears alongside the renamed entry, and every node still
+		// holding the old kind name silently snaps back to the pristine
+		// default. Write a tombstone: a shadow entry under the old name,
+		// unchanged from the built-in, so it stays shadowed. RenameKind (run
+		// after this write succeeds) then moves every node off the old name,
+		// so the tombstone is inert — it exists purely to keep the registry
+		// from resurrecting the default, not for anything to reference.
+		if renamed && f.isDefault {
+			if defaults, derr := stage.DefaultKinds(); derr == nil {
+				for _, d := range defaults {
+					if d.Name == f.originalName {
+						existing = append(existing, d)
+						break
+					}
+				}
+			}
+		}
+
 		if err := f.store.WriteKinds(existing); err != nil {
 			e := err
 			return f, tea.Batch(cmd, func() tea.Msg { return kindFormErrorMsg{err: e} })
 		}
 
 		name := kind.Name
+		renamedFrom := ""
+		if renamed {
+			renamedFrom = f.originalName
+		}
 		return f, tea.Batch(cmd, func() tea.Msg {
-			return kindFormSubmitMsg{name: name}
+			return kindFormSubmitMsg{name: name, renamedFrom: renamedFrom}
 		})
 
 	case huh.StateAborted:
@@ -278,3 +403,84 @@ func (f kindFormPane) KeyBindings() []KeyBinding {
 
 // HandleFocusLost is a no-op for kind form panes.
 func (f kindFormPane) HandleFocusLost() tea.Cmd { return nil }
+
+// checkKindNameCollision applies the same collision rule the huh field
+// validator uses, callable as a belt-and-braces check at submit time (huh's
+// field validators only run when its own state machine processes field
+// advancement — a caller that forces StateCompleted directly, as some tests
+// and any future programmatic submit path might, bypasses them entirely).
+// editing is nil in create mode; when non-nil its name is exempted from the
+// collision set.
+func checkKindNameCollision(name string, kinds *types.KindRegistry, editing *types.Kind) error {
+	// A case-only rename must be checked against the original name directly,
+	// before exemption: excludeName removes the original name from the
+	// collision set entirely, so by the time caseInsensitiveNameCollision
+	// runs there is nothing left for a case-only variant to collide with —
+	// the exemption would otherwise silently swallow the exact case this
+	// check exists to catch.
+	if editing != nil && name != editing.Name && strings.EqualFold(name, editing.Name) {
+		return fmt.Errorf("changing only the capitalisation of %q is not supported", editing.Name)
+	}
+	if kinds == nil {
+		return nil
+	}
+	names := kinds.Names()
+	if editing != nil {
+		names = excludeName(names, editing.Name)
+	}
+	if !caseInsensitiveNameCollision(name, names) {
+		return nil
+	}
+	return fmt.Errorf("%q already exists — choose a different name", name)
+}
+
+// upsertKind returns entries with the kind matching originalName replaced in
+// place, or kind appended when no entry matches. originalName is "" in
+// create mode, which always appends. Matching is exact — the registry keys
+// entries by exact name.
+//
+// Three distinct situations collapse into "found → replace, not found →
+// append" with no special-casing needed:
+//   - editing a user-defined kind: originalName is in entries → replace at
+//     the same index, preserving display order (a remove-then-append would
+//     silently reshuffle the kinds overlay on every edit)
+//   - editing a baked-in default not yet shadowed: originalName is a default
+//     name, not a user entry → not found → append. MergeKinds places user
+//     entries after defaults and NewKindRegistry's order tracks first
+//     insertion, so the shadow keeps the default's display position
+//   - editing an already-shadowed default: originalName is in entries (the
+//     prior shadow) → replace
+func upsertKind(entries []types.Kind, kind types.Kind, originalName string) []types.Kind {
+	if originalName != "" {
+		for i, e := range entries {
+			if e.Name == originalName {
+				out := make([]types.Kind, len(entries))
+				copy(out, entries)
+				out[i] = kind
+				return out
+			}
+		}
+	}
+	return append(entries, kind)
+}
+
+// excludeName returns names with candidate removed (exact match only — not
+// case-insensitive). Used to exempt a kind's own current name from the
+// collision validator in edit mode.
+//
+// Exact match is deliberate: case-insensitive removal would let a rename
+// like "Task" -> "task" pass the collision check (since "task" no longer
+// collides with the exempted "Task"), while KindRegistry keys entries
+// exactly — producing precisely the visually-confusable pair the collision
+// validator exists to prevent, arrived at through the back door. With exact
+// removal, "task" still collides with "Task" in the name list, and the
+// validator's EqualFold branch reports the clearer "capitalisation only" error.
+func excludeName(names []string, candidate string) []string {
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if n != candidate {
+			out = append(out, n)
+		}
+	}
+	return out
+}

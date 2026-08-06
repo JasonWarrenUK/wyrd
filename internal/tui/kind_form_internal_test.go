@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -51,7 +52,7 @@ func TestKindFormErrorOnReadFailure(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 
-	f := newKindFormPane(theme, store, nil, nil)
+	f := newKindFormPane(theme, store, nil, nil, nil)
 	_, cmd := driveKindFormToCompleted(f)
 
 	msg := collectMsg(cmd)
@@ -94,7 +95,7 @@ func TestKindFormErrorOnWriteFailure(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 
-	f := newKindFormPane(theme, store, nil, nil)
+	f := newKindFormPane(theme, store, nil, nil, nil)
 	_, cmd := driveKindFormToCompleted(f)
 
 	msg := collectMsg(cmd)
@@ -136,7 +137,7 @@ func TestKindFormSubmitSuccess(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 
-	f := newKindFormPane(theme, store, nil, nil)
+	f := newKindFormPane(theme, store, nil, nil, nil)
 	_, cmd := driveKindFormToCompleted(f)
 
 	if !store.written {
@@ -184,7 +185,7 @@ func TestKindFormDefaults(t *testing.T) {
 		{Name: "event-flow", Stages: []string{"Upcoming", "Past"}, Cycle: types.CycleTerminate},
 	})
 
-	f := newKindFormPane(theme, store, nil, groups)
+	f := newKindFormPane(theme, store, nil, groups, nil)
 
 	if f.glyph != "·" {
 		t.Errorf("default glyph = %q, want %q", f.glyph, "·")
@@ -212,7 +213,7 @@ func TestKindFormRejectsEmptyStageGroup(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 
-	f := newKindFormPane(theme, store, nil, nil) // nil groups -> f.stageGroup stays ""
+	f := newKindFormPane(theme, store, nil, nil, nil) // nil groups -> f.stageGroup stays ""
 	f.name = "Errand"
 	f.glyph = "!"
 	f.colour = "#9b70ff"
@@ -242,6 +243,468 @@ func TestKindFormRejectsEmptyStageGroup(t *testing.T) {
 	if !found {
 		t.Errorf("expected kindFormErrorMsg for empty stage group, got %T", msg)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// upsertKind — pure unit tests, no huh involved.
+// ---------------------------------------------------------------------------
+
+func TestUpsertKindCreateAppends(t *testing.T) {
+	existing := []types.Kind{{Name: "Task", StageGroup: "task-flow"}}
+	kind := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	got := upsertKind(existing, kind, "")
+
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[1].Name != "Errand" {
+		t.Errorf("appended entry = %v, want Errand", got[1])
+	}
+}
+
+func TestUpsertKindEditReplacesAtSameIndex(t *testing.T) {
+	existing := []types.Kind{
+		{Name: "Alpha", StageGroup: "task-flow"},
+		{Name: "Errand", StageGroup: "task-flow", Glyph: "!"},
+		{Name: "Zeta", StageGroup: "task-flow"},
+	}
+	edited := types.Kind{Name: "Errand", StageGroup: "task-flow", Glyph: "?"}
+
+	got := upsertKind(existing, edited, "Errand")
+
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3 (replace, not append)", len(got))
+	}
+	if got[1].Name != "Errand" || got[1].Glyph != "?" {
+		t.Errorf("got[1] = %v, want the edited Errand at the same index", got[1])
+	}
+	if got[0].Name != "Alpha" || got[2].Name != "Zeta" {
+		t.Errorf("order disturbed: got %v", got)
+	}
+}
+
+func TestUpsertKindEditDefaultNotYetShadowedAppends(t *testing.T) {
+	// originalName ("Task") is a baked-in default, not present in the user
+	// file — upsertKind can't distinguish this from create; both append,
+	// which is exactly the shadowing behaviour SL.16 requires.
+	existing := []types.Kind{{Name: "Errand", StageGroup: "task-flow"}}
+	edited := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "★"}
+
+	got := upsertKind(existing, edited, "Task")
+
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2 (shadow appended)", len(got))
+	}
+	if got[1].Name != "Task" || got[1].Glyph != "★" {
+		t.Errorf("appended shadow = %v, want edited Task", got[1])
+	}
+}
+
+func TestUpsertKindEditAlreadyShadowedDefaultReplaces(t *testing.T) {
+	existing := []types.Kind{{Name: "Task", StageGroup: "task-flow", Glyph: "★"}}
+	edited := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "☆"}
+
+	got := upsertKind(existing, edited, "Task")
+
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1 (replace, not a second shadow)", len(got))
+	}
+	if got[0].Glyph != "☆" {
+		t.Errorf("got[0].Glyph = %q, want %q", got[0].Glyph, "☆")
+	}
+}
+
+func TestUpsertKindEmptySliceAppends(t *testing.T) {
+	edited := types.Kind{Name: "Task", StageGroup: "task-flow"}
+
+	got := upsertKind(nil, edited, "Task")
+
+	if len(got) != 1 || got[0].Name != "Task" {
+		t.Errorf("got = %v, want single Task entry", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// excludeName — pure unit tests.
+// ---------------------------------------------------------------------------
+
+func TestExcludeNameRemovesExactMatch(t *testing.T) {
+	got := excludeName([]string{"Task", "task", "Errand"}, "Task")
+	want := []string{"task", "Errand"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestExcludeNameCaseSensitive(t *testing.T) {
+	// "task" (lowercase) must survive excluding "Task" — removal is exact
+	// match, not EqualFold, so a case-only rename still trips the collision
+	// validator's EqualFold check afterwards rather than silently coexisting.
+	got := excludeName([]string{"task"}, "Task")
+	if len(got) != 1 || got[0] != "task" {
+		t.Errorf("got %v, want [\"task\"] unchanged", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Edit-mode form-level tests.
+// ---------------------------------------------------------------------------
+
+// TestKindEditFormSeedsFields verifies the edit constructor seeds all four
+// fields from the existing entry, plus originalName and isDefault.
+func TestKindEditFormSeedsFields(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#123456"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+
+	if f.name != "Errand" {
+		t.Errorf("f.name = %q, want %q", f.name, "Errand")
+	}
+	if f.glyph != "!" {
+		t.Errorf("f.glyph = %q, want %q", f.glyph, "!")
+	}
+	if f.colour != "#123456" {
+		t.Errorf("f.colour = %q, want %q", f.colour, "#123456")
+	}
+	if f.stageGroup != "task-flow" {
+		t.Errorf("f.stageGroup = %q, want %q", f.stageGroup, "task-flow")
+	}
+	if f.originalName != "Errand" {
+		t.Errorf("f.originalName = %q, want %q", f.originalName, "Errand")
+	}
+}
+
+// TestKindEditFormBlankGlyphColourGetFallbacks verifies a hand-edited entry
+// missing glyph/colour (Kind.Validate only requires Name and StageGroup)
+// still gets the same neutral fallbacks create mode uses, rather than
+// opening the form already failing its own field validators.
+func TestKindEditFormBlankGlyphColourGetFallbacks(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"} // blank glyph/colour
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+
+	if f.glyph != "·" {
+		t.Errorf("f.glyph = %q, want fallback %q", f.glyph, "·")
+	}
+	if f.colour == "" {
+		t.Error("f.colour should have received the fallback, got empty")
+	}
+}
+
+// TestKindEditFormMarksIsDefault verifies isDefault is set when the edited
+// kind's name matches a baked-in default.
+func TestKindEditFormMarksIsDefault(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{}
+	existing := types.Kind{Name: "Task", StageGroup: "task-flow"} // "Task" is a baked-in default
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+
+	if !f.isDefault {
+		t.Error("expected isDefault = true for a kind named Task (a baked-in default)")
+	}
+}
+
+// TestKindEditFormNotDefaultForCustomName verifies isDefault stays false for
+// a name that isn't a baked-in default.
+func TestKindEditFormNotDefaultForCustomName(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+
+	if f.isDefault {
+		t.Error("expected isDefault = false for a custom kind name")
+	}
+}
+
+// TestKindEditFormSubmitReplacesExisting verifies submitting in edit mode
+// (name unchanged) writes the replaced slice, not an appended one.
+func TestKindEditFormSubmitReplacesExisting(t *testing.T) {
+	store := &errKindsStoreFS{seed: []types.Kind{
+		{Name: "Alpha", StageGroup: "task-flow"},
+		{Name: "Errand", StageGroup: "task-flow", Glyph: "!"},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow", Glyph: "!"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Errand", "?", "#9b70ff", "task-flow")
+	collectMsg(cmd)
+
+	if !store.written {
+		t.Fatal("WriteKinds should have been called")
+	}
+	if len(store.lastWritten) != 2 {
+		t.Fatalf("lastWritten len = %d, want 2 (replace, not append)", len(store.lastWritten))
+	}
+	if store.lastWritten[0].Name != "Alpha" {
+		t.Errorf("lastWritten[0] = %v, want Alpha unchanged", store.lastWritten[0])
+	}
+	if store.lastWritten[1].Name != "Errand" || store.lastWritten[1].Glyph != "?" {
+		t.Errorf("lastWritten[1] = %v, want edited Errand with glyph ?", store.lastWritten[1])
+	}
+}
+
+// TestKindEditFormRenameEmitsRenamedFrom verifies that submitting a changed
+// name in edit mode sets renamedFrom on kindFormSubmitMsg, so the mount
+// handler knows to run the RenameKind cascade.
+func TestKindEditFormRenameEmitsRenamedFrom(t *testing.T) {
+	store := &errKindsStoreFS{seed: []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow"},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Chore", "!", "#9b70ff", "task-flow")
+
+	msg := collectMsg(cmd)
+	sub := findSubmitMsg(t, msg)
+	if sub.name != "Chore" {
+		t.Errorf("sub.name = %q, want %q", sub.name, "Chore")
+	}
+	if sub.renamedFrom != "Errand" {
+		t.Errorf("sub.renamedFrom = %q, want %q", sub.renamedFrom, "Errand")
+	}
+
+	if len(store.lastWritten) != 1 || store.lastWritten[0].Name != "Chore" {
+		t.Errorf("lastWritten = %v, want single Chore entry", store.lastWritten)
+	}
+}
+
+// TestKindEditFormUnchangedNameNoRename verifies renamedFrom stays empty
+// when the name is resubmitted unchanged.
+func TestKindEditFormUnchangedNameNoRename(t *testing.T) {
+	store := &errKindsStoreFS{seed: []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow"},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Errand", "!", "#9b70ff", "task-flow")
+
+	msg := collectMsg(cmd)
+	sub := findSubmitMsg(t, msg)
+	if sub.renamedFrom != "" {
+		t.Errorf("sub.renamedFrom = %q, want empty (name unchanged)", sub.renamedFrom)
+	}
+}
+
+// TestKindEditFormRenameDefaultWritesTombstone verifies that renaming a
+// baked-in default writes both the renamed entry AND a tombstone shadow
+// under the old name (an unchanged copy of the default), so the embedded
+// default doesn't resurrect under its old name once the registry merges
+// baked-in defaults with the user file again.
+func TestKindEditFormRenameDefaultWritesTombstone(t *testing.T) {
+	store := &errKindsStoreFS{} // "Task" not yet shadowed in the user file
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	if !f.isDefault {
+		t.Fatal("precondition failed: Task should be recognised as a default")
+	}
+	_, cmd := driveKindFormToCompletedWith(f, "Errand", "!", "#123456", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 2 {
+		t.Fatalf("lastWritten len = %d, want 2 (renamed entry + tombstone), got %v", len(store.lastWritten), store.lastWritten)
+	}
+	var sawRenamed, sawTombstone bool
+	for _, k := range store.lastWritten {
+		if k.Name == "Errand" {
+			sawRenamed = true
+		}
+		if k.Name == "Task" {
+			sawTombstone = true
+			// The tombstone must match the embedded default exactly — it
+			// exists only to keep the default shadowed, not to diverge.
+			if k.Glyph != "◆" {
+				t.Errorf("tombstone glyph = %q, want the default's original %q", k.Glyph, "◆")
+			}
+		}
+	}
+	if !sawRenamed {
+		t.Error("expected the renamed Errand entry in lastWritten")
+	}
+	if !sawTombstone {
+		t.Error("expected a Task tombstone entry in lastWritten so the default stays shadowed")
+	}
+}
+
+// TestKindEditFormRenameCustomKindNoTombstone verifies that renaming a
+// purely custom (non-default) kind does NOT write a tombstone — there's no
+// baked-in default to resurrect, so it would just be a stray leftover entry.
+func TestKindEditFormRenameCustomKindNoTombstone(t *testing.T) {
+	store := &errKindsStoreFS{seed: []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow"},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Chore", "!", "#9b70ff", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1 (renamed only, no tombstone), got %v", len(store.lastWritten), store.lastWritten)
+	}
+	if store.lastWritten[0].Name != "Chore" {
+		t.Errorf("lastWritten[0].Name = %q, want %q", store.lastWritten[0].Name, "Chore")
+	}
+}
+
+// TestKindEditFormOwnNameDoesNotCollide verifies that resubmitting a kind's
+// own unchanged name passes the collision validator in edit mode.
+func TestKindEditFormOwnNameDoesNotCollide(t *testing.T) {
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Errand", StageGroup: "task-flow"},
+		{Name: "Task", StageGroup: "task-flow"},
+	})
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{seed: kinds.All()}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, kinds, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Errand", "!", "#9b70ff", "task-flow")
+
+	msg := collectMsg(cmd)
+	if _, ok := findErrorMsg(msg); ok {
+		t.Error("resubmitting the kind's own unchanged name should not collide")
+	}
+}
+
+// TestKindEditFormOtherNameStillCollides verifies edit mode still rejects a
+// name belonging to a different existing kind.
+func TestKindEditFormOtherNameStillCollides(t *testing.T) {
+	kinds := types.NewKindRegistry([]types.Kind{
+		{Name: "Errand", StageGroup: "task-flow"},
+		{Name: "Task", StageGroup: "task-flow"},
+	})
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{seed: kinds.All()}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, kinds, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Task", "!", "#9b70ff", "task-flow")
+
+	msg := collectMsg(cmd)
+	if _, ok := findErrorMsg(msg); !ok {
+		t.Error("renaming to another existing kind's name should collide")
+	}
+	if store.written {
+		t.Error("WriteKinds should not be called when the new name collides")
+	}
+}
+
+// TestKindEditFormCaseOnlyRenameRejected verifies the specific
+// capitalisation-only error message fires rather than the generic collision
+// message, and that the write is aborted either way.
+func TestKindEditFormCaseOnlyRenameRejected(t *testing.T) {
+	kinds := types.NewKindRegistry([]types.Kind{{Name: "Errand", StageGroup: "task-flow"}})
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errKindsStoreFS{seed: kinds.All()}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, kinds, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "errand", "!", "#9b70ff", "task-flow")
+
+	msg := collectMsg(cmd)
+	errMsg, ok := findErrorMsg(msg)
+	if !ok {
+		t.Fatal("expected a validation error for a case-only rename")
+	}
+	if !strings.Contains(errMsg.err.Error(), "capitalisation") {
+		t.Errorf("error = %q, want it to mention capitalisation", errMsg.err.Error())
+	}
+	if store.written {
+		t.Error("WriteKinds should not be called on a rejected case-only rename")
+	}
+}
+
+// findSubmitMsg unwraps a tea.BatchMsg (or bare msg) looking for a
+// kindFormSubmitMsg, failing the test if none is found.
+func findSubmitMsg(t *testing.T, msg tea.Msg) kindFormSubmitMsg {
+	t.Helper()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, fn := range batch {
+			if m := fn(); m != nil {
+				if sub, ok := m.(kindFormSubmitMsg); ok {
+					return sub
+				}
+			}
+		}
+	} else if sub, ok := msg.(kindFormSubmitMsg); ok {
+		return sub
+	}
+	t.Fatalf("expected kindFormSubmitMsg, got %T", msg)
+	return kindFormSubmitMsg{}
+}
+
+// findErrorMsg unwraps a tea.BatchMsg (or bare msg) looking for a
+// kindFormErrorMsg.
+func findErrorMsg(msg tea.Msg) (kindFormErrorMsg, bool) {
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, fn := range batch {
+			if m := fn(); m != nil {
+				if errMsg, ok := m.(kindFormErrorMsg); ok {
+					return errMsg, true
+				}
+			}
+		}
+		return kindFormErrorMsg{}, false
+	}
+	errMsg, ok := msg.(kindFormErrorMsg)
+	return errMsg, ok
 }
 
 // errKindsStoreFS is a minimal StoreFS implementation whose ReadKinds and
