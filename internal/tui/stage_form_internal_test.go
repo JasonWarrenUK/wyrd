@@ -79,11 +79,16 @@ func TestParseStages(t *testing.T) {
 
 // errStoreFS is a minimal StoreFS implementation whose ReadStages and
 // WriteStages return the configured errors, and whose WriteStages records
-// whether it was called.
+// whether it was called. updateErrIDs/updateCalls support remapFormPane
+// tests: a node ID present in updateErrIDs fails on UpdateNode, and every
+// call (successful or not) is recorded in updateCalls in order.
 type errStoreFS struct {
 	readErr  error
 	writeErr error
 	written  bool
+
+	updateErrIDs map[string]bool
+	updateCalls  []string
 }
 
 func (s *errStoreFS) ReadNode(_ string) (*types.Node, error) { return nil, nil }
@@ -92,8 +97,12 @@ func (s *errStoreFS) DeleteEdge(_ string) error              { return nil }
 func (s *errStoreFS) WriteEdge(_ *types.Edge) error          { return nil }
 func (s *errStoreFS) ReadEdge(_ string) (*types.Edge, error) { return nil, nil }
 func (s *errStoreFS) ArchiveNode(_ string) error             { return nil }
-func (s *errStoreFS) UpdateNode(_ string, _ map[string]interface{}) (*types.Node, error) {
-	return nil, nil
+func (s *errStoreFS) UpdateNode(id string, _ map[string]interface{}) (*types.Node, error) {
+	s.updateCalls = append(s.updateCalls, id)
+	if s.updateErrIDs[id] {
+		return nil, errors.New("simulated UpdateNode failure")
+	}
+	return &types.Node{ID: id}, nil
 }
 func (s *errStoreFS) ReadTemplate(_ string) (*types.Template, error) { return nil, nil }
 func (s *errStoreFS) AllTemplates() ([]*types.Template, error)       { return nil, nil }

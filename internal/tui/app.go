@@ -42,6 +42,9 @@ type openStageFormMsg struct{}
 // openStagesOverlayMsg is emitted when the bare :stages command is invoked.
 type openStagesOverlayMsg struct{}
 
+// openRemapFormMsg is emitted when the :stages remap command is invoked.
+type openRemapFormMsg struct{}
+
 // syncResultMsg carries the outcome of a background sync operation.
 type syncResultMsg struct {
 	err    error
@@ -71,6 +74,24 @@ func (m *Model) clearCaptureCmd() tea.Cmd {
 	return tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
 		return captureConfirmClearMsg{gen: gen}
 	})
+}
+
+// orphanAdvisory re-scans the graph against the current registries and, if
+// the edit that just landed produced orphaned stages, returns a suffix
+// directing the user to :stages remap. Returns "" when there is nothing to
+// flag or no index to scan. Call only after m.kinds/m.stageGroups have been
+// reassigned to the freshly-merged registries — scanning against the stale
+// ones reports nothing even when the edit just orphaned nodes.
+func (m *Model) orphanAdvisory() string {
+	if m.index == nil {
+		return ""
+	}
+	report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+	if report.IsEmpty() {
+		return ""
+	}
+	n := report.NodeCount()
+	return fmt.Sprintf(" — %d node%s now hold orphaned stages; run :stages remap", n, plural(n))
 }
 
 // ritualTriggerMsg is sent when a ritual should be presented to the user.
@@ -416,13 +437,17 @@ func New(cfg Config) (Model, error) {
 	})
 
 	// Wire up the "stages" command. ":stages" lists all stage groups (SL.12);
-	// ":stages new" opens the stage-group creation form (SL.11).
+	// ":stages new" opens the stage-group creation form (SL.11); ":stages
+	// remap" scans for orphaned stages and opens the remap form (SL.14).
 	palette.Register(Command{
 		Name:        "stages",
-		Description: "List stage groups (stages new to create)",
+		Description: "List stage groups (stages new | stages remap)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openStageFormMsg{} }
+			}
+			if len(args) > 0 && args[0] == "remap" {
+				return func() tea.Msg { return openRemapFormMsg{} }
 			}
 			return func() tea.Msg { return openStagesOverlayMsg{} }
 		},
@@ -655,6 +680,43 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncKeyHints()
 		return m, initCmd
 
+	case openRemapFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		if m.store == nil || m.index == nil {
+			m.statusBar.SetCaptureText("Remap unavailable: no store or index")
+			return m, m.clearCaptureCmd()
+		}
+		report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+		if report.IsEmpty() {
+			text := "No orphaned stages"
+			if n := len(report.Unresolvable); n > 0 {
+				text += fmt.Sprintf(" (%d node%s unresolvable — kind or group missing)", n, plural(n))
+			}
+			m.statusBar.SetCaptureText(text)
+			return m, m.clearCaptureCmd()
+		}
+		if len(report.Orphans) > maxRemapOrphans {
+			m.statusBar.SetCaptureText(fmt.Sprintf(
+				"Too many orphaned stage combinations (%d) to remap here — fix stages.jsonc/kinds.jsonc directly",
+				len(report.Orphans),
+			))
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
+		fp := newRemapFormPane(m.theme, m.store, report)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
+
 	case syncResultMsg:
 		if msg.output == "__trigger__" {
 			// Kick off the actual sync in a background goroutine, with a
@@ -823,15 +885,25 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Rebuild the in-memory kind registry so the new kind is usable
 		// in-session without restarting. DefaultKinds is sync.Once-cached, so
 		// re-calling it is cheap.
+		refreshed := false
 		if m.store != nil {
 			if defaults, err := stage.DefaultKinds(); err == nil {
 				if userReg, err := m.store.ReadKinds(); err == nil {
 					m.kinds = stage.MergeKinds(defaults, userReg.All())
 					m.kindsOverlay.kinds = m.kinds
+					refreshed = true
 				}
 			}
 		}
-		m.statusBar.SetCaptureText(fmt.Sprintf("Created kind %q", msg.name))
+		text := fmt.Sprintf("Created kind %q", msg.name)
+		// Only scan for orphans once m.kinds actually reflects the write —
+		// orphanAdvisory reads m.kinds/m.stageGroups directly, so scanning
+		// against a stale registry after a failed refresh would either miss
+		// real orphans or, worse, report against the wrong data silently.
+		if refreshed {
+			text += m.orphanAdvisory()
+		}
+		m.statusBar.SetCaptureText(text)
 		return m, m.clearCaptureCmd()
 
 	case kindFormErrorMsg:
@@ -848,16 +920,24 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Rebuild the in-memory stage-group registry so the new group is
 		// usable in-session without restarting. DefaultStageGroups is
 		// sync.Once-cached, so re-calling it is cheap.
+		refreshed := false
 		if m.store != nil {
 			if defaults, err := stage.DefaultStageGroups(); err == nil {
 				if userReg, err := m.store.ReadStages(); err == nil {
 					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
 					m.kindsOverlay.stageGroups = m.stageGroups
 					m.stagesOverlay.stageGroups = m.stageGroups
+					refreshed = true
 				}
 			}
 		}
-		m.statusBar.SetCaptureText(fmt.Sprintf("Created stage group %q", msg.name))
+		text := fmt.Sprintf("Created stage group %q", msg.name)
+		// See the matching guard in kindFormSubmitMsg: only scan once
+		// m.stageGroups actually reflects the write.
+		if refreshed {
+			text += m.orphanAdvisory()
+		}
+		m.statusBar.SetCaptureText(text)
 		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:
@@ -866,6 +946,31 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncKeyHints()
 		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
 		return m, m.clearCaptureCmd()
+
+	case remapFormSubmitMsg:
+		m.rightPane = m.sizedEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		text := fmt.Sprintf("Remapped %d node%s", msg.remapped, plural(msg.remapped))
+		if msg.unchanged > 0 {
+			text += fmt.Sprintf(", left %d unchanged", msg.unchanged)
+		}
+		m.statusBar.SetCaptureText(text)
+		m.refreshDashboard()
+		return m, m.clearCaptureCmd()
+
+	case remapFormErrorMsg:
+		m.rightPane = m.sizedEmptyPane(m.theme)
+		m.focus = FocusLeft
+		m.syncKeyHints()
+		text := "Remap failed: " + msg.err.Error()
+		if msg.remapped > 0 {
+			text = fmt.Sprintf("Remapped %d node%s before failing: %s", msg.remapped, plural(msg.remapped), msg.err.Error())
+		}
+		m.statusBar.SetCaptureText(text)
+		m.statusBar.MarkCaptureSticky()
+		m.refreshDashboard()
+		return m, nil
 
 	case filterStateChangedMsg:
 		m.syncKeyHints()
