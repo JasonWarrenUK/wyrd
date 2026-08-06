@@ -1123,8 +1123,43 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		// Rebuild the in-memory stage-group registry so the new group is
-		// usable in-session without restarting. DefaultStageGroups is
+
+		// A rename must repoint every kind referencing the old group name
+		// before anything below rebuilds the kind registry — the group
+		// registry no longer has an entry named renamedFrom (upsertStageGroup
+		// removed/replaced it), so any kind still pointing at that name would
+		// fail to resolve its stage group at all (types.ResolveStageGroup
+		// returns false), and every node of that kind becomes Unresolvable
+		// rather than a fixable Orphan. See stage.RenameStageGroup's doc
+		// comment for the full fan-out reasoning: this touches every KIND
+		// referencing the group, not nodes directly.
+		var renameErr error
+		var renameCount int
+		if msg.renamedFrom != "" && m.store != nil {
+			renameCount, renameErr = stage.RenameStageGroup(m.store, msg.renamedFrom, msg.name)
+		}
+
+		// Rebuild the in-memory kind registry too — RenameStageGroup writes
+		// to kinds.jsonc (rewriting/shadowing every referencing kind), so a
+		// group rename can change m.kinds even though the edited entity was
+		// a group. Cheap to always attempt: a no-op ReadKinds when nothing
+		// changed just re-derives the same registry.
+		if renameErr == nil && msg.renamedFrom != "" && m.store != nil {
+			if kindDefaults, err := stage.DefaultKinds(); err == nil {
+				if userKindReg, err := m.store.ReadKinds(); err == nil {
+					m.kinds = stage.MergeKinds(kindDefaults, userKindReg.All())
+					m.kindsOverlay.kinds = m.kinds
+					kindUserNames := make(map[string]bool, len(userKindReg.All()))
+					for _, k := range userKindReg.All() {
+						kindUserNames[k.Name] = true
+					}
+					m.kindsOverlay.userNames = kindUserNames
+				}
+			}
+		}
+
+		// Rebuild the in-memory stage-group registry so the edit is usable
+		// in-session without restarting. DefaultStageGroups is
 		// sync.Once-cached, so re-calling it is cheap.
 		refreshed := false
 		if m.store != nil {
@@ -1144,13 +1179,43 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+
 		text := fmt.Sprintf("Created stage group %q", msg.name)
+		if msg.renamedFrom != "" {
+			text = fmt.Sprintf("Renamed %q to %q", msg.renamedFrom, msg.name)
+		}
+		if renameErr != nil {
+			text = fmt.Sprintf("Renamed %q to %q, but %v", msg.renamedFrom, msg.name, renameErr)
+		}
+
 		// See the matching guard in kindFormSubmitMsg: only scan once
-		// m.stageGroups actually reflects the write.
+		// m.stageGroups actually reflects the write. This scan also picks up
+		// the fan-out case: removing or renaming a stage that several kinds
+		// share (task-flow referenced by Task, Goblin, and Talk) produces
+		// one Orphan entry per affected kind — DetectOrphans' OrphanKey is
+		// keyed by (Kind, Stage), so the shared group's edit surfaces as
+		// multiple rows in the remap form rather than one.
 		if refreshed {
+			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
+				n := report.NodeCount()
+				text = fmt.Sprintf("%s — %d node%s need a new stage", text, n, plural(n))
+				m.statusBar.SetCaptureText(text)
+				// Safe to chain: m.rightPane was set to an empty pane above,
+				// so openRemapFormMsg's formActivePane guard passes when
+				// this message is processed on the next Update call.
+				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
+			}
 			text += m.orphanAdvisory()
 		}
+		if renameCount > 0 && renameErr == nil {
+			text += fmt.Sprintf(" (%d kind%s repointed)", renameCount, plural(renameCount))
+		}
 		m.statusBar.SetCaptureText(text)
+		if renameErr != nil {
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
 		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:
