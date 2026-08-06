@@ -60,19 +60,21 @@ func (ko *kindsOverlay) Open(width, height int) {
 	} else {
 		kinds := ko.kinds.All()
 
-		// Measure name column width for alignment (min 12, max longest name + 2).
+		// Measure name column width for alignment (min 12, max longest name +
+		// 2). Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
+		// cell width, not byte length.
 		nameColWidth := 12
 		for _, k := range kinds {
-			if len(k.Name)+2 > nameColWidth {
-				nameColWidth = len(k.Name) + 2
+			if w := lipgloss.Width(k.Name) + 2; w > nameColWidth {
+				nameColWidth = w
 			}
 		}
 
 		// Measure stage-group column width similarly.
 		groupColWidth := 12
 		for _, k := range kinds {
-			if len(k.StageGroup)+2 > groupColWidth {
-				groupColWidth = len(k.StageGroup) + 2
+			if w := lipgloss.Width(k.StageGroup) + 2; w > groupColWidth {
+				groupColWidth = w
 			}
 		}
 
@@ -93,14 +95,14 @@ func (ko *kindsOverlay) Open(width, height int) {
 
 			// Name column, padded to nameColWidth with Spacer.
 			nameSeg := primaryStyle.Render(k.Name)
-			namePad := nameColWidth - len(k.Name)
+			namePad := nameColWidth - lipgloss.Width(k.Name)
 			if namePad < 1 {
 				namePad = 1
 			}
 
 			// Stage-group name column, padded to groupColWidth.
 			groupSeg := mutedStyle.Render(k.StageGroup)
-			groupPad := groupColWidth - len(k.StageGroup)
+			groupPad := groupColWidth - lipgloss.Width(k.StageGroup)
 			if groupPad < 1 {
 				groupPad = 1
 			}
