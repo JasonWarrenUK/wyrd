@@ -33,8 +33,11 @@ type remapFormSubmitMsg struct {
 // remapFormErrorMsg is emitted when ApplyRemap reports a write failure. The
 // form closes; whatever writes succeeded before the failure remain applied
 // (ApplyRemap does not roll back partial progress — see its doc comment).
+// remapped carries that partial-success count so the status bar can say how
+// much landed rather than reading as a total failure.
 type remapFormErrorMsg struct {
-	err error
+	err      error
+	remapped int
 }
 
 // remapFormPane wraps a huh.Form presenting one select field per orphaned
@@ -163,8 +166,8 @@ func (f remapFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 
 		remapped, err := stage.ApplyRemap(f.store, f.report, choices, false)
 		if err != nil {
-			e := err
-			return f, tea.Batch(cmd, func() tea.Msg { return remapFormErrorMsg{err: e} })
+			e, n := err, remapped
+			return f, tea.Batch(cmd, func() tea.Msg { return remapFormErrorMsg{err: e, remapped: n} })
 		}
 
 		unchanged := f.report.NodeCount() - remapped

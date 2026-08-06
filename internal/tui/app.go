@@ -885,16 +885,24 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Rebuild the in-memory kind registry so the new kind is usable
 		// in-session without restarting. DefaultKinds is sync.Once-cached, so
 		// re-calling it is cheap.
+		refreshed := false
 		if m.store != nil {
 			if defaults, err := stage.DefaultKinds(); err == nil {
 				if userReg, err := m.store.ReadKinds(); err == nil {
 					m.kinds = stage.MergeKinds(defaults, userReg.All())
 					m.kindsOverlay.kinds = m.kinds
+					refreshed = true
 				}
 			}
 		}
 		text := fmt.Sprintf("Created kind %q", msg.name)
-		text += m.orphanAdvisory()
+		// Only scan for orphans once m.kinds actually reflects the write —
+		// orphanAdvisory reads m.kinds/m.stageGroups directly, so scanning
+		// against a stale registry after a failed refresh would either miss
+		// real orphans or, worse, report against the wrong data silently.
+		if refreshed {
+			text += m.orphanAdvisory()
+		}
 		m.statusBar.SetCaptureText(text)
 		return m, m.clearCaptureCmd()
 
@@ -912,17 +920,23 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Rebuild the in-memory stage-group registry so the new group is
 		// usable in-session without restarting. DefaultStageGroups is
 		// sync.Once-cached, so re-calling it is cheap.
+		refreshed := false
 		if m.store != nil {
 			if defaults, err := stage.DefaultStageGroups(); err == nil {
 				if userReg, err := m.store.ReadStages(); err == nil {
 					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
 					m.kindsOverlay.stageGroups = m.stageGroups
 					m.stagesOverlay.stageGroups = m.stageGroups
+					refreshed = true
 				}
 			}
 		}
 		text := fmt.Sprintf("Created stage group %q", msg.name)
-		text += m.orphanAdvisory()
+		// See the matching guard in kindFormSubmitMsg: only scan once
+		// m.stageGroups actually reflects the write.
+		if refreshed {
+			text += m.orphanAdvisory()
+		}
 		m.statusBar.SetCaptureText(text)
 		return m, m.clearCaptureCmd()
 
@@ -949,7 +963,11 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		m.statusBar.SetCaptureText("Remap failed: " + msg.err.Error())
+		text := "Remap failed: " + msg.err.Error()
+		if msg.remapped > 0 {
+			text = fmt.Sprintf("Remapped %d node%s before failing: %s", msg.remapped, plural(msg.remapped), msg.err.Error())
+		}
+		m.statusBar.SetCaptureText(text)
 		m.statusBar.MarkCaptureSticky()
 		m.refreshDashboard()
 		return m, nil

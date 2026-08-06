@@ -136,6 +136,12 @@ func TestRemapFormSubmitWriteFailureEmitsErrorMsg(t *testing.T) {
 	if errMsg.err == nil {
 		t.Error("remapFormErrorMsg.err should be non-nil")
 	}
+	// n1 and n3 succeed despite n2 failing — the partial-success count must
+	// survive onto the error message rather than being discarded, otherwise
+	// the status bar reports a total failure when most writes landed.
+	if errMsg.remapped != 2 {
+		t.Errorf("remapped = %d, want 2 (n1 and n3 succeed despite n2 failing)", errMsg.remapped)
+	}
 }
 
 func TestRemapFormCancelEmitsFormCancelMsg(t *testing.T) {
