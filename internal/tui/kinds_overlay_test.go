@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -21,7 +22,7 @@ func TestKindsOverlay_RendersAllKinds(t *testing.T) {
 	groupsReg := types.NewStageGroupRegistry(groups)
 	theme := loadStagesTestTheme(t)
 
-	ko := newKindsOverlay(theme, kindsReg, groupsReg)
+	ko := newKindsOverlay(theme, kindsReg, groupsReg, nil)
 	ko.Open(120, 40)
 
 	view := ko.View(120, 40)
@@ -41,12 +42,73 @@ func TestKindsOverlay_RendersAllKinds(t *testing.T) {
 
 func TestKindsOverlay_EmptyState(t *testing.T) {
 	theme := loadStagesTestTheme(t)
-	ko := newKindsOverlay(theme, nil, nil)
+	ko := newKindsOverlay(theme, nil, nil, nil)
 	ko.Open(120, 40)
 
 	view := ko.View(120, 40)
 	if !strings.Contains(view, "No kinds registered") {
 		t.Error("expected empty-state message for nil registry")
+	}
+}
+
+// TestKindsOverlay_ProvenanceMarker mirrors
+// TestStagesOverlay_ProvenanceMarker's three-state check: a purely
+// user-defined kind gets (custom), an edited (shadowed) default gets
+// (edited), and an untouched default gets no marker.
+func TestKindsOverlay_ProvenanceMarker(t *testing.T) {
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+
+	customKind := types.Kind{Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#9b70ff"}
+	// A shadow copy of the baked-in Task default — same name, different glyph.
+	editedDefault := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "★", Colour: "#9b70ff"}
+
+	kindsReg := stage.MergeKinds(defaults, []types.Kind{customKind, editedDefault})
+	groupsReg := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate},
+	})
+	theme := loadStagesTestTheme(t)
+	userNames := map[string]bool{"Errand": true, "Task": true}
+
+	ko := newKindsOverlay(theme, kindsReg, groupsReg, userNames)
+	ko.Open(160, 50)
+
+	view := ko.View(160, 50)
+
+	if !strings.Contains(view, "(custom)") {
+		t.Error("expected (custom) marker for the purely user-defined kind")
+	}
+	if !strings.Contains(view, "(edited)") {
+		t.Error("expected (edited) marker for the shadowed default")
+	}
+	if !strings.Contains(view, "Errand") {
+		t.Error("expected user kind Errand to appear")
+	}
+	// Note is a baked-in default never touched by the user — should appear
+	// with no provenance marker.
+	if !strings.Contains(view, "Note") {
+		t.Fatal("expected untouched default Note to appear")
+	}
+}
+
+// TestKindsOverlay_UntouchedDefaultHasNoMarker isolates the "no marker"
+// case, mirroring TestStagesOverlay_UntouchedDefaultHasNoMarker.
+func TestKindsOverlay_UntouchedDefaultHasNoMarker(t *testing.T) {
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+	kindsReg := stage.MergeKinds(defaults, nil)
+	theme := loadStagesTestTheme(t)
+
+	ko := newKindsOverlay(theme, kindsReg, nil, map[string]bool{})
+	ko.Open(160, 50)
+
+	view := ko.View(160, 50)
+	if strings.Contains(view, "(custom)") || strings.Contains(view, "(edited)") {
+		t.Error("expected no provenance marker anywhere when userNames is empty")
 	}
 }
 

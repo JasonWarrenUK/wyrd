@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -13,20 +14,30 @@ import (
 // glyph, colour, stage-group name, and ordered stages. It is toggled via the
 // :kinds command in the palette (SL.9).
 type kindsOverlay struct {
-	active        bool
-	vp            viewport.Model
-	theme         *ActiveTheme
-	kinds         *types.KindRegistry
-	stageGroups   *types.StageGroupRegistry
+	active      bool
+	vp          viewport.Model
+	theme       *ActiveTheme
+	kinds       *types.KindRegistry
+	stageGroups *types.StageGroupRegistry
+
+	// userNames is the set of kind names present in the user's kinds.jsonc
+	// (as opposed to the merged registry, which also includes baked-in
+	// defaults). Drives the (custom)/(edited) provenance marker — see
+	// provenanceMarker's doc comment. Refreshed by the app alongside kinds
+	// whenever a kind is created or edited (kindFormSubmitMsg's handler).
+	userNames map[string]bool
+
 	width, height int
 }
 
-// newKindsOverlay creates an inactive kinds overlay. Both registries may be nil.
-func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry) kindsOverlay {
+// newKindsOverlay creates an inactive kinds overlay. Both registries may be
+// nil. userNames may be nil (no provenance markers render).
+func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry, userNames map[string]bool) kindsOverlay {
 	return kindsOverlay{
 		theme:       theme,
 		kinds:       kinds,
 		stageGroups: groups,
+		userNames:   userNames,
 	}
 }
 
@@ -60,6 +71,16 @@ func (ko *kindsOverlay) Open(width, height int) {
 	} else {
 		kinds := ko.kinds.All()
 
+		// Build the default-name set for provenance marking, mirroring
+		// stagesOverlay. On error we get an empty set, which means no
+		// markers at all — never blocks the view.
+		defaultNames := map[string]bool{}
+		if defaults, err := stage.DefaultKinds(); err == nil {
+			for _, d := range defaults {
+				defaultNames[d.Name] = true
+			}
+		}
+
 		// Measure name column width for alignment (min 12, max longest name +
 		// 2). Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
 		// cell width, not byte length.
@@ -69,6 +90,10 @@ func (ko *kindsOverlay) Open(width, height int) {
 				nameColWidth = w
 			}
 		}
+
+		// Fixed provenance column width — "(edited)" and "(custom)" are both
+		// 8 display cells + 2 padding.
+		const provenanceColWidth = 10
 
 		// Measure stage-group column width similarly.
 		groupColWidth := 12
@@ -100,6 +125,14 @@ func (ko *kindsOverlay) Open(width, height int) {
 				namePad = 1
 			}
 
+			// Provenance column.
+			marker := provenanceMarker(k.Name, ko.userNames, defaultNames)
+			provSeg := mutedStyle.Render(marker)
+			provPad := provenanceColWidth - lipgloss.Width(marker)
+			if provPad < 1 {
+				provPad = 1
+			}
+
 			// Stage-group name column, padded to groupColWidth.
 			groupSeg := mutedStyle.Render(k.StageGroup)
 			groupPad := groupColWidth - lipgloss.Width(k.StageGroup)
@@ -123,6 +156,8 @@ func (ko *kindsOverlay) Open(width, height int) {
 				Spacer(1, bg) +
 				nameSeg +
 				Spacer(namePad, bg) +
+				provSeg +
+				Spacer(provPad, bg) +
 				groupSeg +
 				Spacer(groupPad, bg) +
 				stagesSeg

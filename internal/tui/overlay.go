@@ -48,3 +48,35 @@ func overlayVPHeight(contentLines, termHeight, chromeRows int) int {
 	}
 	return h
 }
+
+// provenanceMarker reports whether name is user-owned and, if so, whether it
+// shadows a baked-in default. Used by kindsOverlay and stagesOverlay to
+// render "(custom)" vs "(edited)" beside each entry.
+//
+// The distinction matters specifically because of SL.16/SL.17 edit mode:
+// editing a baked-in default writes a full shadow copy into the user's file
+// under the SAME name, so "name is absent from the defaults list" (the
+// original check, before edit mode existed) can no longer tell a purely
+// custom entry apart from a diverged-from-upstream one — an edited default
+// keeps its name, so it still passes that check and renders unmarked, which
+// is wrong: it IS a permanent user override now, just one that happens to
+// share a name with something built in. Checking userNames (membership in
+// the actual user file, not name-uniqueness) is the correct test in both
+// directions, and cross-referencing defaultNames on top of that recovers the
+// custom/edited distinction.
+//
+//   - not in userNames: a baked-in default, untouched. No marker ("").
+//   - in userNames, name also in defaultNames: a shadowed/edited default.
+//     "(edited)" — this entry is diverged from upstream and won't pick up
+//     future improvements to the built-in version.
+//   - in userNames, name not in defaultNames: purely user-defined.
+//     "(custom)".
+func provenanceMarker(name string, userNames, defaultNames map[string]bool) string {
+	if !userNames[name] {
+		return ""
+	}
+	if defaultNames[name] {
+		return "(edited)"
+	}
+	return "(custom)"
+}
