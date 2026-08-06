@@ -47,6 +47,13 @@ type openKindEditFormMsg struct {
 // openStageFormMsg is emitted when the :stages new command is invoked.
 type openStageFormMsg struct{}
 
+// openStageEditFormMsg is emitted when the :stages edit <name> command is
+// invoked. name is the raw, possibly-empty argument text — resolution
+// happens in the mount handler, mirroring openKindEditFormMsg.
+type openStageEditFormMsg struct {
+	name string
+}
+
 // openStagesOverlayMsg is emitted when the bare :stages command is invoked.
 type openStagesOverlayMsg struct{}
 
@@ -97,6 +104,18 @@ func lookupKindFold(kinds *types.KindRegistry, name string) (types.Kind, bool) {
 		}
 	}
 	return types.Kind{}, false
+}
+
+// lookupStageGroupFold is lookupKindFold's twin for stage groups, used by
+// ":stages edit" so a wrong-case name (":stages edit task-flow" typed as
+// "Task-Flow") still resolves.
+func lookupStageGroupFold(groups *types.StageGroupRegistry, name string) (types.StageGroup, bool) {
+	for _, n := range groups.Names() {
+		if strings.EqualFold(n, name) {
+			return groups.Lookup(n)
+		}
+	}
+	return types.StageGroup{}, false
 }
 
 // orphanAdvisory re-scans the graph against the current registries and, if
@@ -470,16 +489,26 @@ func New(cfg Config) (Model, error) {
 
 	// Wire up the "stages" command. ":stages" lists all stage groups (SL.12);
 	// ":stages new" opens the stage-group creation form (SL.11); ":stages
-	// remap" scans for orphaned stages and opens the remap form (SL.14).
+	// remap" scans for orphaned stages and opens the remap form (SL.14);
+	// ":stages edit <name>" opens the stage-group edit form pre-populated
+	// from the existing entry (SL.17).
 	palette.Register(Command{
 		Name:        "stages",
-		Description: "List stage groups (stages new | stages remap)",
+		Description: "List stage groups (stages new | stages edit <name> | stages remap)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openStageFormMsg{} }
 			}
 			if len(args) > 0 && args[0] == "remap" {
 				return func() tea.Msg { return openRemapFormMsg{} }
+			}
+			if len(args) > 0 && args[0] == "edit" {
+				// See the matching comment on the "kinds" command: strings.Join
+				// collapses internal whitespace runs in a multi-word name,
+				// acceptable since strings.Fields already destroyed that
+				// information tokenising the raw command line.
+				name := strings.Join(args[1:], " ")
+				return func() tea.Msg { return openStageEditFormMsg{name: name} }
 			}
 			return func() tea.Msg { return openStagesOverlayMsg{} }
 		},
@@ -760,6 +789,38 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		fp := newStageFormPane(m.theme, m.store, m.stageGroups, nil)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
+
+	case openStageEditFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		if msg.name == "" {
+			m.statusBar.SetCaptureText("Usage: :stages edit <name>")
+			return m, m.clearCaptureCmd()
+		}
+		if m.stageGroups == nil {
+			m.statusBar.SetCaptureText("Edit unavailable: no stage-group registry")
+			return m, m.clearCaptureCmd()
+		}
+		g, ok := m.stageGroups.Lookup(msg.name)
+		if !ok {
+			g, ok = lookupStageGroupFold(m.stageGroups, msg.name)
+		}
+		if !ok {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No stage group %q — see :stages", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+		fp := newStageFormPane(m.theme, m.store, m.stageGroups, &g)
 		initCmd := fp.form.Init()
 		sized, _ := fp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
