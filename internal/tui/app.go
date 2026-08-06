@@ -949,7 +949,22 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		// Rebuild the in-memory kind registry so the new kind is usable
+
+		// A rename must move every node off the old kind name before
+		// anything below scans for orphans — the registry no longer has an
+		// entry named renamedFrom (upsertKind removed/replaced it), so any
+		// node still holding that name would resolve as Unresolvable, not
+		// Orphaned, and nothing downstream can repair that class (see
+		// stage.RenameKind's doc comment). A partial failure here is
+		// reported but does not block the registry refresh below — the
+		// nodes that did move are correctly reflected either way.
+		var renameErr error
+		var renameCount int
+		if msg.renamedFrom != "" && m.store != nil && m.index != nil {
+			renameCount, renameErr = stage.RenameKind(m.store, m.index, msg.renamedFrom, msg.name)
+		}
+
+		// Rebuild the in-memory kind registry so the edit is usable
 		// in-session without restarting. DefaultKinds is sync.Once-cached, so
 		// re-calling it is cheap.
 		refreshed := false
@@ -962,15 +977,45 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+
+		// renamedFrom empty covers both a same-name edit and a genuine
+		// create — kindFormSubmitMsg doesn't distinguish them, and the
+		// remap hand-off below doesn't need to either, so both keep the
+		// existing "Created" text rather than threading an extra flag
+		// through the message for a distinction nothing downstream uses.
 		text := fmt.Sprintf("Created kind %q", msg.name)
+		if msg.renamedFrom != "" {
+			text = fmt.Sprintf("Renamed %q to %q", msg.renamedFrom, msg.name)
+		}
+		if renameErr != nil {
+			text = fmt.Sprintf("Renamed %q to %q, but %v", msg.renamedFrom, msg.name, renameErr)
+		}
+
 		// Only scan for orphans once m.kinds actually reflects the write —
-		// orphanAdvisory reads m.kinds/m.stageGroups directly, so scanning
-		// against a stale registry after a failed refresh would either miss
-		// real orphans or, worse, report against the wrong data silently.
+		// scanning against a stale registry after a failed refresh would
+		// either miss real orphans or, worse, report against the wrong data
+		// silently.
 		if refreshed {
+			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
+				n := report.NodeCount()
+				text = fmt.Sprintf("%s — %d node%s need a new stage", text, n, plural(n))
+				m.statusBar.SetCaptureText(text)
+				// Safe to chain: m.rightPane was set to an empty pane above,
+				// so openRemapFormMsg's formActivePane guard passes when
+				// this message is processed on the next Update call.
+				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
+			}
 			text += m.orphanAdvisory()
 		}
+		if renameCount > 0 && renameErr == nil {
+			text += fmt.Sprintf(" (%d node%s moved)", renameCount, plural(renameCount))
+		}
 		m.statusBar.SetCaptureText(text)
+		if renameErr != nil {
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
 		return m, m.clearCaptureCmd()
 
 	case kindFormErrorMsg:
