@@ -320,9 +320,9 @@ graph LR
 	SL.15["SL.15: TUI: show `Kind` and `Stage` in the deta…"]
 	SL.9["SL.9: Kind registry view in TUI — `:kinds` pale…"]
 	SL.6["SL.6: TUI: advance stage (`]`) and retreat stag…"]
-	SL.14["SL.14: Stage remap engine and `:stages remap`…"]
-	SL.16["SL.16: Edit kinds in TUI — `:kinds edit <name>…"]
-	SL.17["SL.17: Edit stage groups in TUI — `:stages edi…"]
+	SL.14["SL.14: Stage remap engine and `:stages remap` c…"]
+	SL.16["SL.16: Edit kinds in TUI — `:kinds edit <name>`…"]
+	SL.17["SL.17: Edit stage groups in TUI — `:stages edit…"]
 	SL.7a["SL.7a: TUI: kind selection in task create form…"]
 	SL.7b["SL.7b: TUI: kind selection in remaining create…"]
 	SP.6["SP.6: TUI income capture form — `bi:` capture-b…"]
@@ -477,15 +477,10 @@ graph LR
 	SL.6 --> SL.7a
 	SL.14 --> SL.16
 	SL.14 --> SL.17
-	SL.14 --> MA
 	SL.14 --> DA.2
 	SL.14 --> DA.5
 	SL.16 --> MA
-	SL.16 --> DA.2
-	SL.16 --> DA.5
 	SL.17 --> MA
-	SL.17 --> DA.2
-	SL.17 --> DA.5
 	SL.7a --> SL.7b
 	SL.7b --> SP.6
 	SL.7b --> SP.11
