@@ -28,7 +28,7 @@ func TestStagesOverlay_RendersAllGroups(t *testing.T) {
 	reg := types.NewStageGroupRegistry(groups)
 	theme := loadStagesTestTheme(t)
 
-	so := newStagesOverlay(theme, reg)
+	so := newStagesOverlay(theme, reg, nil)
 	so.Open(120, 40)
 
 	view := so.View(120, 40)
@@ -55,6 +55,13 @@ func TestStagesOverlay_RendersAllGroups(t *testing.T) {
 	}
 }
 
+// TestStagesOverlay_ProvenanceMarker verifies the three provenance states:
+// a purely user-defined group gets (custom), an edited (shadowed) default
+// gets (edited), and an untouched default gets no marker at all. userNames
+// (populated from the user's stages.jsonc, not the merged registry) is what
+// distinguishes these — see provenanceMarker's doc comment for why "name is
+// absent from the defaults list" stopped being a sufficient test once SL.17
+// edit mode could write a same-named shadow copy of a default.
 func TestStagesOverlay_ProvenanceMarker(t *testing.T) {
 	defaults, err := stage.DefaultStageGroups()
 	if err != nil {
@@ -66,29 +73,63 @@ func TestStagesOverlay_ProvenanceMarker(t *testing.T) {
 		Stages: []string{"Todo", "Doing", "Done"},
 		Cycle:  types.CycleTerminate,
 	}
+	// A shadow copy of the baked-in task-flow default, as SL.17 edit mode
+	// would write after the user edits it — same name, different stages.
+	editedDefault := types.StageGroup{
+		Name:   "task-flow",
+		Stages: []string{"Open", "Doing", "Done", "Archived"},
+		Cycle:  types.CycleTerminate,
+	}
 
-	reg := stage.MergeStageGroups(defaults, []types.StageGroup{customGroup})
+	reg := stage.MergeStageGroups(defaults, []types.StageGroup{customGroup, editedDefault})
 	theme := loadStagesTestTheme(t)
+	userNames := map[string]bool{"my-custom-flow": true, "task-flow": true}
 
-	so := newStagesOverlay(theme, reg)
+	so := newStagesOverlay(theme, reg, userNames)
 	so.Open(160, 50)
 
 	view := so.View(160, 50)
 
 	if !strings.Contains(view, "(custom)") {
-		t.Error("expected (custom) marker for user-defined group")
+		t.Error("expected (custom) marker for the purely user-defined group")
 	}
-	if !strings.Contains(view, "task-flow") {
-		t.Error("expected baked-in task-flow group to appear")
+	if !strings.Contains(view, "(edited)") {
+		t.Error("expected (edited) marker for the shadowed default")
 	}
 	if !strings.Contains(view, "my-custom-flow") {
 		t.Error("expected user group my-custom-flow to appear")
+	}
+	// content-flow is a baked-in default never touched by the user — it
+	// should appear with no provenance marker of either kind.
+	if !strings.Contains(view, "content-flow") {
+		t.Fatal("expected untouched default content-flow to appear")
+	}
+}
+
+// TestStagesOverlay_UntouchedDefaultHasNoMarker isolates the "no marker"
+// case against a registry with only defaults and an empty userNames set —
+// TestStagesOverlay_ProvenanceMarker's view contains both markers elsewhere,
+// so it can't by itself prove content-flow's row lacks one.
+func TestStagesOverlay_UntouchedDefaultHasNoMarker(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	reg := stage.MergeStageGroups(defaults, nil)
+	theme := loadStagesTestTheme(t)
+
+	so := newStagesOverlay(theme, reg, map[string]bool{})
+	so.Open(160, 50)
+
+	view := so.View(160, 50)
+	if strings.Contains(view, "(custom)") || strings.Contains(view, "(edited)") {
+		t.Error("expected no provenance marker anywhere when userNames is empty")
 	}
 }
 
 func TestStagesOverlay_EmptyState(t *testing.T) {
 	theme := loadStagesTestTheme(t)
-	so := newStagesOverlay(theme, nil)
+	so := newStagesOverlay(theme, nil, nil)
 	so.Open(120, 40)
 
 	view := so.View(120, 40)
@@ -103,7 +144,7 @@ func TestStagesOverlay_EscCloses(t *testing.T) {
 		{Name: "test", Stages: []string{"A"}, Cycle: types.CycleTerminate},
 	})
 
-	so := newStagesOverlay(theme, reg)
+	so := newStagesOverlay(theme, reg, nil)
 	so.Open(120, 40)
 
 	if !so.IsActive() {
@@ -121,7 +162,7 @@ func TestStagesOverlay_EscCloses(t *testing.T) {
 
 func TestStagesOverlay_InactiveViewReturnsEmpty(t *testing.T) {
 	theme := loadStagesTestTheme(t)
-	so := newStagesOverlay(theme, nil)
+	so := newStagesOverlay(theme, nil, nil)
 
 	view := so.View(120, 40)
 	if view != "" {

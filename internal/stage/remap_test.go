@@ -235,10 +235,19 @@ func TestSuggestTargetFallsBackToFirstStage(t *testing.T) {
 }
 
 // fakeStore is a minimal types.StoreFS recording UpdateNode calls. Only
-// UpdateNode is exercised by ApplyRemap; every other method is unused.
+// UpdateNode is exercised by ApplyRemap; every other method is unused,
+// except ReadKinds/WriteKinds which rename_test.go's RenameStageGroup tests
+// use — kindsSeed configures what ReadKinds returns, kindsReadErr injects a
+// read failure, and lastWrittenKinds/kindsWritten record what WriteKinds saw.
 type fakeStore struct {
 	updates map[string]map[string]interface{}
 	failIDs map[string]bool
+
+	kindsSeed        []types.Kind
+	kindsReadErr     error
+	kindsWriteErr    error
+	kindsWritten     bool
+	lastWrittenKinds []types.Kind
 }
 
 func newFakeStore() *fakeStore {
@@ -271,8 +280,17 @@ func (s *fakeStore) AllRituals() ([]*types.Ritual, error)           { return nil
 func (s *fakeStore) ReadTheme(n string) (*types.Theme, error)       { return nil, nil }
 func (s *fakeStore) ReadConfig() (*types.Config, error)             { return nil, nil }
 func (s *fakeStore) WriteConfig(c *types.Config) error              { return nil }
-func (s *fakeStore) ReadKinds() (*types.KindRegistry, error)        { return types.NewKindRegistry(nil), nil }
-func (s *fakeStore) WriteKinds(k []types.Kind) error                { return nil }
+func (s *fakeStore) ReadKinds() (*types.KindRegistry, error) {
+	if s.kindsReadErr != nil {
+		return nil, s.kindsReadErr
+	}
+	return types.NewKindRegistry(s.kindsSeed), nil
+}
+func (s *fakeStore) WriteKinds(k []types.Kind) error {
+	s.kindsWritten = true
+	s.lastWrittenKinds = k
+	return s.kindsWriteErr
+}
 func (s *fakeStore) ReadStages() (*types.StageGroupRegistry, error) {
 	return types.NewStageGroupRegistry(nil), nil
 }

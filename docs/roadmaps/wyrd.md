@@ -25,6 +25,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [Milestone F: Visual Polish](#mf)
 - [Milestone H: Sync Integrity](#mh)
 - [Milestone I: Query Correctness](#mi)
+- [Milestone: Plugin Extensibility](#mj)
 - [Dependency Diagram](#diagram)
 
 ---
@@ -134,8 +135,8 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 - [x] **SL.10** — Create kinds in TUI — `:kinds new` palette command opens a huh form (name, glyph, colour, stage group select); writes to `kinds.jsonc` via new `StoreFS.WriteKinds`; in-session kind registry rebuilt on submit so the new kind is usable without a restart (matches `:stages`/`:stages new` precedent rather than the originally-scoped `:kind new`)
 - [x] **SL.14** — Stage remap engine and `:stages remap` command — orphaned (kind, stage) pairs are detectable without any edit flow: hand-editing `stages.jsonc`/`kinds.jsonc`, a group failing `Validate` and being silently dropped by `ReadStages`, or a synced collaborator change can all leave live nodes holding a stage absent from their kind's resolved group. `internal/stage/remap.go` adds `DetectOrphans(index, kinds, groups) OrphanReport` (whole-graph scan, skips untriaged/archived nodes, groups by (kind, stage) since several kinds can share a group, reports unresolvable kind/group references separately) and `ApplyRemap(store, report, choices, dryRun)` (writes via `UpdateNode` — the SL.6 stage-write path — continuing past per-node failures rather than aborting); `:stages remap` scans and, if orphans exist, opens a right-pane huh form (`internal/tui/remap_form.go`) with one select per orphan, defaulting to a case-insensitive name-match or else the group's first stage, plus a "leave unchanged" sentinel; `:kinds new`/`:stages new` submit handlers now append an advisory hint when their write orphans nodes. Superseded its original framing, which assumed SL.10/SL.11 already supported *editing* an existing kind's group or a group's stage list in place — neither does; both are create-only. Retitled and rescoped accordingly; the edit flows move to new tasks SL.16/SL.17, which depend on this engine rather than the reverse _(depended on CP.16, SL.13, SL.6)_
-- [ ] **SL.16** — Edit kinds in TUI — `:kinds edit <name>` opens `kindFormPane` pre-populated from the existing entry (name, glyph, colour, stage group), replacing rather than appending on submit; the name-collision validator exempts the kind's own current name. Editing a baked-in default kind cannot mutate the embedded `//go:embed` copy in `internal/stage/kinds/` — it writes a full shadowing entry into the user's `kinds.jsonc` that permanently overrides the default, including any future upstream improvements to it; the form must say so explicitly, and the `(custom)` provenance marker (`stages_overlay.go:106`) is expected to start appearing on edited defaults too. Changing a kind's stage group can orphan every node of that kind still holding a stage from the old group — the submit handler must call `stage.DetectOrphans` after the registry rebuild and route the user to `:stages remap` (SL.14) rather than silently resetting stages the way the single-node `applyKindStage` helper does today _(depends on SL.10, SL.14)_
-- [ ] **SL.17** — Edit stage groups in TUI — `:stages edit <name>` opens `stageFormPane` pre-populated from the existing group (name, stages, cycle, loop target), replacing rather than appending on submit; the name-collision validator exempts the group's own current name. Removing or renaming a stage orphans every node across every kind that shares the group (e.g. `task-flow` is referenced by Task, Goblin, and Talk) — same shadowing caveat and `:stages remap` (SL.14) hand-off as SL.16 applies here, but fanned out across kinds rather than scoped to one _(depends on SL.11, SL.14)_
+- [x] **SL.16** — Edit kinds in TUI — `:kinds edit <name>` opens `kindFormPane` pre-populated from the existing entry (name, glyph, colour, stage group), replacing rather than appending on submit via a new `upsertKind` helper; the name-collision validator exempts the kind's own current name (`excludeName`, exact-match so a case-only rename still trips the check with a clearer message). Editing a baked-in default writes a full shadowing entry into the user's `kinds.jsonc` that permanently overrides the default; the form shows an explicit `huh.Note` warning when editing one. Renaming is supported (scope grew beyond the original framing, which left rename undecided) via a new `stage.RenameKind(store, index, oldName, newName)` cascade in `internal/stage/rename.go` — nodes store `Kind` as a plain string, so a registry-only rename would strand every node of that kind as `Unresolvable` (unrepairable by `ApplyRemap`, which only iterates `Orphans`); renaming a baked-in default additionally writes a tombstone shadow under the old name so the embedded default doesn't resurrect once the rename cascade has moved every node off it. Changing a kind's stage group (or renaming into a state that orphans nodes) calls `stage.DetectOrphans` after the registry rebuild and, when orphans are found within `maxRemapOrphans`, actively opens the `:stages remap` form (SL.14) rather than only appending a passive advisory hint — stronger than the originally-scoped "route the user to" language, and rather than silently resetting stages the way the single-node `applyKindStage` helper does today. Provenance: both `kindsOverlay` (previously no marker column at all) and `stagesOverlay` now distinguish `(custom)` (purely user-defined) from `(edited)` (a shadowed default) via a shared `provenanceMarker` helper — the old "(custom)" was a single marker keyed on name-absence-from-defaults, which stopped being sufficient once an edited default could keep its name _(depends on SL.10, SL.14)_
+- [x] **SL.17** — Edit stage groups in TUI — `:stages edit <name>` opens `stageFormPane` pre-populated from the existing group (name, stages, cycle, loop target), replacing rather than appending on submit via a new `upsertStageGroup` helper; the name-collision validator exempts the group's own current name (same `excludeName`/case-only-rename handling as SL.16). Editing a baked-in default writes a full shadowing entry into `stages.jsonc`; the form shows the same `huh.Note` warning pattern as SL.16, extended to note that referencing kinds are shadowed too. Renaming is supported (scope grew beyond the original framing, matching SL.16's decision) via a new `stage.RenameStageGroup(store, oldName, newName)` cascade in `internal/stage/rename.go` — this is the harder fan-out case the original framing anticipated: groups are referenced by *kinds*, not nodes directly, so `task-flow` (shared by Task, Goblin, and Talk) requires repointing every referencing kind's `StageGroup` field, including writing fresh shadow copies for built-in kinds that reference the renamed group and aren't already shadowed; renaming a baked-in default group additionally writes its own tombstone shadow so the embedded group doesn't resurrect. `DetectOrphans`' `OrphanKey` being keyed by `(Kind, Stage)` means a shared-group edit surfaces as multiple distinct rows in the remap form, proven by a dedicated fan-out test asserting three rows for Task/Goblin/Talk. Same active `:stages remap` (SL.14) hand-off as SL.16 (opens the form directly rather than only a passive advisory hint), and the same two-marker `(custom)`/`(edited)` provenance distinction, both landing as shared infrastructure in SL.16 and reused here unchanged _(depends on SL.11, SL.14)_
 - [x] **SL.12** — Stage group view in TUI — bare `:stages` palette command opens a read-only modal overlay listing every stage group (baked-in and user-defined); each row shows the group name, a `(custom)` provenance marker for user-defined groups, the cycle behaviour (`terminate` / `loop ↺` / `loop→<target> ↺`), and the full ordered stage progression (`A → B → C`); scrollable viewport, `esc`/`q` closes; `stagesOverlay` struct in `internal/tui/stages_overlay.go` mirroring `kindsOverlay`; composited via `compositeOverlay`; registry refreshed in-session after `:stages new` submits _(depends on SL.3)_
 - [x] **SL.11** — Create stage groups in TUI — `:stages new` palette command opens a two-group `huh` form: group 1 collects name (validated against the merged registry to prevent collision), ordered stages (one per line, `huh.NewText`), and cycle behaviour select; group 2 (hidden unless `loop-to-stage`) offers a loop-target select whose options are dynamically populated from the stages entered in group 1 via `huh.Select.OptionsFunc`; on submit, the form reads existing user groups via `store.ReadStages()`, appends the new `types.StageGroup`, and writes the full slice via a new `store.WriteStages([]types.StageGroup)` (mirrors `WriteConfig`); the in-memory registry is rebuilt in-session by re-merging via `stage.MergeStageGroups`, reassigning `m.stageGroups` and `m.kindsOverlay.stageGroups`; `StoreFS` interface extended with `WriteStages`; 6 test-mock stubs updated; `stage_form.go` is a new non-node form pane modelled on `spend_form.go`; status-bar confirmation with 2s auto-clear; `parseStages` helper; `NewStageFormPane` exported for tests _(depends on SL.13)_
 - [x] **SL.13** — User stage-group registry — `stages.jsonc` in the store's parent directory (sibling of `config.jsonc`) holds user-defined stage groups, loaded at startup and merged with the baked-in defaults (user groups shadow defaults of the same name via `MergeStageGroups`); `StageGroup.Validate` added to `internal/types/stage.go` (non-empty name, ≥1 stage, `loop-to-stage` requires a valid `loop_target`); `(*Store).ReadStages()` in `internal/store/store.go` mirrors `ReadKinds` (missing file → empty registry, lenient per-entry skip, whole-file failure → `ParseError`); `StoreFS` interface extended with `ReadStages`; 6 test-mock stubs updated; `main.go` now calls `s.ReadStages()` non-fatally and passes user groups to `MergeStageGroups`; `ResolveStageGroup` and all TUI consumers required no changes — the merged registry was already threaded through _(depends on SL.3)_
@@ -193,7 +194,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 **Goal:** Internal infrastructure cleaned up: JSONC parsing consolidated into a single shared package; default-asset lifecycle documented and consistent across the codebase.
 
 - [ ] **TD.1** — Consolidate JSONC parsing — six duplicated comment-stripping scanners exist: `internal/store/jsonc.go` (the reference implementation, string-aware, strips trailing commas), `internal/tui/theme.go`, `internal/tui/views/loader.go`, `internal/tui/ritual/loader.go`, `internal/stage/defaults.go`, and a regex variant in `internal/sync/merge.go` that is string-blind (a `//` inside a string value corrupts the file — the SY.2 data-loss bug lives here). Extract into a shared `internal/jsonc` package, repoint all six consumers, add trailing-comma and comment-inside-string tests. Priority raised by the 2026-08-04 audit: this is bug prevention, not tidiness — SY.2 depends on it
-- [ ] **TD.2** — ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/` _(depends on SL.3)_
+- [ ] **TD.2** — ADR: unify default-asset lifecycle — themes ship as embedded starter-copy plus an in-Go fallback; templates/views/config are starter-copy only; stage groups (SL.3) are in-binary only; document which assets should be user-editable-on-disk vs code-owned-in-binary, decide whether any lifecycle should change, record the decision as an ADR in `docs/`. SL.16/SL.17 give this a concrete case to reason about: editing a baked-in kind or stage group now writes a permanent shadow copy (with a tombstone on rename so the embedded default doesn't resurrect), and TD.5 proposes stamping a provenance/version field at write time so a future reconciliation flow can detect when a shadowed entry has drifted from an updated upstream default — this ADR should weigh in on whether that stamping approach is the right shape for the shadow lifecycle generally, or whether asset shadowing deserves a different mechanism than the current "write a full copy" one _(depends on SL.3)_
 - [ ] **TD.3** — Edge `Modified` timestamp — restructure `types.Edge` date properties into an embedded `DateFields`-style block holding the existing `Created` plus a new `Modified`; store write paths stamp `Modified` on every edge update; serialisation changes freely (pre-production, no back-compat constraint). Implementation question to settle: whether `Node`'s top-level `Created`/`Modified` should move into its date block for symmetry
 - [ ] **TD.5** — Overlay message-routing refactor — the palette and all four overlays consume every message unconditionally before the timer-driven handlers run, so a `ritualCheckTickMsg`, `WindowSizeMsg`, `spinner.TickMsg` or `focusTickMsg` landing while any overlay is open is swallowed: the ritual scheduler dies for the session, resizes are lost permanently, the sync spinner freezes, the focus animation strands mid-blend. Replace the six overlay fields plus ordered if-chain in `app.go` with a single `activeOverlay` interface slot where overlays consume key messages only; dedupe the 6× copy-pasted form-mount block while in there. Fixes four audit findings in one move
 - [ ] **TD.6** — `internal/tui/views/` styling compliance pass — the unwired views package predates the TUI styling rules and violates all four (foreground-only styles, `strings.Repeat(" ", …)` spacers between `Render()` calls, bare `"  "` literals, hardcoded Cairn hex instead of the theme). Latent today because nothing imports `views/`; must be fixed before anything mounts it
@@ -203,6 +204,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [ ] **TD.10** — TUI small-fix batch — `buildNode` unconditionally overwrites `Date.Created` on edit (CP.16 breach); `shortNodeLabel`'s nil-index branch does `nodeID[:8]` unguarded (panics on malformed sub-8-char IDs); the status-bar clock calls `time.Now()` instead of the injected `Clock`; the unused background-less helpers `StyleAccent`/`StyleSectionHeader`/`SectionHeader` invite rule violations — fix or delete
 - [ ] **TD.11** — Store/CLI small-fix batch — `ReadNode` conflates every read failure with `NotFoundError` (contrast `ReadEdge`, which checks `isNotExist`); `buildIndex` silently skips corrupt files with bare `continue` (log them); `WriteNode` lacks the core-key property-collision guard `CreateEdge` has; CLI functions call `time.Now()` directly instead of accepting `types.Clock` and never validate `LinkID` exists before creating edges (silent dangling edges); the template cache never invalidates on disk edits (fix or document the `loadTemplate` vs `ReadTemplate` split)
 - [x] **TD.4** — `gofmt` cleanup — originally scoped to `cmd/wyrd/main.go` (import-ordering drift plus a trailing-space alignment nit on the `query` command's `Args:` field), but `gofmt -l .` surfaced the same class of drift (struct-field/map-key/const-block alignment, import ordering) across 30 files repo-wide; ran `gofmt -w .` for the full sweep instead of the single-file fix. Whitespace/import-ordering only, no behavioural change
+- [ ] **TD.5** — Upstream default reconciliation — shadowing a built-in kind or stage group (SL.16/SL.17) permanently overrides it, so improvements shipped to `internal/stage/kinds/` or `internal/stage/defaults/` in later releases never reach users who edited that entry, with no signal that they are diverged. Detect at startup by comparing each shadowing user entry against the current embedded default it shadows; where the default has changed since the user's copy was written, surface it (status-bar advisory plus a marker in the `:kinds`/`:stages` overlays alongside the SL.16/SL.17 `(edited)` marker) and offer a combine flow — a per-field three-way view of user value versus old default versus new default, letting the user adopt individual upstream changes without discarding their own. Requires recording which default version an entry was forked from at write time (a `shadows_version` or content-hash field on the user entry) — nothing currently stamps this, and it cannot be reconstructed after the fact, so SL.16/SL.17's write paths need a retroactive follow-up to add it before this task can detect drift on entries written before that stamp exists _(depends on SL.16, SL.17)_
 
 ---
 
@@ -244,6 +246,14 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [ ] **QC.4** — Type-aware comparison — cross-type equality and ordering fall back to `fmt.Sprintf("%v")`, so `n.priority = "1"` matches the integer 1 and `10 > "5"` compares lexicographically; JSONC properties arrive as mixed float64/string/bool so spurious matches are routine. Remove the string-format fallback; unlike-type comparisons follow Cypher (false/null)
 - [ ] **QC.5** — Post-lex keyword rejection — the mutation/unsupported-keyword scan runs on raw query text, so keywords inside string literals or property names false-positive: `WHERE n.body = "set the table"` is rejected as a mutation and properties named `set`, `case`, `with`, `create`, `delete`, `merge`, `remove` or `all` are unqueryable. Move the scan after lexing so only real tokens count
 - [ ] **QC.6** — Remaining divergences batch — `[*2..]` silently parses as `[*2..2]` (open upper bound lost); bare `[*]` bakes in the parse-time default depth and breaks under a smaller engine `maxDepth` (defer to the engine's ceiling); `count(expr)` counts nulls and aggregate-only RETURN over an empty match yields zero rows instead of one (a `count(n)` tile shows nothing rather than 0); mixed `UNION`/`UNION ALL` applies global dedup (Neo4j rejects the mix); `[*3..1]` returns empty instead of erroring; ASC ordering puts nulls first where Cypher puts them last
+
+---
+
+## Milestone: Plugin Extensibility {#mj}
+
+**Goal:** Further development of the plugin system (`internal/plugin/`: manager, protocol, shell, install) is deliberately gated on TD.5 shipping first — extending an extensibility surface before upstream-default reconciliation exists would compound the same silent-drift problem TD.5 is meant to close.
+
+- [ ] **PL.1** — Design spike: further plugin-feature work — scope what comes next for the plugin system (`internal/plugin/`) now that TD.5's upstream-default reconciliation exists as a precedent for how wyrd should handle user customisation drifting from built-in behaviour over time. Produces a proposal, not code — the outcome is a set of scoped follow-up tasks (plugin API surface, versioning story, discovery/install UX, etc.) added to this milestone once the spike concludes _(blocked — depends on TD.5)_
 
 ---
 
@@ -351,6 +361,7 @@ graph LR
 	TD.2["TD.2: ADR: unify default-asset lifecycle — them…"]
 	TD.3["TD.3: Edge `Modified` timestamp — restructure `…"]
 	TD.4["TD.4: `gofmt` cleanup — originally scoped to `c…"]
+	TD.5["TD.5: Upstream default reconciliation — shadowi…"]
 	ME["ME: Milestone E: Tech Debt"]:::mile
 	VP.1["VP.1: Logo/title pane atop the detail column —…"]
 	VP.3["VP.3: Theme-derived glamour stylesheet — build…"]
@@ -371,6 +382,21 @@ graph LR
 	DA.8["DA.8: Integrate screenshots and gifs into READM…"]
 	DA.9["DA.9: Store VHS tapes in `docs/vhs/` directory;…"]
 	M7["M7: Milestone 7: Documentation Assets"]:::mile
+	SY.1["SY.1: Register the merge driver — `cli.Init` (t…"]
+	SY.2["SY.2: String-aware JSONC parsing in the merge d…"]
+	SY.3["SY.3: `MergeFiles` distinguishes missing from u…"]
+	SY.4["SY.4: Fix `mergeObjectArray` last-write-wins —…"]
+	SY.5["SY.5: End-to-end git-driven merge test — real g…"]
+	MH["MH: Milestone H: Sync Integrity"]:::mile
+	QC.1["QC.1: Three-valued null logic — `null = null` c…"]
+	QC.2["QC.2: UNION column-name validation — only colum…"]
+	QC.3["QC.3: ORDER BY over expressions — sorting looks…"]
+	QC.4["QC.4: Type-aware comparison — cross-type equali…"]
+	QC.5["QC.5: Post-lex keyword rejection — the mutation…"]
+	QC.6["QC.6: Remaining divergences batch — `[*2..]` si…"]
+	MI["MI: Milestone I: Query Correctness"]:::mile
+	PL.1["PL.1: Design spike: further plugin-feature work…"]
+	MJ["MJ: Milestone: Plugin Extensibility"]:::mile
 	CP.17 --> M3
 	CP.17 --> VP.7
 	CP.17 --> VP.8
@@ -480,7 +506,9 @@ graph LR
 	SL.14 --> DA.2
 	SL.14 --> DA.5
 	SL.16 --> MA
+	SL.16 --> TD.5
 	SL.17 --> MA
+	SL.17 --> TD.5
 	SL.7a --> SL.7b
 	SL.7b --> SP.6
 	SL.7b --> SP.11
@@ -520,9 +548,12 @@ graph LR
 	SK.3 --> SK.4
 	SK.4 --> MD
 	TD.1 --> ME
+	TD.1 --> SY.2
 	TD.2 --> ME
 	TD.3 --> ME
 	TD.4 --> ME
+	TD.5 --> ME
+	TD.5 --> PL.1
 	VP.1 --> MF
 	VP.3 --> MF
 	VP.4 --> VP.6
@@ -576,7 +607,19 @@ graph LR
 	DA.7 --> DA.9
 	DA.8 --> M7
 	DA.9 --> M7
-	class CO.3,DL.4,NW.1,RT.6,RT.7,SK.1,SL.16,SL.17,SP.8,TD.1,TD.2,TD.3,VP.7,VP.8 todo
-	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9 blocked
-	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
+	SY.1 --> SY.5
+	SY.2 --> SY.5
+	SY.3 --> SY.5
+	SY.4 --> SY.5
+	SY.5 --> MH
+	QC.1 --> MI
+	QC.2 --> MI
+	QC.3 --> MI
+	QC.4 --> MI
+	QC.5 --> MI
+	QC.6 --> MI
+	PL.1 --> MJ
+	class CO.3,DL.4,NW.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.6,RT.7,SK.1,SP.8,SY.1,SY.3,SY.4,TD.1,TD.2,TD.3,TD.5,VP.7,VP.8 todo
+	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,PL.1,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9,SY.2,SY.5 blocked
+	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```

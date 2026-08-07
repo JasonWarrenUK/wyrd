@@ -36,8 +36,23 @@ type openKindsOverlayMsg struct{}
 // openKindFormMsg is emitted when the :kinds new command is invoked.
 type openKindFormMsg struct{}
 
+// openKindEditFormMsg is emitted when the :kinds edit <name> command is
+// invoked. name is the raw, possibly-empty argument text — resolution
+// (lookup, case-insensitive fallback, not-found handling) happens in the
+// mount handler, which has the registries the command closure doesn't.
+type openKindEditFormMsg struct {
+	name string
+}
+
 // openStageFormMsg is emitted when the :stages new command is invoked.
 type openStageFormMsg struct{}
+
+// openStageEditFormMsg is emitted when the :stages edit <name> command is
+// invoked. name is the raw, possibly-empty argument text — resolution
+// happens in the mount handler, mirroring openKindEditFormMsg.
+type openStageEditFormMsg struct {
+	name string
+}
 
 // openStagesOverlayMsg is emitted when the bare :stages command is invoked.
 type openStagesOverlayMsg struct{}
@@ -76,22 +91,60 @@ func (m *Model) clearCaptureCmd() tea.Cmd {
 	})
 }
 
+// lookupKindFold finds a kind by case-insensitive name match, for command
+// entry points like ":kinds edit task" where a user types casually rather
+// than matching the registry's exact stored casing. On ambiguity (two
+// entries differing only by case — possible via a hand-edited kinds.jsonc)
+// prefers an exact match if one somehow exists, else the first match in
+// registry order.
+func lookupKindFold(kinds *types.KindRegistry, name string) (types.Kind, bool) {
+	for _, n := range kinds.Names() {
+		if strings.EqualFold(n, name) {
+			return kinds.Lookup(n)
+		}
+	}
+	return types.Kind{}, false
+}
+
+// lookupStageGroupFold is lookupKindFold's twin for stage groups, used by
+// ":stages edit" so a wrong-case name (":stages edit task-flow" typed as
+// "Task-Flow") still resolves.
+func lookupStageGroupFold(groups *types.StageGroupRegistry, name string) (types.StageGroup, bool) {
+	for _, n := range groups.Names() {
+		if strings.EqualFold(n, name) {
+			return groups.Lookup(n)
+		}
+	}
+	return types.StageGroup{}, false
+}
+
 // orphanAdvisory re-scans the graph against the current registries and, if
-// the edit that just landed produced orphaned stages, returns a suffix
-// directing the user to :stages remap. Returns "" when there is nothing to
-// flag or no index to scan. Call only after m.kinds/m.stageGroups have been
-// reassigned to the freshly-merged registries — scanning against the stale
-// ones reports nothing even when the edit just orphaned nodes.
+// the edit that just landed produced orphaned or unresolvable nodes, returns
+// a suffix reporting them. Returns "" when there is nothing to flag or no
+// index to scan. Call only after m.kinds/m.stageGroups have been reassigned
+// to the freshly-merged registries — scanning against the stale ones reports
+// nothing even when the edit just orphaned nodes.
+//
+// Orphans and Unresolvable are reported independently — report.IsEmpty()
+// only checks Orphans, so relying on it here would silently drop a report
+// that is all-unresolvable (e.g. nodes stranded by a partially failed
+// rename cascade; see stage.RenameKind/RenameStageGroup). Nothing downstream
+// can repair an Unresolvable node (ApplyRemap iterates report.Orphans only),
+// so the wording deliberately doesn't point at :stages remap for that part.
 func (m *Model) orphanAdvisory() string {
 	if m.index == nil {
 		return ""
 	}
 	report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
-	if report.IsEmpty() {
-		return ""
+
+	var advisory string
+	if n := report.NodeCount(); n > 0 {
+		advisory += fmt.Sprintf(" — %d node%s now hold orphaned stages; run :stages remap", n, plural(n))
 	}
-	n := report.NodeCount()
-	return fmt.Sprintf(" — %d node%s now hold orphaned stages; run :stages remap", n, plural(n))
+	if n := len(report.Unresolvable); n > 0 {
+		advisory += fmt.Sprintf(" — %d node%s unresolvable (kind or group missing)", n, plural(n))
+	}
+	return advisory
 }
 
 // ritualTriggerMsg is sent when a ritual should be presented to the user.
@@ -424,13 +477,22 @@ func New(cfg Config) (Model, error) {
 	})
 
 	// Wire up the "kinds" command. ":kinds" lists all kinds (SL.9); ":kinds
-	// new" opens the kind creation form (SL.10).
+	// new" opens the kind creation form (SL.10); ":kinds edit <name>" opens
+	// the kind edit form pre-populated from the existing entry (SL.16).
 	palette.Register(Command{
 		Name:        "kinds",
-		Description: "List kinds (kinds new to create)",
+		Description: "List kinds (kinds new | kinds edit <name>)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openKindFormMsg{} }
+			}
+			if len(args) > 0 && args[0] == "edit" {
+				// strings.Join collapses runs of internal whitespace in a
+				// multi-word name, which is acceptable — strings.Fields
+				// tokenising the raw command line has already destroyed that
+				// information by the time args reaches here.
+				name := strings.Join(args[1:], " ")
+				return func() tea.Msg { return openKindEditFormMsg{name: name} }
 			}
 			return func() tea.Msg { return openKindsOverlayMsg{} }
 		},
@@ -438,10 +500,12 @@ func New(cfg Config) (Model, error) {
 
 	// Wire up the "stages" command. ":stages" lists all stage groups (SL.12);
 	// ":stages new" opens the stage-group creation form (SL.11); ":stages
-	// remap" scans for orphaned stages and opens the remap form (SL.14).
+	// remap" scans for orphaned stages and opens the remap form (SL.14);
+	// ":stages edit <name>" opens the stage-group edit form pre-populated
+	// from the existing entry (SL.17).
 	palette.Register(Command{
 		Name:        "stages",
-		Description: "List stage groups (stages new | stages remap)",
+		Description: "List stage groups (stages new | stages edit <name> | stages remap)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openStageFormMsg{} }
@@ -449,9 +513,40 @@ func New(cfg Config) (Model, error) {
 			if len(args) > 0 && args[0] == "remap" {
 				return func() tea.Msg { return openRemapFormMsg{} }
 			}
+			if len(args) > 0 && args[0] == "edit" {
+				// See the matching comment on the "kinds" command: strings.Join
+				// collapses internal whitespace runs in a multi-word name,
+				// acceptable since strings.Fields already destroyed that
+				// information tokenising the raw command line.
+				name := strings.Join(args[1:], " ")
+				return func() tea.Msg { return openStageEditFormMsg{name: name} }
+			}
 			return func() tea.Msg { return openStagesOverlayMsg{} }
 		},
 	})
+
+	// userKindNames/userStageGroupNames drive the (custom)/(edited)
+	// provenance markers in the kinds/stages overlays — see
+	// provenanceMarker's doc comment. cfg.Kinds/cfg.StageGroups are already
+	// merged with baked-in defaults by the time they reach here, so the only
+	// way to know which entries are user-owned is a direct read of the user
+	// files. A read failure yields an empty set (no markers), matching the
+	// lenient error handling buildRegistries already applies to the same
+	// read at bootstrap — never blocks startup.
+	userKindNames := map[string]bool{}
+	userStageGroupNames := map[string]bool{}
+	if cfg.Store != nil {
+		if userKinds, err := cfg.Store.ReadKinds(); err == nil {
+			for _, k := range userKinds.All() {
+				userKindNames[k.Name] = true
+			}
+		}
+		if userGroups, err := cfg.Store.ReadStages(); err == nil {
+			for _, g := range userGroups.All() {
+				userStageGroupNames[g.Name] = true
+			}
+		}
+	}
 
 	m := Model{
 		theme:              theme,
@@ -480,8 +575,8 @@ func New(cfg Config) (Model, error) {
 		logger:             cfg.Logger,
 		logOverlay:         newLogOverlay(theme),
 		helpOverlay:        newHelpOverlay(theme),
-		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
-		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups),
+		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups, userKindNames),
+		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups, userStageGroupNames),
 		ready:              false,
 	}
 
@@ -653,7 +748,42 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, isForm := m.rightPane.(formActivePane); isForm {
 			return m, nil
 		}
-		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups)
+		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, nil)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
+
+	case openKindEditFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		if msg.name == "" {
+			m.statusBar.SetCaptureText("Usage: :kinds edit <name>")
+			return m, m.clearCaptureCmd()
+		}
+		if m.kinds == nil {
+			m.statusBar.SetCaptureText("Edit unavailable: no kind registry")
+			return m, m.clearCaptureCmd()
+		}
+		k, ok := m.kinds.Lookup(msg.name)
+		if !ok {
+			// Exact lookup failed — try case-insensitive, matching the
+			// collision validator's own case-insensitivity, so ":kinds edit
+			// task" finds "Task" the way a user typing casually would expect.
+			k, ok = lookupKindFold(m.kinds, msg.name)
+		}
+		if !ok {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No kind %q — see :kinds", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, &k)
 		initCmd := fp.form.Init()
 		sized, _ := fp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
@@ -669,7 +799,39 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, isForm := m.rightPane.(formActivePane); isForm {
 			return m, nil
 		}
-		fp := newStageFormPane(m.theme, m.store, m.stageGroups)
+		fp := newStageFormPane(m.theme, m.store, m.stageGroups, nil)
+		initCmd := fp.form.Init()
+		sized, _ := fp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.rightPane = sized
+		m.focus = FocusRight
+		m.syncKeyHints()
+		return m, initCmd
+
+	case openStageEditFormMsg:
+		// Guard against clobbering an active form.
+		if _, isForm := m.rightPane.(formActivePane); isForm {
+			return m, nil
+		}
+		if msg.name == "" {
+			m.statusBar.SetCaptureText("Usage: :stages edit <name>")
+			return m, m.clearCaptureCmd()
+		}
+		if m.stageGroups == nil {
+			m.statusBar.SetCaptureText("Edit unavailable: no stage-group registry")
+			return m, m.clearCaptureCmd()
+		}
+		g, ok := m.stageGroups.Lookup(msg.name)
+		if !ok {
+			g, ok = lookupStageGroupFold(m.stageGroups, msg.name)
+		}
+		if !ok {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No stage group %q — see :stages", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+		fp := newStageFormPane(m.theme, m.store, m.stageGroups, &g)
 		initCmd := fp.form.Init()
 		sized, _ := fp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
@@ -882,7 +1044,22 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		// Rebuild the in-memory kind registry so the new kind is usable
+
+		// A rename must move every node off the old kind name before
+		// anything below scans for orphans — the registry no longer has an
+		// entry named renamedFrom (upsertKind removed/replaced it), so any
+		// node still holding that name would resolve as Unresolvable, not
+		// Orphaned, and nothing downstream can repair that class (see
+		// stage.RenameKind's doc comment). A partial failure here is
+		// reported but does not block the registry refresh below — the
+		// nodes that did move are correctly reflected either way.
+		var renameErr error
+		var renameCount int
+		if msg.renamedFrom != "" && m.store != nil && m.index != nil {
+			renameCount, renameErr = stage.RenameKind(m.store, m.index, msg.renamedFrom, msg.name)
+		}
+
+		// Rebuild the in-memory kind registry so the edit is usable
 		// in-session without restarting. DefaultKinds is sync.Once-cached, so
 		// re-calling it is cheap.
 		refreshed := false
@@ -891,19 +1068,67 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if userReg, err := m.store.ReadKinds(); err == nil {
 					m.kinds = stage.MergeKinds(defaults, userReg.All())
 					m.kindsOverlay.kinds = m.kinds
+					// Refresh the provenance set from the same read — this is
+					// the only place that knows which names are actually in
+					// the user's file post-write, so it's also the only place
+					// that can keep the kinds overlay's (custom)/(edited)
+					// markers correct.
+					userNames := make(map[string]bool, len(userReg.All()))
+					for _, k := range userReg.All() {
+						userNames[k.Name] = true
+					}
+					m.kindsOverlay.userNames = userNames
 					refreshed = true
 				}
 			}
 		}
+
+		// renamedFrom empty covers both a same-name edit and a genuine
+		// create — kindFormSubmitMsg doesn't distinguish them, and the
+		// remap hand-off below doesn't need to either, so both keep the
+		// existing "Created" text rather than threading an extra flag
+		// through the message for a distinction nothing downstream uses.
 		text := fmt.Sprintf("Created kind %q", msg.name)
-		// Only scan for orphans once m.kinds actually reflects the write —
-		// orphanAdvisory reads m.kinds/m.stageGroups directly, so scanning
-		// against a stale registry after a failed refresh would either miss
-		// real orphans or, worse, report against the wrong data silently.
-		if refreshed {
+		if msg.renamedFrom != "" {
+			text = fmt.Sprintf("Renamed %q to %q", msg.renamedFrom, msg.name)
+		}
+		if renameErr != nil {
+			text = fmt.Sprintf("Renamed %q to %q, but %v", msg.renamedFrom, msg.name, renameErr)
+		}
+
+		// Only scan for orphans once m.kinds actually reflects the write, and
+		// only hand off to the remap form on a clean rename — a partial
+		// RenameKind failure leaves some nodes still holding renamedFrom,
+		// which no longer resolves against the rebuilt registry at all. Those
+		// nodes land in report.Unresolvable, not report.Orphans (nothing
+		// downstream can repair that class), so auto-opening the remap form
+		// here would either miss them entirely or route the user into a form
+		// that can't fix the actual problem. On a rename failure, report the
+		// unresolvable count via orphanAdvisory instead and let the sticky
+		// error message (below) stay on screen.
+		if refreshed && renameErr == nil {
+			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
+				n := report.NodeCount()
+				text = fmt.Sprintf("%s — %d node%s need a new stage", text, n, plural(n))
+				m.statusBar.SetCaptureText(text)
+				// Safe to chain: m.rightPane was set to an empty pane above,
+				// so openRemapFormMsg's formActivePane guard passes when
+				// this message is processed on the next Update call.
+				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
+			}
+			text += m.orphanAdvisory()
+		} else if refreshed && renameErr != nil {
 			text += m.orphanAdvisory()
 		}
+		if renameCount > 0 && renameErr == nil {
+			text += fmt.Sprintf(" (%d node%s moved)", renameCount, plural(renameCount))
+		}
 		m.statusBar.SetCaptureText(text)
+		if renameErr != nil {
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
 		return m, m.clearCaptureCmd()
 
 	case kindFormErrorMsg:
@@ -917,8 +1142,43 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rightPane = m.sizedEmptyPane(m.theme)
 		m.focus = FocusLeft
 		m.syncKeyHints()
-		// Rebuild the in-memory stage-group registry so the new group is
-		// usable in-session without restarting. DefaultStageGroups is
+
+		// A rename must repoint every kind referencing the old group name
+		// before anything below rebuilds the kind registry — the group
+		// registry no longer has an entry named renamedFrom (upsertStageGroup
+		// removed/replaced it), so any kind still pointing at that name would
+		// fail to resolve its stage group at all (types.ResolveStageGroup
+		// returns false), and every node of that kind becomes Unresolvable
+		// rather than a fixable Orphan. See stage.RenameStageGroup's doc
+		// comment for the full fan-out reasoning: this touches every KIND
+		// referencing the group, not nodes directly.
+		var renameErr error
+		var renameCount int
+		if msg.renamedFrom != "" && m.store != nil {
+			renameCount, renameErr = stage.RenameStageGroup(m.store, msg.renamedFrom, msg.name)
+		}
+
+		// Rebuild the in-memory kind registry too — RenameStageGroup writes
+		// to kinds.jsonc (rewriting/shadowing every referencing kind), so a
+		// group rename can change m.kinds even though the edited entity was
+		// a group. Cheap to always attempt: a no-op ReadKinds when nothing
+		// changed just re-derives the same registry.
+		if renameErr == nil && msg.renamedFrom != "" && m.store != nil {
+			if kindDefaults, err := stage.DefaultKinds(); err == nil {
+				if userKindReg, err := m.store.ReadKinds(); err == nil {
+					m.kinds = stage.MergeKinds(kindDefaults, userKindReg.All())
+					m.kindsOverlay.kinds = m.kinds
+					kindUserNames := make(map[string]bool, len(userKindReg.All()))
+					for _, k := range userKindReg.All() {
+						kindUserNames[k.Name] = true
+					}
+					m.kindsOverlay.userNames = kindUserNames
+				}
+			}
+		}
+
+		// Rebuild the in-memory stage-group registry so the edit is usable
+		// in-session without restarting. DefaultStageGroups is
 		// sync.Once-cached, so re-calling it is cheap.
 		refreshed := false
 		if m.store != nil {
@@ -927,17 +1187,61 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
 					m.kindsOverlay.stageGroups = m.stageGroups
 					m.stagesOverlay.stageGroups = m.stageGroups
+					// Refresh the provenance set — see the matching comment
+					// in kindFormSubmitMsg.
+					userNames := make(map[string]bool, len(userReg.All()))
+					for _, g := range userReg.All() {
+						userNames[g.Name] = true
+					}
+					m.stagesOverlay.userNames = userNames
 					refreshed = true
 				}
 			}
 		}
+
 		text := fmt.Sprintf("Created stage group %q", msg.name)
+		if msg.renamedFrom != "" {
+			text = fmt.Sprintf("Renamed %q to %q", msg.renamedFrom, msg.name)
+		}
+		if renameErr != nil {
+			text = fmt.Sprintf("Renamed %q to %q, but %v", msg.renamedFrom, msg.name, renameErr)
+		}
+
 		// See the matching guard in kindFormSubmitMsg: only scan once
-		// m.stageGroups actually reflects the write.
-		if refreshed {
+		// m.stageGroups actually reflects the write, and only hand off to the
+		// remap form on a clean rename — a partial RenameStageGroup failure
+		// leaves some kinds still pointing at renamedFrom, which no longer
+		// resolves at all, so those kinds' nodes land in report.Unresolvable
+		// rather than report.Orphans (nothing downstream can repair that
+		// class). This scan also picks up the fan-out case: removing or
+		// renaming a stage that several kinds share (task-flow referenced by
+		// Task, Goblin, and Talk) produces one Orphan entry per affected kind
+		// — DetectOrphans' OrphanKey is keyed by (Kind, Stage), so the shared
+		// group's edit surfaces as multiple rows in the remap form rather
+		// than one.
+		if refreshed && renameErr == nil {
+			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
+				n := report.NodeCount()
+				text = fmt.Sprintf("%s — %d node%s need a new stage", text, n, plural(n))
+				m.statusBar.SetCaptureText(text)
+				// Safe to chain: m.rightPane was set to an empty pane above,
+				// so openRemapFormMsg's formActivePane guard passes when
+				// this message is processed on the next Update call.
+				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
+			}
+			text += m.orphanAdvisory()
+		} else if refreshed && renameErr != nil {
 			text += m.orphanAdvisory()
 		}
+		if renameCount > 0 && renameErr == nil {
+			text += fmt.Sprintf(" (%d kind%s repointed)", renameCount, plural(renameCount))
+		}
 		m.statusBar.SetCaptureText(text)
+		if renameErr != nil {
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
 		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:

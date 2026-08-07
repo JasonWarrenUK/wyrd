@@ -14,18 +14,29 @@ import (
 // their ordered stages and cycle behaviour. It is toggled via the bare :stages
 // command in the palette (SL.12).
 type stagesOverlay struct {
-	active        bool
-	vp            viewport.Model
-	theme         *ActiveTheme
-	stageGroups   *types.StageGroupRegistry
+	active      bool
+	vp          viewport.Model
+	theme       *ActiveTheme
+	stageGroups *types.StageGroupRegistry
+
+	// userNames is the set of stage-group names present in the user's
+	// stages.jsonc (as opposed to the merged registry, which also includes
+	// baked-in defaults). Drives the (custom)/(edited) provenance marker —
+	// see provenanceMarker's doc comment. Refreshed by the app alongside
+	// stageGroups whenever a group is created or edited
+	// (stageFormSubmitMsg's handler).
+	userNames map[string]bool
+
 	width, height int
 }
 
 // newStagesOverlay creates an inactive stages overlay. groups may be nil.
-func newStagesOverlay(theme *ActiveTheme, groups *types.StageGroupRegistry) stagesOverlay {
+// userNames may be nil (no provenance markers render).
+func newStagesOverlay(theme *ActiveTheme, groups *types.StageGroupRegistry, userNames map[string]bool) stagesOverlay {
 	return stagesOverlay{
 		theme:       theme,
 		stageGroups: groups,
+		userNames:   userNames,
 	}
 }
 
@@ -78,7 +89,8 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
-		// Fixed provenance column width — "(custom)" is 8 display cells + 2 padding.
+		// Fixed provenance column width — "(custom)" and "(edited)" are both
+		// 8 display cells + 2 padding.
 		const provenanceColWidth = 10
 
 		// Measure cycle column width from the possible rendered strings.
@@ -101,13 +113,9 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 
 			// Provenance column.
-			var provSeg string
-			provLen := 0
-			if !defaultNames[g.Name] {
-				provSeg = mutedStyle.Render("(custom)")
-				provLen = lipgloss.Width("(custom)")
-			}
-			provPad := provenanceColWidth - provLen
+			marker := provenanceMarker(g.Name, so.userNames, defaultNames)
+			provSeg := mutedStyle.Render(marker)
+			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {
 				provPad = 1
 			}

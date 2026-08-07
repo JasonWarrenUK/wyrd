@@ -165,10 +165,13 @@ func TestStagesRemapMountsFormWhenOrphansExist(t *testing.T) {
 	}
 }
 
-// TestStageFormSubmitAdvisesWhenOrphansAppear verifies that creating a new
-// stage group whose write orphans existing nodes appends the ":stages
-// remap" hint to the confirmation text.
-func TestStageFormSubmitAdvisesWhenOrphansAppear(t *testing.T) {
+// TestStageFormSubmitOpensRemapWhenOrphansAppear verifies that creating a
+// new stage group whose write orphans existing nodes actively opens the
+// :stages remap form, rather than only appending a passive hint — SL.17's
+// active hand-off (see kindFormSubmitMsg/stageFormSubmitMsg's handlers).
+// Renamed from ...Advises...: the passive orphanAdvisory() text is now only
+// the fallback above maxRemapOrphans; the primary path opens the form.
+func TestStageFormSubmitOpensRemapWhenOrphansAppear(t *testing.T) {
 	m := newRemapTestModel(t, func(s *store.Store) {
 		node, err := s.CreateNode("Orphaned by group edit", []string{"task"})
 		if err != nil {
@@ -180,16 +183,14 @@ func TestStageFormSubmitAdvisesWhenOrphansAppear(t *testing.T) {
 	})
 
 	// Simulate the outcome of a stageFormSubmitMsg without driving the full
-	// creation form — the advisory only depends on the message arriving
-	// after a write, not on how the write happened.
-	updated, _ := m.Update(stageFormSubmitMsg{name: "some-group"})
-	m2, ok := updated.(Model)
-	if !ok {
-		t.Fatalf("Update returned unexpected type %T", updated)
-	}
+	// creation form — the hand-off only depends on the message arriving
+	// after a write, not on how the write happened. driveSubmitMsg (in
+	// kind_edit_orphan_handoff_internal_test.go) executes the returned
+	// tea.Cmd and delivers its message, since the hand-off returns the
+	// mount as a chained command rather than synchronously.
+	m2 := driveSubmitMsg(t, m, stageFormSubmitMsg{name: "some-group"})
 
-	view := m2.View().Content
-	if !strings.Contains(view, ":stages remap") {
-		t.Errorf("expected advisory hint mentioning ':stages remap' in view; got: %q", truncateForTest(view, 400))
+	if _, ok := m2.rightPane.(remapFormPane); !ok {
+		t.Errorf("expected rightPane to be a remapFormPane, got %T", m2.rightPane)
 	}
 }

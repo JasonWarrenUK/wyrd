@@ -2,10 +2,12 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -79,13 +81,18 @@ func TestParseStages(t *testing.T) {
 
 // errStoreFS is a minimal StoreFS implementation whose ReadStages and
 // WriteStages return the configured errors, and whose WriteStages records
-// whether it was called. updateErrIDs/updateCalls support remapFormPane
-// tests: a node ID present in updateErrIDs fails on UpdateNode, and every
-// call (successful or not) is recorded in updateCalls in order.
+// whether it was called and what was written. seed, when non-nil, is what
+// ReadStages returns instead of an empty registry — edit-mode tests use this
+// to exercise replace-by-name against a populated user file. updateErrIDs/
+// updateCalls support remapFormPane tests: a node ID present in updateErrIDs
+// fails on UpdateNode, and every call (successful or not) is recorded in
+// updateCalls in order.
 type errStoreFS struct {
-	readErr  error
-	writeErr error
-	written  bool
+	readErr     error
+	writeErr    error
+	seed        []types.StageGroup
+	written     bool
+	lastWritten []types.StageGroup
 
 	updateErrIDs map[string]bool
 	updateCalls  []string
@@ -119,18 +126,32 @@ func (s *errStoreFS) ReadStages() (*types.StageGroupRegistry, error) {
 	if s.readErr != nil {
 		return nil, s.readErr
 	}
-	return types.NewStageGroupRegistry(nil), nil
+	return types.NewStageGroupRegistry(s.seed), nil
 }
-func (s *errStoreFS) WriteStages(_ []types.StageGroup) error { s.written = true; return s.writeErr }
+func (s *errStoreFS) WriteStages(groups []types.StageGroup) error {
+	s.written = true
+	s.lastWritten = groups
+	return s.writeErr
+}
 func (s *errStoreFS) StorePath() string                      { return "/tmp/err-store" }
 
-// driveToCompleted pre-populates the form fields on f and forces
-// form.State to StateCompleted, then calls f.Update with a no-op message
-// so the StateCompleted branch runs. Returns the emitted tea.Cmd.
+// driveToCompleted pre-populates the form fields on f with the standard test
+// values and forces form.State to StateCompleted, then calls f.Update with a
+// no-op message so the StateCompleted branch runs. Returns the emitted
+// tea.Cmd.
 func driveToCompleted(f stageFormPane) (stageFormPane, tea.Cmd) {
-	f.name = "test-flow"
-	f.stagesRaw = "Open\nDone"
-	f.cycle = string(types.CycleTerminate)
+	return driveToCompletedWith(f, "test-flow", "Open\nDone", string(types.CycleTerminate), "")
+}
+
+// driveToCompletedWith is the parameterised form of driveToCompleted, letting
+// edit-mode tests drive the form to completion with arbitrary field values
+// (e.g. re-submitting an existing group's name to exercise the
+// replace-by-name path, or a different name to exercise rename).
+func driveToCompletedWith(f stageFormPane, name, stagesRaw, cycle, loopTarget string) (stageFormPane, tea.Cmd) {
+	f.name = name
+	f.stagesRaw = stagesRaw
+	f.cycle = cycle
+	f.loopTarget = loopTarget
 	f.form.State = huh.StateCompleted
 	updated, cmd := f.Update(tea.KeyPressMsg{}) // msg type doesn't matter; State drives the branch
 	return updated.(stageFormPane), cmd
@@ -155,7 +176,7 @@ func TestStageFormErrorOnReadFailure(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 
-	f := newStageFormPane(theme, store, nil)
+	f := newStageFormPane(theme, store, nil, nil)
 	_, cmd := driveToCompleted(f)
 
 	// The command is a tea.Batch; run it to collect all messages.
@@ -206,7 +227,7 @@ func TestStageFormErrorOnWriteFailure(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 
-	f := newStageFormPane(theme, store, nil)
+	f := newStageFormPane(theme, store, nil, nil)
 	_, cmd := driveToCompleted(f)
 
 	// Unwrap the batch to find the error message.
@@ -237,4 +258,466 @@ func TestStageFormErrorOnWriteFailure(t *testing.T) {
 			t.Errorf("expected stageFormErrorMsg, got %T", msg)
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// upsertStageGroup — pure unit tests, no huh involved. Mirrors
+// kind_form_internal_test.go's TestUpsertKind* suite.
+// ---------------------------------------------------------------------------
+
+func TestUpsertStageGroupCreateAppends(t *testing.T) {
+	existing := []types.StageGroup{{Name: "task-flow", Stages: []string{"Open", "Done"}}}
+	group := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Merged"}}
+
+	got := upsertStageGroup(existing, group, "")
+
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[1].Name != "review-flow" {
+		t.Errorf("appended entry = %v, want review-flow", got[1])
+	}
+}
+
+func TestUpsertStageGroupEditReplacesAtSameIndex(t *testing.T) {
+	existing := []types.StageGroup{
+		{Name: "alpha-flow", Stages: []string{"A"}},
+		{Name: "review-flow", Stages: []string{"Draft", "Merged"}},
+		{Name: "zeta-flow", Stages: []string{"Z"}},
+	}
+	edited := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Review", "Merged"}}
+
+	got := upsertStageGroup(existing, edited, "review-flow")
+
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3 (replace, not append)", len(got))
+	}
+	if got[1].Name != "review-flow" || len(got[1].Stages) != 3 {
+		t.Errorf("got[1] = %v, want the edited review-flow at the same index", got[1])
+	}
+	if got[0].Name != "alpha-flow" || got[2].Name != "zeta-flow" {
+		t.Errorf("order disturbed: got %v", got)
+	}
+}
+
+func TestUpsertStageGroupEditDefaultNotYetShadowedAppends(t *testing.T) {
+	existing := []types.StageGroup{{Name: "review-flow", Stages: []string{"Draft"}}}
+	edited := types.StageGroup{Name: "task-flow", Stages: []string{"Open", "Doing", "Done", "Archived"}}
+
+	got := upsertStageGroup(existing, edited, "task-flow")
+
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2 (shadow appended)", len(got))
+	}
+	if got[1].Name != "task-flow" || len(got[1].Stages) != 4 {
+		t.Errorf("appended shadow = %v, want edited task-flow", got[1])
+	}
+}
+
+func TestUpsertStageGroupEmptySliceAppends(t *testing.T) {
+	edited := types.StageGroup{Name: "task-flow", Stages: []string{"Open"}}
+
+	got := upsertStageGroup(nil, edited, "task-flow")
+
+	if len(got) != 1 || got[0].Name != "task-flow" {
+		t.Errorf("got = %v, want single task-flow entry", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Edit-mode form-level tests. Mirrors kind_form_internal_test.go's
+// TestKindEditForm* suite.
+// ---------------------------------------------------------------------------
+
+// TestStageEditFormSeedsFields verifies the edit constructor seeds all
+// fields from the existing entry, including the stagesRaw round-trip.
+func TestStageEditFormSeedsFields(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{}
+	existing := types.StageGroup{
+		Name:       "review-flow",
+		Stages:     []string{"Draft", "Review", "Merged"},
+		Cycle:      types.CycleLoopToStage,
+		LoopTarget: "Review",
+	}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+
+	if f.name != "review-flow" {
+		t.Errorf("f.name = %q, want %q", f.name, "review-flow")
+	}
+	if f.stagesRaw != "Draft\nReview\nMerged" {
+		t.Errorf("f.stagesRaw = %q, want %q", f.stagesRaw, "Draft\nReview\nMerged")
+	}
+	if f.cycle != string(types.CycleLoopToStage) {
+		t.Errorf("f.cycle = %q, want %q", f.cycle, string(types.CycleLoopToStage))
+	}
+	if f.loopTarget != "Review" {
+		t.Errorf("f.loopTarget = %q, want %q", f.loopTarget, "Review")
+	}
+	if f.originalName != "review-flow" {
+		t.Errorf("f.originalName = %q, want %q", f.originalName, "review-flow")
+	}
+}
+
+// TestStageEditFormStagesRawRoundTrips verifies parseStages(join(stages,
+// "\n")) reproduces the original slice — the seeding conversion is the only
+// lossy-looking one in the edit path, so it's worth its own test beyond the
+// single case in TestStageEditFormSeedsFields.
+func TestStageEditFormStagesRawRoundTrips(t *testing.T) {
+	stages := []string{"Backlog", "In Progress", "Done"}
+	raw := strings.Join(stages, "\n")
+	got := parseStages(raw)
+
+	if len(got) != len(stages) {
+		t.Fatalf("len = %d, want %d", len(got), len(stages))
+	}
+	for i := range stages {
+		if got[i] != stages[i] {
+			t.Errorf("[%d] = %q, want %q", i, got[i], stages[i])
+		}
+	}
+}
+
+// TestStageEditFormMarksIsDefault verifies isDefault is set when the edited
+// group's name matches a baked-in default.
+func TestStageEditFormMarksIsDefault(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{}
+	existing := types.StageGroup{Name: "task-flow", Stages: []string{"Open", "Done"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+
+	if !f.isDefault {
+		t.Error("expected isDefault = true for a group named task-flow (a baked-in default)")
+	}
+}
+
+// TestStageEditFormNotDefaultForCustomName verifies isDefault stays false
+// for a name that isn't a baked-in default.
+func TestStageEditFormNotDefaultForCustomName(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+
+	if f.isDefault {
+		t.Error("expected isDefault = false for a custom group name")
+	}
+}
+
+// TestStageEditFormSubmitReplacesExisting verifies submitting in edit mode
+// (name unchanged) writes the replaced slice, not an appended one.
+func TestStageEditFormSubmitReplacesExisting(t *testing.T) {
+	store := &errStoreFS{seed: []types.StageGroup{
+		{Name: "alpha-flow", Stages: []string{"A"}},
+		{Name: "review-flow", Stages: []string{"Draft", "Merged"}},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Merged"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "review-flow", "Draft\nReview\nMerged", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if !store.written {
+		t.Fatal("WriteStages should have been called")
+	}
+	if len(store.lastWritten) != 2 {
+		t.Fatalf("lastWritten len = %d, want 2 (replace, not append)", len(store.lastWritten))
+	}
+	if store.lastWritten[0].Name != "alpha-flow" {
+		t.Errorf("lastWritten[0] = %v, want alpha-flow unchanged", store.lastWritten[0])
+	}
+	if store.lastWritten[1].Name != "review-flow" || len(store.lastWritten[1].Stages) != 3 {
+		t.Errorf("lastWritten[1] = %v, want edited review-flow with 3 stages", store.lastWritten[1])
+	}
+}
+
+// TestStageEditFormRenameEmitsRenamedFrom verifies that submitting a changed
+// name in edit mode sets renamedFrom on stageFormSubmitMsg.
+func TestStageEditFormRenameEmitsRenamedFrom(t *testing.T) {
+	store := &errStoreFS{seed: []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Merged"}},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Merged"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "pr-flow", "Draft\nMerged", string(types.CycleTerminate), "")
+
+	msg := collectMsg(cmd)
+	sub := findStageSubmitMsg(t, msg)
+	if sub.name != "pr-flow" {
+		t.Errorf("sub.name = %q, want %q", sub.name, "pr-flow")
+	}
+	if sub.renamedFrom != "review-flow" {
+		t.Errorf("sub.renamedFrom = %q, want %q", sub.renamedFrom, "review-flow")
+	}
+
+	if len(store.lastWritten) != 1 || store.lastWritten[0].Name != "pr-flow" {
+		t.Errorf("lastWritten = %v, want single pr-flow entry", store.lastWritten)
+	}
+}
+
+// TestStageEditFormUnchangedNameNoRename verifies renamedFrom stays empty
+// when the name is resubmitted unchanged.
+func TestStageEditFormUnchangedNameNoRename(t *testing.T) {
+	store := &errStoreFS{seed: []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Merged"}},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Merged"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "review-flow", "Draft\nMerged", string(types.CycleTerminate), "")
+
+	msg := collectMsg(cmd)
+	sub := findStageSubmitMsg(t, msg)
+	if sub.renamedFrom != "" {
+		t.Errorf("sub.renamedFrom = %q, want empty (name unchanged)", sub.renamedFrom)
+	}
+}
+
+// TestStageEditFormRenameDefaultWritesTombstone verifies that renaming a
+// baked-in default group writes both the renamed entry AND a tombstone
+// shadow under the old name, mirroring kindFormPane's identical mechanism.
+func TestStageEditFormRenameDefaultWritesTombstone(t *testing.T) {
+	store := &errStoreFS{} // "task-flow" not yet shadowed
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	var taskFlowDefault types.StageGroup
+	for _, d := range defaults {
+		if d.Name == "task-flow" {
+			taskFlowDefault = d
+			break
+		}
+	}
+	if taskFlowDefault.Name == "" {
+		t.Fatal("precondition failed: no baked-in task-flow default found")
+	}
+
+	f := newStageFormPane(theme, store, nil, &taskFlowDefault)
+	if !f.isDefault {
+		t.Fatal("precondition failed: task-flow should be recognised as a default")
+	}
+	_, cmd := driveToCompletedWith(f, "todo-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 2 {
+		t.Fatalf("lastWritten len = %d, want 2 (renamed entry + tombstone), got %v", len(store.lastWritten), store.lastWritten)
+	}
+	var sawRenamed, sawTombstone bool
+	for _, g := range store.lastWritten {
+		if g.Name == "todo-flow" {
+			sawRenamed = true
+		}
+		if g.Name == "task-flow" {
+			sawTombstone = true
+			// The tombstone must match the embedded default exactly — it's
+			// an unmodified copy, not a re-derivation, so compare stage-for-stage.
+			if len(g.Stages) != len(taskFlowDefault.Stages) {
+				t.Errorf("tombstone has %d stages, want %d matching the default", len(g.Stages), len(taskFlowDefault.Stages))
+			}
+			for i := range taskFlowDefault.Stages {
+				if i < len(g.Stages) && g.Stages[i] != taskFlowDefault.Stages[i] {
+					t.Errorf("tombstone stage[%d] = %q, want %q", i, g.Stages[i], taskFlowDefault.Stages[i])
+				}
+			}
+		}
+	}
+	if !sawRenamed {
+		t.Error("expected the renamed todo-flow entry in lastWritten")
+	}
+	if !sawTombstone {
+		t.Error("expected a task-flow tombstone entry in lastWritten so the default stays shadowed")
+	}
+}
+
+// TestStageEditFormRenameCustomGroupNoTombstone verifies renaming a purely
+// custom group does NOT write a tombstone.
+func TestStageEditFormRenameCustomGroupNoTombstone(t *testing.T) {
+	store := &errStoreFS{seed: []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Merged"}},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Merged"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "pr-flow", "Draft\nMerged", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1 (renamed only, no tombstone), got %v", len(store.lastWritten), store.lastWritten)
+	}
+	if store.lastWritten[0].Name != "pr-flow" {
+		t.Errorf("lastWritten[0].Name = %q, want %q", store.lastWritten[0].Name, "pr-flow")
+	}
+}
+
+// TestStageEditFormOwnNameDoesNotCollide verifies that resubmitting a
+// group's own unchanged name passes the collision validator in edit mode.
+func TestStageEditFormOwnNameDoesNotCollide(t *testing.T) {
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft"}},
+		{Name: "task-flow", Stages: []string{"Open"}},
+	})
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{seed: groups.All()}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft"}}
+
+	f := newStageFormPane(theme, store, groups, &existing)
+	_, cmd := driveToCompletedWith(f, "review-flow", "Draft", string(types.CycleTerminate), "")
+
+	msg := collectMsg(cmd)
+	if _, ok := findStageErrorMsg(msg); ok {
+		t.Error("resubmitting the group's own unchanged name should not collide")
+	}
+}
+
+// TestStageEditFormOtherNameStillCollides verifies edit mode still rejects a
+// name belonging to a different existing group.
+func TestStageEditFormOtherNameStillCollides(t *testing.T) {
+	groups := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft"}},
+		{Name: "task-flow", Stages: []string{"Open"}},
+	})
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{seed: groups.All()}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft"}}
+
+	f := newStageFormPane(theme, store, groups, &existing)
+	_, cmd := driveToCompletedWith(f, "task-flow", "Draft", string(types.CycleTerminate), "")
+
+	msg := collectMsg(cmd)
+	if _, ok := findStageErrorMsg(msg); !ok {
+		t.Error("renaming to another existing group's name should collide")
+	}
+	if store.written {
+		t.Error("WriteStages should not be called when the new name collides")
+	}
+}
+
+// TestStageEditFormCaseOnlyRenameRejected verifies the specific
+// capitalisation-only error message fires.
+func TestStageEditFormCaseOnlyRenameRejected(t *testing.T) {
+	groups := types.NewStageGroupRegistry([]types.StageGroup{{Name: "review-flow", Stages: []string{"Draft"}}})
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{seed: groups.All()}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft"}}
+
+	f := newStageFormPane(theme, store, groups, &existing)
+	_, cmd := driveToCompletedWith(f, "Review-Flow", "Draft", string(types.CycleTerminate), "")
+
+	msg := collectMsg(cmd)
+	errMsg, ok := findStageErrorMsg(msg)
+	if !ok {
+		t.Fatal("expected a validation error for a case-only rename")
+	}
+	if !strings.Contains(errMsg.err.Error(), "capitalisation") {
+		t.Errorf("error = %q, want it to mention capitalisation", errMsg.err.Error())
+	}
+	if store.written {
+		t.Error("WriteStages should not be called on a rejected case-only rename")
+	}
+}
+
+// TestStageEditFormLoopToStageSeeding verifies edit mode seeds f.cycle
+// correctly when the existing group uses loop-to-stage — WithHideFunc
+// (unchanged by edit mode) reads f.cycle only at group-navigation time, not
+// at render, so the meaningful check here is that the seeded value reaches
+// the field at all, which TestStageEditFormSeedsFields already covers for
+// f.loopTarget too. This test isolates the cycle value specifically, since
+// it's what the (untouched) hide-func decision depends on.
+func TestStageEditFormLoopToStageSeeding(t *testing.T) {
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	store := &errStoreFS{}
+	existing := types.StageGroup{
+		Name:       "sprint-flow",
+		Stages:     []string{"A", "B", "C"},
+		Cycle:      types.CycleLoopToStage,
+		LoopTarget: "B",
+	}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+
+	if f.cycle != string(types.CycleLoopToStage) {
+		t.Errorf("f.cycle = %q, want %q — group 2's WithHideFunc reads this at navigation time", f.cycle, string(types.CycleLoopToStage))
+	}
+}
+
+// findStageSubmitMsg unwraps a tea.BatchMsg (or bare msg) looking for a
+// stageFormSubmitMsg, failing the test if none is found.
+func findStageSubmitMsg(t *testing.T, msg tea.Msg) stageFormSubmitMsg {
+	t.Helper()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, fn := range batch {
+			if m := fn(); m != nil {
+				if sub, ok := m.(stageFormSubmitMsg); ok {
+					return sub
+				}
+			}
+		}
+	} else if sub, ok := msg.(stageFormSubmitMsg); ok {
+		return sub
+	}
+	t.Fatalf("expected stageFormSubmitMsg, got %T", msg)
+	return stageFormSubmitMsg{}
+}
+
+// findStageErrorMsg unwraps a tea.BatchMsg (or bare msg) looking for a
+// stageFormErrorMsg.
+func findStageErrorMsg(msg tea.Msg) (stageFormErrorMsg, bool) {
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, fn := range batch {
+			if m := fn(); m != nil {
+				if errMsg, ok := m.(stageFormErrorMsg); ok {
+					return errMsg, true
+				}
+			}
+		}
+		return stageFormErrorMsg{}, false
+	}
+	errMsg, ok := msg.(stageFormErrorMsg)
+	return errMsg, ok
 }
