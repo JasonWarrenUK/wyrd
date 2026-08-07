@@ -119,21 +119,32 @@ func lookupStageGroupFold(groups *types.StageGroupRegistry, name string) (types.
 }
 
 // orphanAdvisory re-scans the graph against the current registries and, if
-// the edit that just landed produced orphaned stages, returns a suffix
-// directing the user to :stages remap. Returns "" when there is nothing to
-// flag or no index to scan. Call only after m.kinds/m.stageGroups have been
-// reassigned to the freshly-merged registries — scanning against the stale
-// ones reports nothing even when the edit just orphaned nodes.
+// the edit that just landed produced orphaned or unresolvable nodes, returns
+// a suffix reporting them. Returns "" when there is nothing to flag or no
+// index to scan. Call only after m.kinds/m.stageGroups have been reassigned
+// to the freshly-merged registries — scanning against the stale ones reports
+// nothing even when the edit just orphaned nodes.
+//
+// Orphans and Unresolvable are reported independently — report.IsEmpty()
+// only checks Orphans, so relying on it here would silently drop a report
+// that is all-unresolvable (e.g. nodes stranded by a partially failed
+// rename cascade; see stage.RenameKind/RenameStageGroup). Nothing downstream
+// can repair an Unresolvable node (ApplyRemap iterates report.Orphans only),
+// so the wording deliberately doesn't point at :stages remap for that part.
 func (m *Model) orphanAdvisory() string {
 	if m.index == nil {
 		return ""
 	}
 	report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
-	if report.IsEmpty() {
-		return ""
+
+	var advisory string
+	if n := report.NodeCount(); n > 0 {
+		advisory += fmt.Sprintf(" — %d node%s now hold orphaned stages; run :stages remap", n, plural(n))
 	}
-	n := report.NodeCount()
-	return fmt.Sprintf(" — %d node%s now hold orphaned stages; run :stages remap", n, plural(n))
+	if n := len(report.Unresolvable); n > 0 {
+		advisory += fmt.Sprintf(" — %d node%s unresolvable (kind or group missing)", n, plural(n))
+	}
+	return advisory
 }
 
 // ritualTriggerMsg is sent when a ritual should be presented to the user.
@@ -1085,11 +1096,17 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			text = fmt.Sprintf("Renamed %q to %q, but %v", msg.renamedFrom, msg.name, renameErr)
 		}
 
-		// Only scan for orphans once m.kinds actually reflects the write —
-		// scanning against a stale registry after a failed refresh would
-		// either miss real orphans or, worse, report against the wrong data
-		// silently.
-		if refreshed {
+		// Only scan for orphans once m.kinds actually reflects the write, and
+		// only hand off to the remap form on a clean rename — a partial
+		// RenameKind failure leaves some nodes still holding renamedFrom,
+		// which no longer resolves against the rebuilt registry at all. Those
+		// nodes land in report.Unresolvable, not report.Orphans (nothing
+		// downstream can repair that class), so auto-opening the remap form
+		// here would either miss them entirely or route the user into a form
+		// that can't fix the actual problem. On a rename failure, report the
+		// unresolvable count via orphanAdvisory instead and let the sticky
+		// error message (below) stay on screen.
+		if refreshed && renameErr == nil {
 			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
 			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
 				n := report.NodeCount()
@@ -1100,6 +1117,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// this message is processed on the next Update call.
 				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
 			}
+			text += m.orphanAdvisory()
+		} else if refreshed && renameErr != nil {
 			text += m.orphanAdvisory()
 		}
 		if renameCount > 0 && renameErr == nil {
@@ -1189,13 +1208,18 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// See the matching guard in kindFormSubmitMsg: only scan once
-		// m.stageGroups actually reflects the write. This scan also picks up
-		// the fan-out case: removing or renaming a stage that several kinds
-		// share (task-flow referenced by Task, Goblin, and Talk) produces
-		// one Orphan entry per affected kind — DetectOrphans' OrphanKey is
-		// keyed by (Kind, Stage), so the shared group's edit surfaces as
-		// multiple rows in the remap form rather than one.
-		if refreshed {
+		// m.stageGroups actually reflects the write, and only hand off to the
+		// remap form on a clean rename — a partial RenameStageGroup failure
+		// leaves some kinds still pointing at renamedFrom, which no longer
+		// resolves at all, so those kinds' nodes land in report.Unresolvable
+		// rather than report.Orphans (nothing downstream can repair that
+		// class). This scan also picks up the fan-out case: removing or
+		// renaming a stage that several kinds share (task-flow referenced by
+		// Task, Goblin, and Talk) produces one Orphan entry per affected kind
+		// — DetectOrphans' OrphanKey is keyed by (Kind, Stage), so the shared
+		// group's edit surfaces as multiple rows in the remap form rather
+		// than one.
+		if refreshed && renameErr == nil {
 			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
 			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
 				n := report.NodeCount()
@@ -1206,6 +1230,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// this message is processed on the next Update call.
 				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
 			}
+			text += m.orphanAdvisory()
+		} else if refreshed && renameErr != nil {
 			text += m.orphanAdvisory()
 		}
 		if renameCount > 0 && renameErr == nil {
