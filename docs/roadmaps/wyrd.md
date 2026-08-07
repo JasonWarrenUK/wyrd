@@ -303,6 +303,8 @@ graph LR
 	RT.4["RT.4: Prompt steps — implemented with a `bubble…"]
 	RT.3["RT.3: Query steps in ritual — `query_summary` a…"]
 	RT.1["RT.1: Ritual scheduler on startup"]
+	RT.9["RT.9: Fix overlay/runner step desync — the over…"]
+	RT.10["RT.10: Surface ritual edit errors — `Runner.Com…"]
 	M6["M6: Milestone 6: Rituals & Workflows"]:::mile
 	DA.1["DA.1: Install `freeze` and `vhs` (via Homebrew…"]
 	CO.1["CO.1: `wyrd compact` — move archived nodes to `…"]
@@ -357,11 +359,18 @@ graph LR
 	SK.3["SK.3: Query engine: resolve skein references at…"]
 	SK.4["SK.4: TUI: skein management via palette — `:ske…"]
 	MD["MD: Milestone D: Skeins"]:::mile
-	TD.1["TD.1: Consolidate JSONC parsing — four duplicat…"]
+	TD.1["TD.1: Consolidate JSONC parsing — six duplicate…"]
 	TD.2["TD.2: ADR: unify default-asset lifecycle — them…"]
 	TD.3["TD.3: Edge `Modified` timestamp — restructure `…"]
 	TD.4["TD.4: `gofmt` cleanup — originally scoped to `c…"]
 	TD.5["TD.5: Upstream default reconciliation — shadowi…"]
+	TD.12["TD.12: Overlay message-routing refactor — the p…"]
+	TD.6["TD.6: `internal/tui/views/` styling compliance…"]
+	TD.7["TD.7: `detailReadyMsg` staleness guard — the ha…"]
+	TD.8["TD.8: Index-aware node removal — the fsnotify w…"]
+	TD.9["TD.9: Palette search performance — fuzzy search…"]
+	TD.10["TD.10: TUI small-fix batch — `buildNode` uncond…"]
+	TD.11["TD.11: Store/CLI small-fix batch — `ReadNode` c…"]
 	ME["ME: Milestone E: Tech Debt"]:::mile
 	VP.1["VP.1: Logo/title pane atop the detail column —…"]
 	VP.3["VP.3: Theme-derived glamour stylesheet — build…"]
@@ -439,17 +448,22 @@ graph LR
 	RT.2 --> RT.5
 	RT.2 --> RT.4
 	RT.2 --> RT.3
+	RT.2 --> RT.9
+	RT.2 --> RT.10
 	RT.7 --> M6
 	RT.7 --> DA.6
 	RT.8 --> M6
 	RT.8 --> DA.6
 	RT.5 --> RT.6
+	RT.5 --> RT.9
 	RT.5 --> DA.6
 	RT.6 --> M6
 	RT.6 --> DA.6
 	RT.4 --> M6
 	RT.3 --> M6
 	RT.1 --> M6
+	RT.9 --> M6
+	RT.10 --> M6
 	M6 --> DA.6
 	DA.1 --> DA.2
 	DA.1 --> DA.3
@@ -554,6 +568,13 @@ graph LR
 	TD.4 --> ME
 	TD.5 --> ME
 	TD.5 --> PL.1
+	TD.12 --> ME
+	TD.6 --> ME
+	TD.7 --> ME
+	TD.8 --> ME
+	TD.9 --> ME
+	TD.10 --> ME
+	TD.11 --> ME
 	VP.1 --> MF
 	VP.3 --> MF
 	VP.4 --> VP.6
@@ -619,7 +640,7 @@ graph LR
 	QC.5 --> MI
 	QC.6 --> MI
 	PL.1 --> MJ
-	class CO.3,DL.4,NW.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.6,RT.7,SK.1,SP.8,SY.1,SY.3,SY.4,TD.1,TD.2,TD.3,TD.5,VP.7,VP.8 todo
+	class CO.3,DL.4,NW.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.1,SY.3,SY.4,TD.1,TD.10,TD.11,TD.12,TD.2,TD.3,TD.5,TD.6,TD.7,TD.8,TD.9,VP.7,VP.8 todo
 	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,PL.1,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9,SY.2,SY.5 blocked
 	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,TD.4,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```
