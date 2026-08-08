@@ -167,7 +167,7 @@ func (r *DetailRenderer) Render(
 	// quiet aside next to the title rather than competing with the bold
 	// BLOCKED banner above.
 	if types.IsStale(node, now, r.StaleThresholdDays) {
-		days := types.DaysSince(node.Modified, now)
+		days := types.DaysSince(node.Date.Modified, now)
 		suffix := fmt.Sprintf(" %s stale · %dd", r.StaleGlyph, days)
 		sb.WriteString(mutedStyle.Render(suffix))
 	}
@@ -646,7 +646,7 @@ func (r *DetailRenderer) renderEdgeLine(
 
 	// Append age suffix for waiting_on edges.
 	if edge.Type == string(types.EdgeWaitingOn) {
-		age := now.Sub(edge.Created)
+		age := now.Sub(edge.Date.Created)
 		days := int(age.Hours() / 24)
 		suffix := fmt.Sprintf(" · %dd", days)
 		ageColour := ageColourForDays(days, c)

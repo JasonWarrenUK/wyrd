@@ -315,12 +315,14 @@ func TestFormNoConfirmFieldWhenUnlinked(t *testing.T) {
 // seedNode is a helper that creates a minimal node for edit form tests.
 func seedNode(id, title, body string, nodeTypes []string) *types.Node {
 	return &types.Node{
-		ID:         id,
-		Title:      title,
-		Body:       body,
-		Types:      nodeTypes,
-		Created:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		Modified:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		ID:    id,
+		Title: title,
+		Body:  body,
+		Types: nodeTypes,
+		Date: types.DateFields{
+			Created:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			Modified: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
 		Properties: map[string]interface{}{"status": "active", "energy": "deep"},
 	}
 }

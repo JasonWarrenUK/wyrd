@@ -37,5 +37,5 @@ func IsStale(node *Node, now time.Time, thresholdDays int) bool {
 	if thresholdDays <= 0 {
 		thresholdDays = DefaultStalenessThresholdDays
 	}
-	return DaysSince(node.Modified, now) > thresholdDays
+	return DaysSince(node.Date.Modified, now) > thresholdDays
 }

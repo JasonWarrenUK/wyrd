@@ -124,21 +124,21 @@ func (c *CaptureBar) Submit() (*CaptureResult, error) {
 	now := c.clock.Now()
 
 	node := &types.Node{
-		ID:       uuid.New().String(),
-		Body:     body,
-		Types:    []string{nodeType},
-		Created:  now,
-		Modified: now,
+		ID:    uuid.New().String(),
+		Body:  body,
+		Types: []string{nodeType},
 		Properties: map[string]interface{}{
 			"status": "inbox",
 		},
 	}
+	node.Date.Created = now
 
-	if nodeType == "journal" {
+	switch nodeType {
+	case "journal":
 		// Journal nodes carry the creation date as date.about.
 		node.Date.About = &now
 		delete(node.Properties, "status")
-	} else if nodeType == "note" {
+	case "note":
 		// Notes do not carry a status.
 		delete(node.Properties, "status")
 	}
@@ -152,12 +152,12 @@ func (c *CaptureBar) Submit() (*CaptureResult, error) {
 	// If a node is selected in the right pane, create a "related" edge.
 	if c.selectedNodeID != "" {
 		edge := &types.Edge{
-			ID:      uuid.New().String(),
-			Type:    string(types.EdgeRelated),
-			From:    node.ID,
-			To:      c.selectedNodeID,
-			Created: now,
+			ID:   uuid.New().String(),
+			Type: string(types.EdgeRelated),
+			From: node.ID,
+			To:   c.selectedNodeID,
 		}
+		edge.Date.Created = now
 		if err := c.store.WriteEdge(edge); err != nil {
 			// Non-fatal: return what we have.
 			result.Edge = nil

@@ -31,6 +31,20 @@ const (
 	EdgeAddsTo EdgeType = "adds_to"
 )
 
+// EdgeDates groups the creation and last-modified timestamps for an edge
+// into a single nested "date" object on disk. Kept separate from node's
+// DateFields rather than shared: an edge has no due/about/schedule/start/
+// snooze_until concept, and sharing DateFields would give every edge five
+// meaningless nil pointers that leak into query evaluation, letting users
+// write a Cypher predicate against an edge date field that can never be set.
+type EdgeDates struct {
+	// Created is the edge creation timestamp, auto-generated and immutable.
+	Created time.Time `json:"created"`
+
+	// Modified is updated whenever the edge is rewritten.
+	Modified time.Time `json:"modified"`
+}
+
 // Edge represents a directed relationship between two nodes in the graph.
 // Edges are first-class entities stored as individual JSONC files under
 // /store/edges/{uuid}.jsonc and carry their own UUIDs and properties.
@@ -47,8 +61,10 @@ type Edge struct {
 	// To is the UUID of the target node.
 	To string `json:"to"`
 
-	// Created is the creation timestamp, auto-generated and immutable.
-	Created time.Time `json:"created"`
+	// Date holds the edge's creation and last-modified timestamps. Written
+	// on disk as a nested "date" object. The json:"-" tag prevents
+	// double-serialisation; WriteEdge handles it.
+	Date EdgeDates `json:"-"`
 
 	// Properties holds optional type-specific and user-defined fields.
 	// For example, a "blocks" edge may carry a "reason" string;

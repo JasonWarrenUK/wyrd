@@ -167,10 +167,15 @@ func TestRecordSpend_AppendsToExistingLog(t *testing.T) {
 	}
 }
 
-func TestRecordSpend_BumpsModified(t *testing.T) {
+func TestRecordSpend_DoesNotStampModified(t *testing.T) {
+	// TD.3: WriteNode stamps Date.Modified unconditionally from the store's
+	// own clock, so RecordSpend must not set it itself — the mockStore here
+	// (unlike the real store) doesn't stamp anything, so this also proves
+	// RecordSpend isn't relying on a caller-side stamp to get the behaviour
+	// right in production.
 	originalModified := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	node := newBudgetNodeForSpend("b3", "dining", nil)
-	node.Modified = originalModified
+	node.Date.Modified = originalModified
 
 	store := &mockStore{}
 	index := newMockIndex(node)
@@ -181,8 +186,8 @@ func TestRecordSpend_BumpsModified(t *testing.T) {
 	}
 
 	written := store.written[0]
-	if !written.Modified.Equal(spendNow) {
-		t.Errorf("expected Modified to be bumped to %v, got %v", spendNow, written.Modified)
+	if !written.Date.Modified.Equal(originalModified) {
+		t.Errorf("expected Date.Modified untouched at %v, got %v", originalModified, written.Date.Modified)
 	}
 }
 
@@ -327,7 +332,7 @@ func TestRecordSpend_WritesCloneNotIndexPointer(t *testing.T) {
 
 func TestRecordSpend_WriteFailureLeavesIndexUntouched(t *testing.T) {
 	node := newBudgetNodeForSpend("b-fail", "groceries", nil)
-	originalModified := node.Modified
+	originalModified := node.Date.Modified
 	store := &mockStore{writeErr: &types.ConflictError{Message: "disk full"}}
 	index := newMockIndex(node)
 
@@ -339,8 +344,8 @@ func TestRecordSpend_WriteFailureLeavesIndexUntouched(t *testing.T) {
 	if _, exists := node.Properties["spend_log"]; exists {
 		t.Error("index node was mutated despite the write failing")
 	}
-	if !node.Modified.Equal(originalModified) {
-		t.Error("index node's Modified was bumped despite the write failing")
+	if !node.Date.Modified.Equal(originalModified) {
+		t.Error("index node's Date.Modified was bumped despite the write failing")
 	}
 }
 

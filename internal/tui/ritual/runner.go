@@ -211,10 +211,9 @@ func (r *Runner) SubmitPrompt(text string) error {
 		ID:         uuid.New().String(),
 		Body:       text,
 		Types:      step.Creates.Types,
-		Created:    now,
-		Modified:   now,
 		Properties: make(map[string]interface{}),
 	}
+	node.Date.Created = now
 
 	if err := r.store.WriteNode(node); err != nil {
 		return fmt.Errorf("writing prompt node: %w", err)
@@ -222,12 +221,12 @@ func (r *Runner) SubmitPrompt(text string) error {
 
 	if step.Creates.Edge != nil && step.Creates.Edge.To != "" {
 		edge := &types.Edge{
-			ID:      uuid.New().String(),
-			Type:    step.Creates.Edge.Type,
-			From:    node.ID,
-			To:      step.Creates.Edge.To,
-			Created: now,
+			ID:   uuid.New().String(),
+			Type: step.Creates.Edge.Type,
+			From: node.ID,
+			To:   step.Creates.Edge.To,
 		}
+		edge.Date.Created = now
 		if err := r.store.WriteEdge(edge); err != nil {
 			return fmt.Errorf("writing prompt edge: %w", err)
 		}

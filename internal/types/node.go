@@ -4,13 +4,12 @@ package types
 import "time"
 
 // DateFields groups all date-related timestamps for a node into a single
-// nested object on disk. The top-level Created/Modified on Node are kept
-// as aliases for backward compatibility with existing code.
+// nested "date" object on disk.
 type DateFields struct {
-	// Created is the node creation timestamp. Mirrors Node.Created.
+	// Created is the node creation timestamp.
 	Created time.Time `json:"created"`
 
-	// Modified is the last-modified timestamp. Mirrors Node.Modified.
+	// Modified is the last-modified timestamp.
 	Modified time.Time `json:"modified"`
 
 	// Due is the date by which a task must be completed.
@@ -58,17 +57,10 @@ type Node struct {
 	// is assigned, Stage is empty.
 	Stage string `json:"stage,omitempty"`
 
-	// Created is the creation timestamp, auto-generated and immutable.
-	// Also accessible via Date.Created.
-	Created time.Time `json:"created"`
-
-	// Modified is updated on any field change.
-	// Also accessible via Date.Modified.
-	Modified time.Time `json:"modified"`
-
-	// Date holds the full set of date fields for this node. On disk these
-	// are written as a nested "date" object for forward compatibility.
-	// The json:"-" tag prevents double-serialisation; WriteNode handles it.
+	// Date holds the full set of date fields for this node, including
+	// creation and last-modified timestamps. Written on disk as a nested
+	// "date" object. The json:"-" tag prevents double-serialisation;
+	// WriteNode handles it.
 	Date DateFields `json:"-"`
 
 	// Source is populated on nodes created by sync plugins.

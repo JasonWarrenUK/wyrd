@@ -84,7 +84,6 @@ func RecordSpend(
 	})
 
 	node.Properties["spend_log"] = entries
-	node.Modified = now
 
 	if err := store.WriteNode(node); err != nil {
 		return "", err

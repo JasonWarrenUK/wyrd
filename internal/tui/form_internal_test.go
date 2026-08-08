@@ -24,14 +24,16 @@ func seedRichNode(nodeTypes ...string) *types.Node {
 	about := time.Date(2026, 1, 4, 0, 0, 0, 0, time.UTC)
 
 	n := &types.Node{
-		ID:       "11111111-1111-4111-8111-111111111111",
-		Title:    "Original title",
-		Body:     "Original body",
-		Types:    nodeTypes,
-		Kind:     "Task",
-		Stage:    "Now",
-		Created:  created,
-		Modified: created,
+		ID:    "11111111-1111-4111-8111-111111111111",
+		Title: "Original title",
+		Body:  "Original body",
+		Types: nodeTypes,
+		Kind:  "Task",
+		Stage: "Now",
+		Date: types.DateFields{
+			Created:  created,
+			Modified: created,
+		},
 		Properties: map[string]interface{}{
 			"custom_field": "keep me",
 		},
@@ -58,11 +60,14 @@ func TestEditTaskBuildNodePreservesUnownedFields(t *testing.T) {
 	if got.ID != original.ID {
 		t.Errorf("ID = %q, want %q", got.ID, original.ID)
 	}
-	if !got.Created.Equal(original.Created) {
-		t.Errorf("Created = %v, want %v", got.Created, original.Created)
+	if !got.Date.Created.Equal(original.Date.Created) {
+		t.Errorf("Date.Created = %v, want %v", got.Date.Created, original.Date.Created)
 	}
-	if !got.Modified.Equal(internalTestClock().Now()) {
-		t.Errorf("Modified = %v, want clock now", got.Modified)
+	// buildNode no longer stamps Date.Modified — WriteNode does that
+	// unconditionally from the store's clock on write (TD.3), so
+	// Date.Modified survives untouched from the clone here.
+	if !got.Date.Modified.Equal(original.Date.Modified) {
+		t.Errorf("Date.Modified = %v, want %v (buildNode must not touch it)", got.Date.Modified, original.Date.Modified)
 	}
 	if got.Title != "New title" || got.Body != "New body" {
 		t.Errorf("form-owned fields not applied: title=%q body=%q", got.Title, got.Body)
@@ -520,5 +525,62 @@ func TestCaseInsensitiveNameCollision(t *testing.T) {
 
 	if caseInsensitiveNameCollision("Anything", nil) {
 		t.Error("caseInsensitiveNameCollision against nil slice should be false")
+	}
+}
+
+// TestTruncateID covers TD.10(b): shortNodeLabel's nil-index branch used to
+// do a bare nodeID[:8], which panics on a malformed sub-8-char ID. truncateID
+// centralises the guard so both callers agree.
+func TestTruncateID(t *testing.T) {
+	tests := []struct {
+		name   string
+		nodeID string
+		want   string
+	}{
+		{"full UUID truncates with ellipsis", "11111111-1111-4111-8111-111111111111", "11111111…"},
+		{"exactly 8 chars returned as-is", "12345678", "12345678"},
+		{"shorter than 8 chars does not panic", "abc", "abc"},
+		{"empty string does not panic", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := truncateID(tt.nodeID); got != tt.want {
+				t.Errorf("truncateID(%q) = %q, want %q", tt.nodeID, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestShortNodeLabelNilIndexDoesNotPanic covers the specific panic path from
+// TD.10(b): a nil GraphIndex with a malformed (sub-8-char) node ID.
+func TestShortNodeLabelNilIndexDoesNotPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("shortNodeLabel panicked on short ID with nil index: %v", r)
+		}
+	}()
+
+	got := shortNodeLabel(nil, "abc")
+	if got != "abc" {
+		t.Errorf("shortNodeLabel(nil, %q) = %q, want %q", "abc", got, "abc")
+	}
+}
+
+// TestShortNodeLabelMissingNodeDoesNotPanic covers the missing-node branch
+// with a malformed (sub-8-char) node ID, which previously shared the same
+// unguarded nodeID[:8] slice via a different path.
+func TestShortNodeLabelMissingNodeDoesNotPanic(t *testing.T) {
+	idx := &stubIndex{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("shortNodeLabel panicked on short ID for missing node: %v", r)
+		}
+	}()
+
+	got := shortNodeLabel(idx, "xy")
+	if got != "xy" {
+		t.Errorf("shortNodeLabel(idx, %q) = %q, want %q", "xy", got, "xy")
 	}
 }
