@@ -256,6 +256,7 @@ Defaults to type 'task' with status 'inbox'.`,
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.Add(s, cli.AddOptions{
 				Body:     args[0],
 				Title:    title,
@@ -319,6 +320,7 @@ func journalCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.Journal(s, cli.JournalOptions{
 				Title:  title,
 				Body:   body,
@@ -377,6 +379,7 @@ func noteCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.Note(s, cli.NoteOptions{
 				Title:  title,
 				Body:   body,
@@ -520,6 +523,7 @@ When required values are omitted, an interactive form prompts for them.`,
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.BudgetCreate(s, cli.BudgetCreateOptions{
 				Category:  category,
 				Allocated: allocated,
@@ -563,6 +567,7 @@ Use --date YYYY-MM-DD to back-date or future-date the entry; defaults to today.`
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			warning, err := cli.Spend(s, s.Index(), cli.SpendOptions{
 				Category: args[0],
 				Amount:   amount,
@@ -593,6 +598,7 @@ func syncCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.Sync(s, cli.SyncOptions{Logger: appLogger}, os.Stdout)
 		},
 	}
@@ -611,6 +617,7 @@ func queryCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			kinds, stageGroups, err := buildRegistries(s)
 			if err != nil {
 				return err
@@ -637,6 +644,7 @@ func viewCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			kinds, stageGroups, err := buildRegistries(s)
 			if err != nil {
 				return err
@@ -663,6 +671,7 @@ func pushCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.Push(s, cli.PushOptions{NodeID: args[0]}, os.Stdout)
 		},
 	}
@@ -686,6 +695,7 @@ func pullCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PullObsidian(s, cli.PullObsidianOptions{
 				VaultPath: args[0],
 				DryRun:    dryRun,
@@ -714,6 +724,7 @@ func pluginCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PluginInstall(s, args[0], os.Stdout)
 		},
 	}
@@ -727,6 +738,7 @@ func pluginCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PluginExport(s, args[0], os.Stdout)
 		},
 	}
@@ -739,6 +751,7 @@ func pluginCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PluginList(s, os.Stdout)
 		},
 	}
