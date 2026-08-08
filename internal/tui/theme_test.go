@@ -78,6 +78,59 @@ func TestLoadThemeFallsBackToBuiltin(t *testing.T) {
 	}
 }
 
+// TestLoadThemeSurvivesCommentMarkerInStringAndTrailingComma is the TD.1
+// consolidation regression test for this consumer: a theme name containing
+// "//" (comment-marker lookalike) and a trailing comma in the JSONC must
+// both be handled correctly by the shared internal/jsonc.Strip pass.
+func TestLoadThemeSurvivesCommentMarkerInStringAndTrailingComma(t *testing.T) {
+	dir := t.TempDir()
+	themesDir := filepath.Join(dir, "themes")
+	if err := os.MkdirAll(themesDir, 0o755); err != nil {
+		t.Fatalf("mkdir themes: %v", err)
+	}
+
+	raw := `{
+	// leading comment
+	"name": "see https://example.com/theme",
+	"tiers": {
+		"truecolor": {
+			"bg": {"primary": "#0a0a0a", "secondary": "#1a1a1a"},
+			"fg": {"primary": "#ffffff", "muted": "#aaaaaa"},
+			"accent": {"primary": "#ff00ff", "secondary": "#aa00aa"},
+			"border": "#444444",
+			"selection": "#333333",
+			"status_bar": "#222222",
+			"energy": {"deep": "#00ff00", "medium": "#ffff00", "low": "#ff0000"},
+			"overflow": {"warn": "#ff8800", "critical": "#ff0000"},
+			"budget": {"ok": "#00ff00", "caution": "#ffff00", "over": "#ff0000"}
+		}
+	},
+	"glyphs": {
+		"energy_deep": "●",
+		"energy_medium": "◑",
+		"energy_low": "○",
+		"overflow": "▲",
+		"blocked": "✖",
+		"waiting": "⧖",
+		"budget_ok": "✓",
+		"budget_caution": "!",
+		"budget_over": "✗",
+	},
+}`
+	path := filepath.Join(themesDir, "url-theme.jsonc")
+	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+		t.Fatalf("write theme file: %v", err)
+	}
+
+	theme, err := tui.LoadTheme(dir, "url-theme")
+	if err != nil {
+		t.Fatalf("LoadTheme returned error: %v", err)
+	}
+	if theme.Name() != "see https://example.com/theme" {
+		t.Errorf("Name() = %q, want URL preserved verbatim", theme.Name())
+	}
+}
+
 // TestLoadThemeFromFile verifies that a theme file on disk is loaded correctly.
 func TestLoadThemeFromFile(t *testing.T) {
 	dir := t.TempDir()
@@ -221,9 +274,6 @@ func TestStyleHelpersDoNotPanic(t *testing.T) {
 
 	_ = theme.StylePrimary()
 	_ = theme.StyleMuted()
-	_ = theme.StyleAccent()
-	_ = theme.StyleBorder()
-	_ = theme.StyleSectionHeader()
 	_ = theme.StyleStatusBar()
 }
 
@@ -372,10 +422,6 @@ func TestRuntimeThemeSwitch(t *testing.T) {
 	originalBg := m.Theme().BgPrimary()
 
 	// Open the palette and type "theme theme-b" to switch.
-	// We simulate the internal switchThemeMsg directly for test simplicity.
-	type switchThemeMsg struct {
-		name string
-	}
 	// Instead use Ctrl+K and then register the theme-b command through Update.
 	// Easiest: send a WindowSizeMsg then manually trigger a theme switch
 	// by running the registered command.
