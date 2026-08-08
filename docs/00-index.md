@@ -11,8 +11,8 @@
 
 ## Architecture Decision Records
 
-| ADR                                                 | Title                                         | Status |
-|-----------------------------------------------------|-----------------------------------------------|--------|
+|                         ADR                         |                     Title                     |  Status  |
+|-----------------------------------------------------|-----------------------------------------------|----------|
 |     [001](./adr/adr-001-graph-as-flat-files.md)     |       Graph stored as flat JSONC files        | Accepted |
 |       [002](./adr/adr-002-stack-selection.md)       |       Stack: Go, Bubble Tea, JSONC, Git       | Accepted |
 |        [003](./adr/adr-003-cypher-subset.md)        |        Cypher subset as query language        | Accepted |
@@ -26,6 +26,7 @@
 |    [011](./adr/adr-011-obsidian-integration.md)     |           Obsidian asymmetric sync            | Accepted |
 |     [012](./adr/adr-012-first-class-writing.md)     |  Journals and notes as first-class citizens   | Accepted |
 |    [013](./adr/adr-013-plugin-sync-strategy.md)     |  Plugin manifests sync; binaries per-machine  | Accepted |
+|   [014](./adr/adr-014-default-asset-lifecycle.md)   |        Default asset lifecycle unified        | Accepted |
 
 ## File Format Guides
 
