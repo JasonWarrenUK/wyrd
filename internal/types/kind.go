@@ -22,6 +22,10 @@ type Kind struct {
 	// lipgloss.Color at display time. Not validated; matches the convention
 	// used throughout the theme system.
 	Colour string `json:"colour"`
+
+	// ShadowOf records the content hash of the embedded default this entry was
+	// forked from; empty for purely user-authored entries.
+	ShadowOf string `json:"shadow_of,omitempty"`
 }
 
 // Validate checks the minimal structural invariants for a usable registry

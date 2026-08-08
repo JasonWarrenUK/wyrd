@@ -96,6 +96,9 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 	for i, k := range out {
 		shadowed[k.Name] = true
 		if k.StageGroup == oldName {
+			// out[i] starts as a copy of the existing user entry, so
+			// ShadowOf (whatever it was — set or empty) carries through
+			// untouched. Only StageGroup changes.
 			out[i].StageGroup = newName
 			rewritten++
 		}
@@ -107,12 +110,19 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 	// (a group name that, once the caller's registry write lands, no longer
 	// resolves — every node of that kind becomes Unresolvable exactly as an
 	// unhandled kind rename would).
+	//
+	// These shadows are created transitively — entirely outside the form
+	// path a user consciously drives — so ShadowOf is stamped here too.
+	// Left unstamped, this fan-out would be a permanent blind spot for
+	// TD.5's drift detection: these entries are indistinguishable from
+	// purely user-authored kinds despite never having been hand-edited.
 	for _, d := range defaults {
 		if shadowed[d.Name] || d.StageGroup != oldName {
 			continue
 		}
 		shadow := d
 		shadow.StageGroup = newName
+		shadow.ShadowOf = DefaultKindHash(d.Name)
 		out = append(out, shadow)
 		rewritten++
 	}

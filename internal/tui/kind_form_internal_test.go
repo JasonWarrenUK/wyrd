@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -591,6 +592,158 @@ func TestKindEditFormRenameCustomKindNoTombstone(t *testing.T) {
 	}
 	if store.lastWritten[0].Name != "Chore" {
 		t.Errorf("lastWritten[0].Name = %q, want %q", store.lastWritten[0].Name, "Chore")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TD.14 — ShadowOf provenance stamping.
+// ---------------------------------------------------------------------------
+
+// TestKindFormCreateLeavesShadowOfEmpty verifies a brand-new, purely
+// user-authored kind is never stamped.
+func TestKindFormCreateLeavesShadowOfEmpty(t *testing.T) {
+	store := &errKindsStoreFS{}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newKindFormPane(theme, store, nil, nil, nil)
+	_, cmd := driveKindFormToCompleted(f)
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	if store.lastWritten[0].ShadowOf != "" {
+		t.Errorf("ShadowOf = %q, want empty for a create-mode kind", store.lastWritten[0].ShadowOf)
+	}
+}
+
+// TestKindEditFormStampsShadowOfOnDefault verifies editing a still-unshadowed
+// baked-in default stamps ShadowOf with that default's content hash.
+func TestKindEditFormStampsShadowOfOnDefault(t *testing.T) {
+	store := &errKindsStoreFS{} // "Task" not yet shadowed
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	if !f.isDefault {
+		t.Fatal("precondition failed: Task should be recognised as a default")
+	}
+	_, cmd := driveKindFormToCompletedWith(f, "Task", "◆", "#123456", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	want := stage.DefaultKindHash("Task")
+	if want == "" {
+		t.Fatal("precondition failed: DefaultKindHash(Task) should be non-empty")
+	}
+	if got := store.lastWritten[0].ShadowOf; got != want {
+		t.Errorf("ShadowOf = %q, want %q", got, want)
+	}
+}
+
+// TestKindEditFormNoShadowOfOnCustomKind verifies editing a purely
+// user-authored (non-default) kind never stamps ShadowOf.
+func TestKindEditFormNoShadowOfOnCustomKind(t *testing.T) {
+	store := &errKindsStoreFS{seed: []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow"},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Errand", StageGroup: "task-flow"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Errand", "!", "#9b70ff", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	if store.lastWritten[0].ShadowOf != "" {
+		t.Errorf("ShadowOf = %q, want empty for a custom kind", store.lastWritten[0].ShadowOf)
+	}
+}
+
+// TestKindEditFormReEditPreservesOriginalShadowOf is the critical regression
+// test: re-editing an entry that is already a shadow must carry its existing
+// ShadowOf forward unchanged, never recomputing against the current default.
+// Recomputing would silently resolve drift the user never reviewed, resetting
+// the TD.5 baseline.
+func TestKindEditFormReEditPreservesOriginalShadowOf(t *testing.T) {
+	sentinel := "sha256:deadbeefdeadbeef"
+	existing := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", ShadowOf: sentinel}
+	store := &errKindsStoreFS{seed: []types.Kind{existing}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	// Edit an unrelated field (glyph) — the shadow's ShadowOf must not move.
+	_, cmd := driveKindFormToCompletedWith(f, "Task", "★", "#9b70ff", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowOf
+	if got != sentinel {
+		t.Errorf("ShadowOf = %q, want preserved sentinel %q (not recomputed against the current default %q)",
+			got, sentinel, stage.DefaultKindHash("Task"))
+	}
+}
+
+// TestKindEditFormRenameDefaultStampsBothShadowAndTombstone verifies that
+// renaming a baked-in default stamps ShadowOf on both the renamed entry and
+// the tombstone left under the old name.
+func TestKindEditFormRenameDefaultStampsBothShadowAndTombstone(t *testing.T) {
+	store := &errKindsStoreFS{} // "Task" not yet shadowed
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Errand", "!", "#123456", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 2 {
+		t.Fatalf("lastWritten len = %d, want 2 (renamed entry + tombstone)", len(store.lastWritten))
+	}
+	wantHash := stage.DefaultKindHash("Task")
+	if wantHash == "" {
+		t.Fatal("precondition failed: DefaultKindHash(Task) should be non-empty")
+	}
+	var sawRenamed, sawTombstone bool
+	for _, k := range store.lastWritten {
+		if k.Name == "Errand" {
+			sawRenamed = true
+			if k.ShadowOf != wantHash {
+				t.Errorf("renamed entry ShadowOf = %q, want %q", k.ShadowOf, wantHash)
+			}
+		}
+		if k.Name == "Task" {
+			sawTombstone = true
+			if k.ShadowOf != wantHash {
+				t.Errorf("tombstone ShadowOf = %q, want %q", k.ShadowOf, wantHash)
+			}
+		}
+	}
+	if !sawRenamed {
+		t.Error("expected the renamed Errand entry in lastWritten")
+	}
+	if !sawTombstone {
+		t.Error("expected a Task tombstone entry in lastWritten")
 	}
 }
 

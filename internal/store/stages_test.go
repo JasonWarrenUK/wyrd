@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,11 @@ func newStagesTestStore(t *testing.T) (*Store, string) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
 	return s, parent
 }
 
@@ -143,6 +148,34 @@ func TestReadStagesStripsComments(t *testing.T) {
 	}
 }
 
+// TestReadStagesSurvivesCommentMarkerInStringAndTrailingComma is the TD.1
+// consolidation regression test for this consumer: a stage name containing
+// "//" (comment-marker lookalike) alongside a trailing comma must both be
+// handled correctly by the shared internal/jsonc.Strip pass.
+func TestReadStagesSurvivesCommentMarkerInStringAndTrailingComma(t *testing.T) {
+	s, parent := newStagesTestStore(t)
+
+	writeStagesFixture(t, parent, `[
+		{
+			"name": "review-flow",
+			"stages": ["see https://example.com/x", "Approved"],
+			"cycle": "terminate",
+		},
+	]`)
+
+	reg, err := s.ReadStages()
+	if err != nil {
+		t.Fatalf("ReadStages(): error = %v", err)
+	}
+	g, ok := reg.Lookup("review-flow")
+	if !ok {
+		t.Fatal("Lookup(review-flow) ok = false")
+	}
+	if len(g.Stages) != 2 || g.Stages[0] != "see https://example.com/x" {
+		t.Errorf("Stages = %v, want first stage to preserve the URL verbatim", g.Stages)
+	}
+}
+
 func TestReadStagesLenientSkip(t *testing.T) {
 	s, parent := newStagesTestStore(t)
 
@@ -235,6 +268,54 @@ func TestWriteStagesRoundTrip(t *testing.T) {
 	_, ok = reg.Lookup("habit-flow")
 	if !ok {
 		t.Error("Lookup(habit-flow) ok = false after write+read round-trip")
+	}
+}
+
+// TestWriteStagesOmitsEmptyShadowOf verifies that a group with an empty
+// ShadowOf produces no "shadow_of" key in the raw JSONC bytes — omitempty
+// keeps a hand-written stages.jsonc clean (TD.14).
+func TestWriteStagesOmitsEmptyShadowOf(t *testing.T) {
+	s, parent := newStagesTestStore(t)
+
+	groups := []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Approved"}, Cycle: types.CycleTerminate},
+	}
+	if err := s.WriteStages(groups); err != nil {
+		t.Fatalf("WriteStages() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(parent, "stages.jsonc"))
+	if err != nil {
+		t.Fatalf("reading stages.jsonc: %v", err)
+	}
+	if strings.Contains(string(raw), "shadow_of") {
+		t.Errorf("raw stages.jsonc contains \"shadow_of\" for a group with an empty ShadowOf:\n%s", raw)
+	}
+}
+
+// TestWriteStagesRoundTripsShadowOf verifies a non-empty ShadowOf survives a
+// write/read round trip (TD.14).
+func TestWriteStagesRoundTripsShadowOf(t *testing.T) {
+	s, _ := newStagesTestStore(t)
+
+	want := "sha256:deadbeefdeadbeef"
+	groups := []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Approved"}, Cycle: types.CycleTerminate, ShadowOf: want},
+	}
+	if err := s.WriteStages(groups); err != nil {
+		t.Fatalf("WriteStages() error = %v", err)
+	}
+
+	reg, err := s.ReadStages()
+	if err != nil {
+		t.Fatalf("ReadStages() error = %v", err)
+	}
+	review, ok := reg.Lookup("review-flow")
+	if !ok {
+		t.Fatal("Lookup(review-flow) ok = false after write+read round-trip")
+	}
+	if review.ShadowOf != want {
+		t.Errorf("ShadowOf = %q, want %q", review.ShadowOf, want)
 	}
 }
 

@@ -260,6 +260,65 @@ func TestRenameStageGroupSkipsAlreadyShadowedDefault(t *testing.T) {
 	}
 }
 
+// TestRenameStageGroupStampsTransitiveShadows extends
+// TestRenameStageGroupShadowsBuiltinKinds: every freshly appended shadow
+// (a default kind not previously shadowed, referencing the renamed group)
+// must carry a non-empty ShadowOf equal to the pre-rename default's content
+// hash. Unstamped, this fan-out would be a permanent blind spot for TD.5 —
+// these entries are otherwise indistinguishable from purely user-authored
+// kinds.
+func TestRenameStageGroupStampsTransitiveShadows(t *testing.T) {
+	store := newFakeStore() // no seed — nothing shadowed yet
+
+	_, err := stage.RenameStageGroup(store, "task-flow", "todo-flow")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(store.lastWrittenKinds) == 0 {
+		t.Fatal("precondition failed: expected at least one shadow written")
+	}
+	for _, k := range store.lastWrittenKinds {
+		want := stage.DefaultKindHash(k.Name)
+		if want == "" {
+			t.Fatalf("precondition failed: %q should be a built-in default", k.Name)
+		}
+		if k.ShadowOf != want {
+			t.Errorf("shadow %q ShadowOf = %q, want %q (pre-rename default's hash)", k.Name, k.ShadowOf, want)
+		}
+	}
+}
+
+// TestRenameStageGroupPreservesExistingShadowOf verifies a user kind that is
+// already a shadow (carrying its own ShadowOf) keeps that value untouched
+// when RenameStageGroup rewrites its StageGroup in place — the rename must
+// not recompute or clear provenance for an entry it didn't fork.
+func TestRenameStageGroupPreservesExistingShadowOf(t *testing.T) {
+	store := newFakeStore()
+	sentinel := "sha256:sentinel00000000"
+	store.kindsSeed = []types.Kind{
+		{Name: "Task", StageGroup: "task-flow", Glyph: "★", ShadowOf: sentinel},
+	}
+
+	_, err := stage.RenameStageGroup(store, "task-flow", "todo-flow")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var taskEntries int
+	for _, k := range store.lastWrittenKinds {
+		if k.Name == "Task" {
+			taskEntries++
+			if k.ShadowOf != sentinel {
+				t.Errorf("Task.ShadowOf = %q, want preserved sentinel %q", k.ShadowOf, sentinel)
+			}
+		}
+	}
+	if taskEntries != 1 {
+		t.Errorf("expected exactly 1 Task entry, got %d", taskEntries)
+	}
+}
+
 // TestRenameStageGroupReadFailureAborts verifies a ReadKinds failure is
 // fatal and no write is attempted — mirrors the fatal-read reasoning in
 // kind_form.go's submit branch (WriteKinds overwrites the whole file, so

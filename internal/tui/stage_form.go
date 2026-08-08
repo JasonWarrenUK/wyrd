@@ -79,9 +79,17 @@ type stageFormPane struct {
 // Compile-time checks: stageFormPane must satisfy PaneModel and formActivePane.
 var _ PaneModel = stageFormPane{}
 var _ formActivePane = stageFormPane{}
+var _ formMountable = stageFormPane{}
 
 // isFormActive satisfies the formActivePane marker interface.
 func (stageFormPane) isFormActive() {}
+
+// initForm satisfies the formMountable interface, returning the huh.Form's
+// own init command so app.go's mountForm helper can start it uniformly
+// across the five form panes that use that helper.
+func (f stageFormPane) initForm() tea.Cmd {
+	return f.form.Init()
+}
 
 // NewStageFormPane builds a stageFormPane in create mode. Exported for use
 // in tests.
@@ -326,6 +334,19 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			return f, tea.Batch(cmd, func() tea.Msg { return stageFormErrorMsg{err: e} })
 		}
 
+		// Stamp ShadowOf before upsertStageGroup, which has no special cases
+		// and stays that way — mirrors kindFormPane's identical reasoning:
+		// carry an existing shadow's ShadowOf forward unchanged on re-edit
+		// (recomputing would silently resolve unreviewed drift and reset the
+		// TD.5 baseline); only a fresh fork of a still-unshadowed default
+		// gets a newly computed hash, taken from the pre-edit default.
+		switch {
+		case f.editing != nil && f.editing.ShadowOf != "":
+			group.ShadowOf = f.editing.ShadowOf
+		case f.isDefault:
+			group.ShadowOf = stage.DefaultStageGroupHash(f.originalName)
+		}
+
 		renamed := f.originalName != "" && group.Name != f.originalName
 		existing := upsertStageGroup(reg.All(), group, f.originalName)
 
@@ -335,11 +356,14 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		// (run after this write succeeds, in the mount handler) repoints
 		// every kind off the old group name, so the tombstone is inert once
 		// that cascade lands — it exists purely to keep the group registry
-		// from resurrecting the default.
+		// from resurrecting the default. The tombstone is stamped for the
+		// same reason kindFormPane's is: it's a verbatim shadow, and leaving
+		// it unstamped would make it read as user-authored.
 		if renamed && f.isDefault {
 			if defaults, derr := stage.DefaultStageGroups(); derr == nil {
 				for _, d := range defaults {
 					if d.Name == f.originalName {
+						d.ShadowOf = stage.DefaultStageGroupHash(d.Name)
 						existing = append(existing, d)
 						break
 					}
