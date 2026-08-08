@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/cursor"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -390,6 +391,7 @@ func New(cfg Config) (Model, error) {
 	if clock == nil {
 		clock = types.RealClock{}
 	}
+	statusBar.SetClock(clock)
 
 	// Build the initial left pane. When a QueryRunner is available, run the
 	// dashboard query and mount the result. If the query fails (e.g. empty
@@ -399,7 +401,7 @@ func New(cfg Config) (Model, error) {
 	// A saved view named "dashboard" in the store overrides the default queries
 	// and columns. Individual keys in view.Queries override only the matching
 	// category; missing keys fall back to DefaultDashboardQuery.
-	var leftPane PaneModel = NewEmptyPane(theme)
+	leftPane := NewEmptyPane(theme)
 	cols := dashboardColumns
 	if cfg.QueryRunner != nil {
 		dq := DefaultDashboardQuery()
@@ -582,14 +584,12 @@ func New(cfg Config) (Model, error) {
 
 	// Pre-populate the right pane with the first selected item so the detail
 	// pane is not blank on startup.
-	if lp, ok := leftPane.(nodeListPane); ok {
-		if id := lp.SelectedNodeID(); id != "" {
-			m.rightPane = m.renderDetail(id)
-			if m.index != nil {
-				if node, err := m.index.GetNode(id); err == nil {
-					edgeCount := len(m.index.EdgesFrom(id)) + len(m.index.EdgesTo(id))
-					m.statusBar.SetNodeInfo(node.ID, node.Types, edgeCount)
-				}
+	if id := m.currentSelectedID(); id != "" {
+		m.rightPane = m.renderDetail(id)
+		if m.index != nil {
+			if node, err := m.index.GetNode(id); err == nil {
+				edgeCount := len(m.index.EdgesFrom(id)) + len(m.index.EdgesTo(id))
+				m.statusBar.SetNodeInfo(node.ID, node.Types, edgeCount)
 			}
 		}
 	}
@@ -654,8 +654,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // update is the Elm-style update function. All state changes happen here.
+//
+// Overlay routing order: ritual overlay, then capture bar, then the four
+// viewport overlays (log/help/kinds/stages), then the command palette — each
+// a guard that intercepts and returns early while active. This is the
+// *reverse* of View's compositing order (palette-first, ritual-last — see
+// View's switch), which looks like a mismatch but isn't a bug: only one
+// overlay is ever active at a time (mounting a second while one is open is
+// guarded at each open site), so the two orderings never actually compete for
+// the same message. Don't reorder either side to "fix" this — a reorder
+// changes real precedence when two guards' activation conditions ever do
+// overlap (e.g. a future overlay stacking feature) and neither order has been
+// asked for over the other. TestAtMostOneOverlayActive-style assertions are
+// the correct investment here, not a reorder.
 func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// When the ritual overlay is active, route messages to it first.
+	// When the ritual overlay is active, route messages to it first. Kept
+	// bespoke rather than folded into the []keyOverlay loop below: unlike the
+	// four viewport overlays, closing this one has a side effect beyond
+	// hiding the box — the post-Update close-detection here calls
+	// m.schedulerState.Dismiss and re-arms the scheduler via
+	// ritualCheckTickNext(), which is the *other* site (besides the
+	// ritualCheckTickMsg handler itself) responsible for keeping the ritual
+	// timer alive. A generic loop has nowhere to hang that logic without
+	// either special-casing ritualOverlay inside the loop (defeating the
+	// point of making it generic) or leaking scheduler concerns into
+	// keyOverlay's contract.
 	if m.ritualOvl.IsActive() {
 		cmd, consumed := m.ritualOvl.Update(msg)
 		if !m.ritualOvl.IsActive() {
@@ -680,36 +703,22 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// When the log overlay is active, route input to it.
-	if m.logOverlay.IsActive() {
-		cmd, consumed := m.logOverlay.Update(msg)
+	// When one of the four viewport overlays (log, help, kinds, stages) is
+	// active, route input to it first. These are pure UI with no cross-overlay
+	// state, so a single ranged dispatch is safe — unlike the ritual and
+	// palette guards below, which stay bespoke for reasons documented at each.
+	// Each overlay declines (nil, false) for anything it doesn't handle (see
+	// keyOverlay's doc comment), so a ritual tick, resize or spinner tick
+	// still reaches the switch below even while one of these is open.
+	for _, ovl := range []keyOverlay{&m.logOverlay, &m.helpOverlay, &m.kindsOverlay, &m.stagesOverlay} {
+		if !ovl.IsActive() {
+			continue
+		}
+		cmd, consumed := ovl.Update(msg)
 		if consumed {
 			return m, cmd
 		}
-	}
-
-	// When the help overlay is active, route input to it.
-	if m.helpOverlay.IsActive() {
-		cmd, consumed := m.helpOverlay.Update(msg)
-		if consumed {
-			return m, cmd
-		}
-	}
-
-	// When the kinds overlay is active, route input to it.
-	if m.kindsOverlay.IsActive() {
-		cmd, consumed := m.kindsOverlay.Update(msg)
-		if consumed {
-			return m, cmd
-		}
-	}
-
-	// When the stages overlay is active, route input to it.
-	if m.stagesOverlay.IsActive() {
-		cmd, consumed := m.stagesOverlay.Update(msg)
-		if consumed {
-			return m, cmd
-		}
+		break
 	}
 
 	// When the node list is actively filtering, key input goes exclusively to
@@ -749,15 +758,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, nil)
-		initCmd := fp.form.Init()
-		sized, _ := fp.Update(tea.WindowSizeMsg{
-			Width:  m.layout.TotalWidth(),
-			Height: m.layout.TotalHeight(),
-		})
-		m.rightPane = sized
-		m.focus = FocusRight
-		m.syncKeyHints()
-		return m, initCmd
+		return m.mountForm(fp)
 
 	case openKindEditFormMsg:
 		// Guard against clobbering an active form.
@@ -784,15 +785,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.clearCaptureCmd()
 		}
 		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, &k)
-		initCmd := fp.form.Init()
-		sized, _ := fp.Update(tea.WindowSizeMsg{
-			Width:  m.layout.TotalWidth(),
-			Height: m.layout.TotalHeight(),
-		})
-		m.rightPane = sized
-		m.focus = FocusRight
-		m.syncKeyHints()
-		return m, initCmd
+		return m.mountForm(fp)
 
 	case openStageFormMsg:
 		// Guard against clobbering an active form.
@@ -800,15 +793,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		fp := newStageFormPane(m.theme, m.store, m.stageGroups, nil)
-		initCmd := fp.form.Init()
-		sized, _ := fp.Update(tea.WindowSizeMsg{
-			Width:  m.layout.TotalWidth(),
-			Height: m.layout.TotalHeight(),
-		})
-		m.rightPane = sized
-		m.focus = FocusRight
-		m.syncKeyHints()
-		return m, initCmd
+		return m.mountForm(fp)
 
 	case openStageEditFormMsg:
 		// Guard against clobbering an active form.
@@ -832,15 +817,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.clearCaptureCmd()
 		}
 		fp := newStageFormPane(m.theme, m.store, m.stageGroups, &g)
-		initCmd := fp.form.Init()
-		sized, _ := fp.Update(tea.WindowSizeMsg{
-			Width:  m.layout.TotalWidth(),
-			Height: m.layout.TotalHeight(),
-		})
-		m.rightPane = sized
-		m.focus = FocusRight
-		m.syncKeyHints()
-		return m, initCmd
+		return m.mountForm(fp)
 
 	case openRemapFormMsg:
 		// Guard against clobbering an active form.
@@ -869,15 +846,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		fp := newRemapFormPane(m.theme, m.store, report)
-		initCmd := fp.form.Init()
-		sized, _ := fp.Update(tea.WindowSizeMsg{
-			Width:  m.layout.TotalWidth(),
-			Height: m.layout.TotalHeight(),
-		})
-		m.rightPane = sized
-		m.focus = FocusRight
-		m.syncKeyHints()
-		return m, initCmd
+		return m.mountForm(fp)
 
 	case syncResultMsg:
 		if msg.output == "__trigger__" {
@@ -927,17 +896,31 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.focusAnim.tick()
 	}
 
-	// Let the palette handle input first when it is active.
+	// Let the palette handle input first when it is active. Position matters:
+	// this sits after switch #1 above and before switch #2 below — load-bearing
+	// for ":kinds" and friends, whose Execute functions emit an
+	// openKindsOverlayMsg etc. that switch #1 handles on the *next* Update
+	// call, once the palette has closed and stopped intercepting.
+	//
+	// Only key presses and the textinput cursor blink are intercepted here;
+	// everything else (ritual ticks, window resize, spinner ticks) falls
+	// through to the switch below so those keep working while the palette is
+	// open. PaletteState.Update's own non-key tail unconditionally forwards
+	// to ps.input.Update, which would otherwise swallow those messages too —
+	// see the matching keyOverlay contract this mirrors.
 	if m.palette.IsActive() {
-		var cmd tea.Cmd
-		var remaining bool
-		m.palette, cmd, remaining = m.palette.Update(msg)
-		if !remaining {
-			// Palette was closed — no further routing needed.
+		switch msg.(type) {
+		case tea.KeyPressMsg, cursor.BlinkMsg:
+			var cmd tea.Cmd
+			var remaining bool
+			m.palette, cmd, remaining = m.palette.Update(msg)
+			if !remaining {
+				// Palette was closed — no further routing needed.
+				return m, cmd
+			}
+			// Palette is still open — keep forwarding its commands.
 			return m, cmd
 		}
-		// Palette is still open — keep forwarding its commands.
-		return m, cmd
 	}
 
 	switch msg := msg.(type) {
@@ -997,41 +980,37 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case detailReadyMsg:
-		// Result of async detail rendering. Mount the pane unless a form
-		// has taken over the right pane in the meantime.
+		// Result of async detail rendering. Fast j/j/j selection spawns
+		// multiple render goroutines with no ordering guarantee, so a slow
+		// render for an earlier selection can land after a later one's —
+		// drop any result that no longer matches the current selection.
+		// msg.nodeID == "" is a deliberate pass-through: renderDetail
+		// handles an empty ID by returning an empty pane, and that path
+		// must keep working (e.g. an empty node list).
+		if msg.nodeID != "" && msg.nodeID != m.currentSelectedID() {
+			return m, nil
+		}
+		// Mount the pane unless a form has taken over the right pane in the
+		// meantime.
 		if _, isForm := m.rightPane.(formActivePane); !isForm {
 			m.rightPane = msg.pane
 		}
 		return m, nil
 
 	case formSubmitMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
-		return m.handleCaptureSubmit(captureSubmitMsg{nodeID: msg.nodeID, label: msg.label})
+		m.unmountForm()
+		return m.handleCaptureSubmit(captureSubmitMsg(msg))
 
 	case formCancelMsg:
-		m.focus = FocusLeft
-		m.syncKeyHints()
-		if lp, ok := m.leftPane.(nodeListPane); ok {
-			if id := lp.SelectedNodeID(); id != "" {
-				m.rightPane = m.renderDetail(id)
-				return m, nil
-			}
-		}
-		m.rightPane = m.sizedEmptyPane(m.theme)
+		m.unmountFormToDetail()
 		return m, nil
 
 	case editSubmitMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 		return m.handleEditSubmit(msg)
 
 	case spendSubmitMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 		captureText := fmt.Sprintf("Recorded %.2f to %s", msg.amount, msg.category)
 		if msg.warning != "" {
 			captureText += "; warning: " + msg.warning
@@ -1041,9 +1020,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case kindFormSubmitMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 
 		// A rename must move every node off the old kind name before
 		// anything below scans for orphans — the registry no longer has an
@@ -1132,16 +1109,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case kindFormErrorMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 		m.statusBar.SetCaptureText("Could not save kind: " + msg.err.Error())
 		return m, m.clearCaptureCmd()
 
 	case stageFormSubmitMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 
 		// A rename must repoint every kind referencing the old group name
 		// before anything below rebuilds the kind registry — the group
@@ -1245,16 +1218,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case stageFormErrorMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
 		return m, m.clearCaptureCmd()
 
 	case remapFormSubmitMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 		text := fmt.Sprintf("Remapped %d node%s", msg.remapped, plural(msg.remapped))
 		if msg.unchanged > 0 {
 			text += fmt.Sprintf(", left %d unchanged", msg.unchanged)
@@ -1264,9 +1233,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.clearCaptureCmd()
 
 	case remapFormErrorMsg:
-		m.rightPane = m.sizedEmptyPane(m.theme)
-		m.focus = FocusLeft
-		m.syncKeyHints()
+		m.unmountForm()
 		text := "Remap failed: " + msg.err.Error()
 		if msg.remapped > 0 {
 			text = fmt.Sprintf("Remapped %d node%s before failing: %s", msg.remapped, plural(msg.remapped), msg.err.Error())
@@ -1365,6 +1332,25 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Broadcast non-key messages to both panes (e.g. tick, window resize already
 	// handled above, custom domain messages).
 	return m.updateBothPanes(msg)
+}
+
+// mountForm sizes fp to the current layout, mounts it in the right pane, and
+// gives it keyboard focus — the shared prologue that used to be duplicated at
+// each of the five sites that open a kindFormPane, stageFormPane or
+// remapFormPane (see formMountable's doc comment for why exactly these five
+// and not the task/journal/note/budget/spend forms). initForm() is called
+// after Update/resize, matching the call order every duplicated site already
+// used, so this is a pure extraction rather than a behaviour change.
+func (m Model) mountForm(fp formMountable) (tea.Model, tea.Cmd) {
+	initCmd := fp.initForm()
+	sized, _ := fp.Update(tea.WindowSizeMsg{
+		Width:  m.layout.TotalWidth(),
+		Height: m.layout.TotalHeight(),
+	})
+	m.rightPane = sized
+	m.focus = FocusRight
+	m.syncKeyHints()
+	return m, initCmd
 }
 
 // handleSwitchPane toggles focus between the left and right panes, notifying
@@ -1743,11 +1729,9 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 	// theme bg baked in) or a stale formActivePane (traps ctrl+c as cancel).
 	// Re-render the detail for the selected node; fall back to empty pane.
 	rerendered := false
-	if lp, ok := m.leftPane.(nodeListPane); ok {
-		if id := lp.SelectedNodeID(); id != "" {
-			m.rightPane = m.renderDetail(id)
-			rerendered = true
-		}
+	if id := m.currentSelectedID(); id != "" {
+		m.rightPane = m.renderDetail(id)
+		rerendered = true
 	}
 	if !rerendered {
 		m.rightPane = m.sizedEmptyPane(t)
@@ -1851,6 +1835,37 @@ func (m *Model) StatusBar() *StatusBar {
 	return &m.statusBar
 }
 
+// unmountForm clears an active form from the right pane back to the app's
+// resting state: an empty pane, focus returned to the left, and key hints
+// re-synced. This is the shared tail for the eight form-completion messages
+// (formSubmitMsg, editSubmitMsg, spendSubmitMsg, kindFormSubmitMsg,
+// kindFormErrorMsg, stageFormSubmitMsg, stageFormErrorMsg,
+// remapFormSubmitMsg, remapFormErrorMsg) whose next step is either a no-op
+// right pane or a caller-specific status message — every one of them wants
+// exactly this prologue and nothing else. formCancelMsg is the odd one out
+// (see unmountFormToDetail) because cancelling restores the node detail view
+// rather than leaving the pane empty.
+func (m *Model) unmountForm() {
+	m.rightPane = m.sizedEmptyPane(m.theme)
+	m.focus = FocusLeft
+	m.syncKeyHints()
+}
+
+// unmountFormToDetail is formCancelMsg's variant of unmountForm: instead of
+// always mounting an empty pane, it restores the currently selected node's
+// detail view when there is a selection, falling back to empty only when
+// there isn't. Uses currentSelectedID (TD.7) rather than a cached ID, for the
+// same staleness reasons that helper's doc comment gives.
+func (m *Model) unmountFormToDetail() {
+	m.focus = FocusLeft
+	m.syncKeyHints()
+	if id := m.currentSelectedID(); id != "" {
+		m.rightPane = m.renderDetail(id)
+		return
+	}
+	m.rightPane = m.sizedEmptyPane(m.theme)
+}
+
 // renderDetailAsync returns a tea.Cmd that renders the detail pane in a
 // goroutine, sending a detailReadyMsg when complete. This keeps the event
 // loop responsive while Glamour processes markdown.
@@ -1901,6 +1916,20 @@ func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
 		pane := m.renderDetail(nodeID)
 		return detailReadyMsg{nodeID: nodeID, pane: pane}
 	}
+}
+
+// currentSelectedID returns the UUID of the currently highlighted node in
+// the left pane, or an empty string when the left pane isn't a nodeListPane
+// or has no selection. Deliberately not mirrored into a Model field: the
+// list pane mutates its own selection internally without emitting a
+// root-visible message on every move, so a cached field would drift from
+// the real selection — reintroducing the staleness class this helper exists
+// to close.
+func (m Model) currentSelectedID() string {
+	if lp, ok := m.leftPane.(nodeListPane); ok {
+		return lp.SelectedNodeID()
+	}
+	return ""
 }
 
 // renderDetail fetches a node by ID and renders it into a detailPane.

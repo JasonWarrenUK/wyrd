@@ -58,7 +58,10 @@ func (ho *helpOverlay) Close() { ho.active = false }
 // IsActive reports whether the overlay is visible.
 func (ho *helpOverlay) IsActive() bool { return ho.active }
 
-// Update handles keyboard input while the overlay is active.
+// Update handles keyboard and mouse input while the overlay is active. Any
+// other message type (ritual ticks, window resizes, spinner ticks, …) is
+// declined with (nil, false) so it falls through to the root switch — see
+// keyOverlay's doc comment for why that matters.
 func (ho *helpOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
 	if !ho.active {
 		return nil, false
@@ -72,10 +75,20 @@ func (ho *helpOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
 		}
 	}
 
-	var cmd tea.Cmd
-	ho.vp, cmd = ho.vp.Update(msg)
-	return cmd, true
+	// Mouse messages fall through to the viewport too, so wheel scroll keeps
+	// working; everything else (ticks, resize, …) is declined below.
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.MouseMsg:
+		var cmd tea.Cmd
+		ho.vp, cmd = ho.vp.Update(msg)
+		return cmd, true
+	default:
+		return nil, false
+	}
 }
+
+// Compile-time check: helpOverlay must satisfy keyOverlay.
+var _ keyOverlay = (*helpOverlay)(nil)
 
 // View renders the overlay as a bordered box centred on the screen.
 func (ho *helpOverlay) View(width, height int) string {

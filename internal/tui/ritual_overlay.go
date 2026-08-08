@@ -75,6 +75,11 @@ func (o *ritualOverlay) IsActive() bool {
 	return o.active
 }
 
+// Compile-time check: ritualOverlay satisfies keyOverlay's shape, though it
+// is deliberately not dispatched through the []keyOverlay loop in update —
+// see the comment above that loop for why it stays bespoke.
+var _ keyOverlay = (*ritualOverlay)(nil)
+
 // Update handles a Bubble Tea message while the overlay is active. It returns
 // any command to execute and whether the message was consumed (true) or should
 // fall through to the app (false).

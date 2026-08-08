@@ -64,9 +64,17 @@ type remapFormPane struct {
 // Compile-time checks: remapFormPane must satisfy PaneModel and formActivePane.
 var _ PaneModel = remapFormPane{}
 var _ formActivePane = remapFormPane{}
+var _ formMountable = remapFormPane{}
 
 // isFormActive satisfies the formActivePane marker interface.
 func (remapFormPane) isFormActive() {}
+
+// initForm satisfies the formMountable interface, returning the huh.Form's
+// own init command so app.go's mountForm helper can start it uniformly
+// across the five form panes that use that helper.
+func (f remapFormPane) initForm() tea.Cmd {
+	return f.form.Init()
+}
 
 // NewRemapFormPane builds a remapFormPane. Exported for use in tests.
 // Callers must ensure report is non-empty and within maxRemapOrphans —
