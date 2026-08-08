@@ -93,11 +93,20 @@ func (s *Store) ensureDirs() error {
 }
 
 // buildIndex scans all node and edge files and populates the in-memory index.
+// A missing directory is fine on first run and yields no error; any other
+// directory-read failure (e.g. permissions) is returned wrapped rather than
+// silently swallowed, so an unreadable store is distinguishable from an empty
+// one. Individual files that fail to parse are skipped with a warning rather
+// than aborting the whole scan.
 func (s *Store) buildIndex() error {
 	nodesDir := filepath.Join(s.path, "nodes")
 	entries, err := readdirNames(nodesDir)
 	if err != nil {
-		return nil // Empty or missing is fine on first run.
+		if isNotExist(err) {
+			entries = nil
+		} else {
+			return fmt.Errorf("reading nodes directory: %w", err)
+		}
 	}
 	for _, name := range entries {
 		if filepath.Ext(name) != ".jsonc" {
@@ -106,6 +115,7 @@ func (s *Store) buildIndex() error {
 		id := name[:len(name)-len(".jsonc")]
 		node, err := s.ReadNode(id)
 		if err != nil {
+			s.logWarn("skipping unreadable node", "id", id, "err", err)
 			continue
 		}
 		s.index.upsertNode(node)
@@ -114,7 +124,11 @@ func (s *Store) buildIndex() error {
 	edgesDir := filepath.Join(s.path, "edges")
 	edgeEntries, err := readdirNames(edgesDir)
 	if err != nil {
-		return nil
+		if isNotExist(err) {
+			edgeEntries = nil
+		} else {
+			return fmt.Errorf("reading edges directory: %w", err)
+		}
 	}
 	for _, name := range edgeEntries {
 		if filepath.Ext(name) != ".jsonc" {
@@ -123,6 +137,7 @@ func (s *Store) buildIndex() error {
 		id := name[:len(name)-len(".jsonc")]
 		edge, err := s.ReadEdge(id)
 		if err != nil {
+			s.logWarn("skipping unreadable edge", "id", id, "err", err)
 			continue
 		}
 		s.index.upsertEdge(edge)
@@ -134,6 +149,20 @@ func (s *Store) buildIndex() error {
 // Index returns the in-memory graph index.
 func (s *Store) Index() types.GraphIndex {
 	return s.index
+}
+
+// RemoveFromIndex evicts the given node and edge IDs from the in-memory
+// index, satisfying types.Compactor. Callers such as cli.Compact use this
+// after moving files out of nodes/ and edges/ on disk, so a running TUI's
+// index doesn't keep serving entities that no longer exist in the store's
+// working directories.
+func (s *Store) RemoveFromIndex(nodeIDs, edgeIDs []string) {
+	for _, id := range nodeIDs {
+		s.index.removeNode(id)
+	}
+	for _, id := range edgeIDs {
+		s.index.removeEdge(id)
+	}
 }
 
 // StorePath returns the absolute path to the /store root.
@@ -149,14 +178,18 @@ func (s *Store) Close() error {
 	return nil
 }
 
-// WriteNode persists a node to disk atomically.
+// WriteNode persists a node to disk atomically. Modified is always stamped
+// from the store's clock, ignoring any caller-supplied value — "modified"
+// means "when the store wrote it", and the store is the only thing that
+// knows. Callers only need to set Date.Created (on first write).
 func (s *Store) WriteNode(node *types.Node) error {
 	s.logDebug("writing node", "id", node.ID, "types", node.Types)
-	createdStr := node.Created.UTC().Format("2006-01-02T15:04:05Z")
-	modifiedStr := node.Modified.UTC().Format("2006-01-02T15:04:05Z")
+	createdStr := node.Date.Created.UTC().Format("2006-01-02T15:04:05Z")
+	modifiedStr := s.clock.Now().UTC().Format("2006-01-02T15:04:05Z")
 
-	// Build the nested date object from node.Date.
-	// node.Date.Created/Modified mirror node.Created/Modified.
+	// Build the nested date object from node.Date. This is the sole
+	// on-disk representation of a node's dates (TD.3) — there are no flat
+	// top-level created/modified keys.
 	dateObj := map[string]interface{}{
 		"created":  createdStr,
 		"modified": modifiedStr,
@@ -178,12 +211,10 @@ func (s *Store) WriteNode(node *types.Node) error {
 	}
 
 	raw := map[string]interface{}{
-		"id":       node.ID,
-		"body":     node.Body,
-		"types":    node.Types,
-		"created":  createdStr,
-		"modified": modifiedStr,
-		"date":     dateObj,
+		"id":    node.ID,
+		"body":  node.Body,
+		"types": node.Types,
+		"date":  dateObj,
 	}
 	if node.Title != "" {
 		raw["title"] = node.Title
@@ -198,6 +229,10 @@ func (s *Store) WriteNode(node *types.Node) error {
 		raw["source"] = node.Source
 	}
 	for k, v := range node.Properties {
+		if nodeCoreFields[k] {
+			s.logWarn("dropping property that collides with a core node field", "key", k)
+			continue
+		}
 		raw[k] = v
 	}
 	if err := writeJSONC(s.nodePath(node.ID), raw); err != nil {
@@ -218,17 +253,29 @@ func (s *Store) WriteNode(node *types.Node) error {
 	return nil
 }
 
-// WriteEdge persists an edge to disk atomically.
+// WriteEdge persists an edge to disk atomically. Modified is always stamped
+// from the store's clock, ignoring any caller-supplied value — see
+// WriteNode's doc comment for the rationale. Callers only need to set
+// Date.Created (on first write).
 func (s *Store) WriteEdge(edge *types.Edge) error {
 	s.logDebug("writing edge", "id", edge.ID, "type", edge.Type, "from", edge.From, "to", edge.To)
+	createdStr := edge.Date.Created.UTC().Format("2006-01-02T15:04:05Z")
+	modifiedStr := s.clock.Now().UTC().Format("2006-01-02T15:04:05Z")
 	raw := map[string]interface{}{
-		"id":      edge.ID,
-		"type":    edge.Type,
-		"from":    edge.From,
-		"to":      edge.To,
-		"created": edge.Created.UTC().Format("2006-01-02T15:04:05Z"),
+		"id":   edge.ID,
+		"type": edge.Type,
+		"from": edge.From,
+		"to":   edge.To,
+		"date": map[string]interface{}{
+			"created":  createdStr,
+			"modified": modifiedStr,
+		},
 	}
 	for k, v := range edge.Properties {
+		if edgeCoreFields[k] {
+			s.logWarn("dropping property that collides with a core edge field", "key", k)
+			continue
+		}
 		raw[k] = v
 	}
 	if err := writeJSONC(s.edgePath(edge.ID), raw); err != nil {
@@ -260,12 +307,17 @@ func (s *Store) ReadView(name string) (*types.SavedView, error) {
 	return &view, nil
 }
 
-// AllViews returns all saved views found in the store.
+// AllViews returns all saved views found in the store. A missing directory
+// is fine on first run; any other directory-read failure is returned
+// wrapped, matching AllTemplates' shape.
 func (s *Store) AllViews() ([]*types.SavedView, error) {
 	dir := filepath.Join(s.path, "views")
 	entries, err := readdirNames(dir)
 	if err != nil {
-		return nil, nil
+		if isNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("listing views: %w", err)
 	}
 	var views []*types.SavedView
 	for _, name := range entries {
@@ -275,6 +327,7 @@ func (s *Store) AllViews() ([]*types.SavedView, error) {
 		viewName := name[:len(name)-len(".jsonc")]
 		v, err := s.ReadView(viewName)
 		if err != nil {
+			s.logWarn("skipping unreadable view", "name", viewName, "err", err)
 			continue
 		}
 		views = append(views, v)
@@ -299,12 +352,17 @@ func (s *Store) ReadRitual(name string) (*types.Ritual, error) {
 	return &ritual, nil
 }
 
-// AllRituals returns all ritual definitions found in the store.
+// AllRituals returns all ritual definitions found in the store. A missing
+// directory is fine on first run; any other directory-read failure is
+// returned wrapped, matching AllTemplates' shape.
 func (s *Store) AllRituals() ([]*types.Ritual, error) {
 	dir := filepath.Join(s.path, "rituals")
 	entries, err := readdirNames(dir)
 	if err != nil {
-		return nil, nil
+		if isNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("listing rituals: %w", err)
 	}
 	var rituals []*types.Ritual
 	for _, name := range entries {
@@ -314,6 +372,7 @@ func (s *Store) AllRituals() ([]*types.Ritual, error) {
 		ritualName := name[:len(name)-len(".jsonc")]
 		r, err := s.ReadRitual(ritualName)
 		if err != nil {
+			s.logWarn("skipping unreadable ritual", "name", ritualName, "err", err)
 			continue
 		}
 		rituals = append(rituals, r)
@@ -340,7 +399,7 @@ func (s *Store) ReadTheme(name string) (*types.Theme, error) {
 
 // ReadConfig reads the application configuration from disk.
 func (s *Store) ReadConfig() (*types.Config, error) {
-	path := filepath.Join(s.path, "..", "config.jsonc")
+	path := filepath.Join(s.path, "config.jsonc")
 	data, err := readJSONC(path)
 	if err != nil {
 		if isNotExist(err) {
@@ -357,7 +416,7 @@ func (s *Store) ReadConfig() (*types.Config, error) {
 
 // WriteConfig persists the application configuration.
 func (s *Store) WriteConfig(cfg *types.Config) error {
-	path := filepath.Join(s.path, "..", "config.jsonc")
+	path := filepath.Join(s.path, "config.jsonc")
 	return writeJSONC(path, cfg)
 }
 
@@ -457,17 +516,23 @@ func (s *Store) ReadPluginManifest(name string) (*types.PluginManifest, error) {
 	return &manifest, nil
 }
 
-// AllPluginManifests returns all plugin manifests found in the store.
+// AllPluginManifests returns all plugin manifests found in the store. A
+// missing directory is fine on first run; any other directory-read failure
+// is returned wrapped, matching AllTemplates' shape.
 func (s *Store) AllPluginManifests() ([]*types.PluginManifest, error) {
 	dir := filepath.Join(s.path, "plugins")
 	entries, err := readdirNames(dir)
 	if err != nil {
-		return nil, nil
+		if isNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("listing plugins: %w", err)
 	}
 	var manifests []*types.PluginManifest
 	for _, name := range entries {
 		m, err := s.ReadPluginManifest(name)
 		if err != nil {
+			s.logWarn("skipping unreadable plugin manifest", "name", name, "err", err)
 			continue
 		}
 		manifests = append(manifests, m)
