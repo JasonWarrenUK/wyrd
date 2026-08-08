@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
+	"github.com/jasonwarrenuk/wyrd/internal/store"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 func TestInit_CreatesDirectoryStructure(t *testing.T) {
@@ -88,6 +90,43 @@ func TestIsInitialised_AfterInit(t *testing.T) {
 
 	if !cli.IsInitialised(dir) {
 		t.Fatal("expected IsInitialised to return true after Init")
+	}
+}
+
+// TestInit_ConfigIsReadableByStore crosses the Init → ReadConfig boundary
+// that the config.jsonc path fix closes: cli.Init copies the starter
+// config.jsonc to <store>/config.jsonc, so store.ReadConfig must find it
+// there and surface its values.
+//
+// Deliberately not asserted: MaxTraversalDepth == 5. That value is also
+// exactly what ReadConfig's not-exist branch returns
+// (&types.Config{MaxTraversalDepth: 5}), so asserting it would pass even
+// against the broken (pre-fix) path lookup and prove nothing. Theme and
+// DefaultView have no such overlap with the default — they're read as
+// empty strings when the file isn't found — so they're the assertions that
+// actually exercise the fix.
+func TestInit_ConfigIsReadableByStore(t *testing.T) {
+	storeDir := t.TempDir()
+
+	if err := cli.Init(storeDir); err != nil {
+		t.Fatalf("Init returned unexpected error: %v", err)
+	}
+
+	s, err := store.New(storeDir, types.RealClock{})
+	if err != nil {
+		t.Fatalf("opening store: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	cfg, err := s.ReadConfig()
+	if err != nil {
+		t.Fatalf("ReadConfig: %v", err)
+	}
+	if cfg.Theme != "cairn" {
+		t.Errorf("Theme = %q, want %q", cfg.Theme, "cairn")
+	}
+	if cfg.DefaultView != "today" {
+		t.Errorf("DefaultView = %q, want %q", cfg.DefaultView, "today")
 	}
 }
 
