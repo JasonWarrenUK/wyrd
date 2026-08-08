@@ -653,6 +653,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return next, cmd
 }
 
+// viewportOverlayActive reports whether any of the four viewport overlays
+// (log/help/kinds/stages) is currently open. The message-open cases below
+// (openKindFormMsg and friends) must check this before mounting a pane into
+// rightPane: those messages aren't consumed by the overlays' Update (see
+// keyOverlay's contract), so they fall through the dispatch loop in update
+// and reach this switch while an overlay is still active. Without this
+// guard the form mounts underneath the overlay — View composites the
+// overlay over whatever rightView already rendered, so the form is
+// invisible but still focused, silently eating keystrokes.
+func (m Model) viewportOverlayActive() bool {
+	return m.logOverlay.IsActive() || m.helpOverlay.IsActive() ||
+		m.kindsOverlay.IsActive() || m.stagesOverlay.IsActive()
+}
+
 // update is the Elm-style update function. All state changes happen here.
 //
 // Overlay routing order: ritual overlay, then capture bar, then the four
@@ -660,8 +674,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // a guard that intercepts and returns early while active. This is the
 // *reverse* of View's compositing order (palette-first, ritual-last — see
 // View's switch), which looks like a mismatch but isn't a bug: only one
-// overlay is ever active at a time (mounting a second while one is open is
-// guarded at each open site), so the two orderings never actually compete for
+// overlay is ever active at a time (mounting a second viewport overlay while
+// one is open is guarded via viewportOverlayActive at each open-message
+// case below; the palette and ritual overlay are only reachable from key
+// presses the active viewport overlay would otherwise have consumed, so they
+// need no separate guard), so the two orderings never actually compete for
 // the same message. Don't reorder either side to "fix" this — a reorder
 // changes real precedence when two guards' activation conditions ever do
 // overlap (e.g. a future overlay stacking feature) and neither order has been
@@ -737,32 +754,48 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle async capture messages regardless of capture bar focus state.
 	switch msg := msg.(type) {
 	case openLogOverlayMsg:
+		// Guard against opening a second overlay on top of one already active.
+		if m.viewportOverlayActive() {
+			return m, nil
+		}
 		m.logOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
 	case openHelpOverlayMsg:
+		if m.viewportOverlayActive() {
+			return m, nil
+		}
 		m.helpOverlay.Open(m.layout.totalWidth, m.layout.totalHeight, m.keyMap.AllBindings())
 		return m, nil
 
 	case openKindsOverlayMsg:
+		if m.viewportOverlayActive() {
+			return m, nil
+		}
 		m.kindsOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
 	case openStagesOverlayMsg:
+		if m.viewportOverlayActive() {
+			return m, nil
+		}
 		m.stagesOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
 
 	case openKindFormMsg:
-		// Guard against clobbering an active form.
-		if _, isForm := m.rightPane.(formActivePane); isForm {
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay (see
+		// viewportOverlayActive's doc comment).
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
 			return m, nil
 		}
 		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, nil)
 		return m.mountForm(fp)
 
 	case openKindEditFormMsg:
-		// Guard against clobbering an active form.
-		if _, isForm := m.rightPane.(formActivePane); isForm {
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay.
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
 			return m, nil
 		}
 		if msg.name == "" {
@@ -788,16 +821,18 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.mountForm(fp)
 
 	case openStageFormMsg:
-		// Guard against clobbering an active form.
-		if _, isForm := m.rightPane.(formActivePane); isForm {
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay.
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
 			return m, nil
 		}
 		fp := newStageFormPane(m.theme, m.store, m.stageGroups, nil)
 		return m.mountForm(fp)
 
 	case openStageEditFormMsg:
-		// Guard against clobbering an active form.
-		if _, isForm := m.rightPane.(formActivePane); isForm {
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay.
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
 			return m, nil
 		}
 		if msg.name == "" {
@@ -820,8 +855,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.mountForm(fp)
 
 	case openRemapFormMsg:
-		// Guard against clobbering an active form.
-		if _, isForm := m.rightPane.(formActivePane); isForm {
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay.
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
 			return m, nil
 		}
 		if m.store == nil || m.index == nil {

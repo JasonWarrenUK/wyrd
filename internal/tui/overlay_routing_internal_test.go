@@ -190,6 +190,67 @@ func TestOverlaysStillConsumeKeys(t *testing.T) {
 	}
 }
 
+// formOpenHarness names one of the form-open message constructors together
+// with a label for the subtest. Only the four bare (no-name-lookup) variants
+// are covered — openKindEditFormMsg/openStageEditFormMsg additionally need a
+// populated registry to resolve msg.name against, which is orthogonal to the
+// bug this test guards against.
+type formOpenHarness struct {
+	name string
+	msg  tea.Msg
+}
+
+func formOpenHarnesses() []formOpenHarness {
+	return []formOpenHarness{
+		{name: "openKindFormMsg", msg: openKindFormMsg{}},
+		{name: "openStageFormMsg", msg: openStageFormMsg{}},
+	}
+}
+
+// TestFormOpenMsgDoesNotMountUnderOpenOverlay is the regression test for the
+// bug viewportOverlayActive fixes: openKindFormMsg and friends aren't
+// consumed by a viewport overlay's Update (see keyOverlay's contract), so
+// before the fix they fell through the dispatch loop in update and reached
+// this switch while the overlay was still active — mounting a form into
+// rightPane that View then rendered underneath the overlay. The form was
+// invisible but still focused, silently eating keystrokes the user believed
+// were going nowhere.
+//
+// Table over the four viewport overlays (not the palette or ritual overlay,
+// which — per the doc comment on viewportOverlayActive — only reach this
+// switch via key input that they'd otherwise have consumed themselves) and
+// both bare form-open messages.
+func TestFormOpenMsgDoesNotMountUnderOpenOverlay(t *testing.T) {
+	for _, oh := range overlayHarnesses(t) {
+		if oh.name == "ritual" {
+			continue
+		}
+		for _, fh := range formOpenHarnesses() {
+			t.Run(oh.name+"/"+fh.name, func(t *testing.T) {
+				m := newRitualTestModel(t)
+				m = oh.open(t, m)
+				if !oh.isActive(m) {
+					t.Fatalf("%s overlay did not open", oh.name)
+				}
+
+				updated, _ := m.Update(fh.msg)
+				got, ok := updated.(Model)
+				if !ok {
+					t.Fatalf("Update returned %T, want Model", updated)
+				}
+
+				if _, isForm := got.rightPane.(formActivePane); isForm {
+					t.Errorf("%s mounted a form in rightPane while the %s overlay was still active",
+						fh.name, oh.name)
+				}
+				if !oh.isActive(got) {
+					t.Errorf("%s overlay closed unexpectedly after %s", oh.name, fh.name)
+				}
+			})
+		}
+	}
+}
+
 // TestPaletteStillDispatchesKindsCommand guards the load-bearing position of
 // the palette guard (after the overlay-open switch, before the general
 // switch): typing "kinds" and confirming must still open the kinds overlay on
