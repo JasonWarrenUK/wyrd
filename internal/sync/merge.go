@@ -3,9 +3,9 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
 	"time"
+
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 )
 
 // MergeFiles performs a three-way merge of JSONC node files.
@@ -70,9 +70,9 @@ func mergeObjects(base, ours, theirs map[string]interface{}) (map[string]interfa
 	result := make(map[string]interface{})
 
 	// Determine the last-write-wins winner at the document level, based on
-	// the top-level "modified" field.
-	oursModified := extractTime(ours, "modified")
-	theirsModified := extractTime(theirs, "modified")
+	// the nested "date.modified" field (TD.3's on-disk format).
+	oursModified := extractModified(ours)
+	theirsModified := extractModified(theirs)
 
 	// Collect all keys from all three versions.
 	keys := unionKeys(base, ours, theirs)
@@ -369,51 +369,42 @@ func makeObjectKeyFn(ours, theirs []interface{}) func(map[string]interface{}) st
 }
 
 // --- JSONC helpers ---
+//
+// stripComments, readJSONC and writeJSONC are thin local wrappers over
+// internal/jsonc (TD.1). Kept as map-returning wrappers rather than
+// repointing all five call sites directly — there is no gain in changing
+// them, and writeJSONC now delegates to jsonc.WriteFile so the merge driver
+// (which can be killed mid-rebase) writes atomically instead of via the
+// previous non-atomic os.WriteFile.
 
-// commentPattern matches single-line (//) and block (/* */) comments.
-var commentPattern = regexp.MustCompile(`(?m)//[^\n]*|/\*[\s\S]*?\*/`)
-
-// trailingCommaPattern matches trailing commas before } or ].
-var trailingCommaPattern = regexp.MustCompile(`,\s*([\}\]])`)
-
-// stripComments removes JSONC-style comments from raw bytes and also removes
-// trailing commas that are valid in JSONC but invalid in JSON.
+// stripComments removes JSONC-style comments and trailing commas from raw
+// bytes, string-aware throughout — this is the fix for the SY.2 bug, where
+// the previous regex-based stripper corrupted a node body containing a URL
+// (the "//" in "https://" was mistaken for a line comment marker).
 func stripComments(data []byte) []byte {
-	stripped := commentPattern.ReplaceAll(data, []byte{})
-	stripped = trailingCommaPattern.ReplaceAll(stripped, []byte("$1"))
-	return stripped
+	return jsonc.Strip(data)
 }
 
 // readJSONC reads a JSONC file, strips comments, and decodes it into a map.
 func readJSONC(path string) (map[string]interface{}, error) {
-	data, err := os.ReadFile(path)
+	data, err := jsonc.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	clean := stripComments(data)
-
 	var result map[string]interface{}
-	if err := json.Unmarshal(clean, &result); err != nil {
+	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
 	return result, nil
 }
 
-// writeJSONC serialises a map to indented JSON and writes it to path.
-// Comments are not preserved (they are stripped on read), which matches the
-// specification's comment-strip approach.
+// writeJSONC serialises a map to indented JSON and writes it to path
+// atomically. Comments are not preserved (they are stripped on read), which
+// matches the specification's comment-strip approach.
 func writeJSONC(path string, data map[string]interface{}) error {
-	out, err := json.MarshalIndent(data, "", "\t")
-	if err != nil {
-		return fmt.Errorf("failed to serialise merged result: %w", err)
-	}
-
-	// Append trailing newline for consistency with POSIX conventions.
-	out = append(out, '\n')
-
-	return os.WriteFile(path, out, 0o644)
+	return jsonc.WriteFile(path, data)
 }
 
 // --- Utility helpers ---
@@ -432,6 +423,20 @@ func jsonEqual(a, b interface{}) bool {
 		return false
 	}
 	return string(aBytes) == string(bBytes)
+}
+
+// extractModified returns the last-write-wins timestamp for a node or edge
+// object: it tries the nested "date.modified" field first (TD.3's on-disk
+// format), falling back to the legacy flat top-level "modified" field. The
+// fallback matters because base in a three-way merge can be a file written
+// by an older binary that predates the nested date block.
+func extractModified(obj map[string]interface{}) time.Time {
+	if dateObj, ok := obj["date"].(map[string]interface{}); ok {
+		if t := extractTime(dateObj, "modified"); !t.IsZero() {
+			return t
+		}
+	}
+	return extractTime(obj, "modified")
 }
 
 // extractTime retrieves a time.Time from a map field, returning zero on failure.

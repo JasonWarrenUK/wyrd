@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"image/color"
 	"os"
@@ -10,6 +8,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -74,9 +73,8 @@ func loadThemeFile(path string) (*types.Theme, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read theme %s: %w", path, err)
 	}
-	stripped := stripComments(data)
 	var t types.Theme
-	if err := json.Unmarshal(stripped, &t); err != nil {
+	if err := jsonc.Unmarshal(data, &t); err != nil {
 		return nil, fmt.Errorf("parse theme %s: %w", path, err)
 	}
 	return &t, nil
@@ -102,55 +100,6 @@ func loadFirstTheme(dir string) (*types.Theme, error) {
 		}
 	}
 	return nil, fmt.Errorf("no valid theme files found in %s", dir)
-}
-
-// stripComments removes // line comments and /* */ block comments from JSONC,
-// correctly skipping over string literals so URLs in values are not corrupted.
-func stripComments(data []byte) []byte {
-	var out bytes.Buffer
-	s := string(data)
-	i := 0
-	inString := false
-	for i < len(s) {
-		ch := s[i]
-		if inString {
-			out.WriteByte(ch)
-			if ch == '\\' && i+1 < len(s) {
-				i++
-				out.WriteByte(s[i])
-			} else if ch == '"' {
-				inString = false
-			}
-			i++
-			continue
-		}
-		if ch == '"' {
-			inString = true
-			out.WriteByte(ch)
-			i++
-			continue
-		}
-		if ch == '/' && i+1 < len(s) && s[i+1] == '/' {
-			for i < len(s) && s[i] != '\n' {
-				i++
-			}
-			continue
-		}
-		if ch == '/' && i+1 < len(s) && s[i+1] == '*' {
-			i += 2
-			for i+1 < len(s) {
-				if s[i] == '*' && s[i+1] == '/' {
-					i += 2
-					break
-				}
-				i++
-			}
-			continue
-		}
-		out.WriteByte(ch)
-		i++
-	}
-	return out.Bytes()
 }
 
 // resolveTier picks the best available colour tier for the given capability.
@@ -325,27 +274,6 @@ func (a *ActiveTheme) StyleMuted() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Background(a.BgPrimary()).
 		Foreground(a.FgMuted())
-}
-
-// StyleAccent returns a style using the primary accent colour.
-func (a *ActiveTheme) StyleAccent() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(a.AccentPrimary())
-}
-
-// StyleBorder returns a style with a rounded border using the theme border colour.
-func (a *ActiveTheme) StyleBorder() lipgloss.Style {
-	return lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(a.Border())
-}
-
-// StyleSectionHeader returns the uppercase letter-spaced header style used
-// throughout the TUI for section titles.
-func (a *ActiveTheme) StyleSectionHeader() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(a.FgMuted()).
-		Bold(true)
 }
 
 // StyleStatusBar returns the full-width status bar base style.

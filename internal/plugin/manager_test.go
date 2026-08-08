@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -74,9 +75,8 @@ func (s *mockStore) ReadPluginManifest(name string) (*types.PluginManifest, erro
 	if err != nil {
 		return nil, &types.NotFoundError{Kind: "plugin manifest", ID: name}
 	}
-	clean := stripJSONC(data)
 	var m types.PluginManifest
-	if err := json.Unmarshal(clean, &m); err != nil {
+	if err := jsonc.Unmarshal(data, &m); err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -195,6 +195,41 @@ func TestDiscover_SkipsMalformedManifest(t *testing.T) {
 	// The bad plugin should not be registered.
 	if _, err := manager.Registry().Get("bad-plugin"); err == nil {
 		t.Error("expected bad-plugin to not be in registry")
+	}
+}
+
+// TestParseManifestFile_SurvivesCommentMarkerInStringAndTrailingComma is the
+// TD.1 consolidation regression test for this consumer: a manifest field
+// containing "//" (comment-marker lookalike) alongside a trailing comma
+// must both be handled correctly by the shared internal/jsonc.Strip pass —
+// the previous implementation used a regex stripper that was string-blind.
+func TestParseManifestFile_SurvivesCommentMarkerInStringAndTrailingComma(t *testing.T) {
+	dir := t.TempDir()
+	pluginDir := filepath.Join(dir, "url-plugin")
+	if err := os.MkdirAll(pluginDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	raw := `{
+	"name": "url-plugin",
+	"version": "1.0.0",
+	"executable": "plugin-bin",
+	"executable_type": "binary",
+	"description": "see https://example.com/x for docs",
+	"capabilities": ["sync"],
+}`
+	path := filepath.Join(pluginDir, "plugin.jsonc")
+	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest, err := parseManifestFile(path)
+	if err != nil {
+		t.Fatalf("parseManifestFile: %v", err)
+	}
+	want := "see https://example.com/x for docs"
+	if manifest.Description != want {
+		t.Errorf("Description = %q, want %q", manifest.Description, want)
 	}
 }
 

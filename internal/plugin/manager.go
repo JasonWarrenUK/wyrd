@@ -3,16 +3,15 @@
 package plugin
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -110,26 +109,14 @@ func parseManifestFile(path string) (*types.PluginManifest, error) {
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
 
-	clean := stripJSONC(data)
-
 	var manifest types.PluginManifest
-	if err := json.Unmarshal(clean, &manifest); err != nil {
+	if err := jsonc.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("parse manifest %s: %w", path, err)
 	}
 	if manifest.Name == "" {
 		return nil, fmt.Errorf("manifest %s: missing name field", path)
 	}
 	return &manifest, nil
-}
-
-// stripJSONC removes single-line (//) and block (/* */) comments from JSON bytes.
-func stripJSONC(data []byte) []byte {
-	// Remove single-line comments.
-	singleLine := regexp.MustCompile(`(?m)//.*$`)
-	result := singleLine.ReplaceAll(data, nil)
-	// Remove block comments.
-	block := regexp.MustCompile(`(?s)/\*.*?\*/`)
-	return block.ReplaceAll(result, nil)
 }
 
 // resolveExecutable locates the executable for a plugin, searching:
@@ -209,7 +196,7 @@ func detectInterpreter(scriptPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	buf := make([]byte, 256)
 	n, _ := f.Read(buf)

@@ -1,12 +1,12 @@
 package views
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -75,10 +75,8 @@ func loadViewFile(path string) (*types.SavedView, error) {
 		return nil, err
 	}
 
-	cleaned := stripJSONCComments(data)
-
 	var view types.SavedView
-	if err := json.Unmarshal(cleaned, &view); err != nil {
+	if err := jsonc.Unmarshal(data, &view); err != nil {
 		return nil, fmt.Errorf("parsing JSON: %w", err)
 	}
 
@@ -89,57 +87,4 @@ func loadViewFile(path string) (*types.SavedView, error) {
 	}
 
 	return &view, nil
-}
-
-// stripJSONCComments removes single-line (//) and multi-line (/* */) comments
-// from JSONC content, producing valid JSON. This is a simple byte-level pass
-// that handles the common cases; it does not attempt to parse string literals
-// perfectly, but is sufficient for configuration files.
-func stripJSONCComments(src []byte) []byte {
-	out := make([]byte, 0, len(src))
-	i := 0
-	for i < len(src) {
-		// Multi-line comment.
-		if i+1 < len(src) && src[i] == '/' && src[i+1] == '*' {
-			i += 2
-			for i+1 < len(src) {
-				if src[i] == '*' && src[i+1] == '/' {
-					i += 2
-					break
-				}
-				i++
-			}
-			continue
-		}
-		// Single-line comment.
-		if i+1 < len(src) && src[i] == '/' && src[i+1] == '/' {
-			i += 2
-			for i < len(src) && src[i] != '\n' {
-				i++
-			}
-			continue
-		}
-		// String literal — copy verbatim, including escaped characters.
-		if src[i] == '"' {
-			out = append(out, src[i])
-			i++
-			for i < len(src) {
-				ch := src[i]
-				out = append(out, ch)
-				i++
-				if ch == '\\' && i < len(src) {
-					out = append(out, src[i])
-					i++
-					continue
-				}
-				if ch == '"' {
-					break
-				}
-			}
-			continue
-		}
-		out = append(out, src[i])
-		i++
-	}
-	return out
 }

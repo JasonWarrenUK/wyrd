@@ -3,13 +3,13 @@
 package ritual
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -56,63 +56,12 @@ func loadRitualFile(path string) (*types.Ritual, error) {
 		return nil, fmt.Errorf("reading file: %w", err)
 	}
 
-	cleaned := stripJSONCComments(data)
-
 	var ritual types.Ritual
-	if err := json.Unmarshal(cleaned, &ritual); err != nil {
+	if err := jsonc.Unmarshal(data, &ritual); err != nil {
 		return nil, fmt.Errorf("parsing JSON: %w", err)
 	}
 
 	return &ritual, nil
-}
-
-// stripJSONCComments removes // and /* */ style comments from a JSONC byte
-// slice. It respects string literals so comment-like sequences inside strings
-// are preserved.
-func stripJSONCComments(src []byte) []byte {
-	out := make([]byte, 0, len(src))
-	i := 0
-	for i < len(src) {
-		switch {
-		case src[i] == '"':
-			// Copy the entire string literal verbatim, handling escapes.
-			out = append(out, src[i])
-			i++
-			for i < len(src) {
-				ch := src[i]
-				out = append(out, ch)
-				i++
-				if ch == '\\' && i < len(src) {
-					out = append(out, src[i])
-					i++
-				} else if ch == '"' {
-					break
-				}
-			}
-
-		case i+1 < len(src) && src[i] == '/' && src[i+1] == '/':
-			// Line comment — skip to end of line.
-			for i < len(src) && src[i] != '\n' {
-				i++
-			}
-
-		case i+1 < len(src) && src[i] == '/' && src[i+1] == '*':
-			// Block comment — skip to closing */.
-			i += 2
-			for i+1 < len(src) {
-				if src[i] == '*' && src[i+1] == '/' {
-					i += 2
-					break
-				}
-				i++
-			}
-
-		default:
-			out = append(out, src[i])
-			i++
-		}
-	}
-	return out
 }
 
 // DueRituals filters the supplied rituals and returns those whose schedule
