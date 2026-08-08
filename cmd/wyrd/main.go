@@ -161,7 +161,7 @@ property graph. Run without arguments to launch the TUI.`,
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			// Build the merged kind + stage-group registries (baked-in
 			// defaults shadowed by kinds.jsonc / stages.jsonc, SL.13).
@@ -219,7 +219,7 @@ run git init, and write .gitattributes for the merge driver.`,
 			if err := cli.Init(*storePath); err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Wyrd store initialised at %s\n", *storePath)
+			_, _ = fmt.Fprintf(os.Stdout, "Wyrd store initialised at %s\n", *storePath)
 			return nil
 		},
 	}
@@ -261,11 +261,12 @@ Defaults to type 'task' with status 'inbox'.`,
 				Title:    title,
 				NodeType: nodeType,
 				LinkID:   linkID,
+				Index:    s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created node %s\n", id)
 			return nil
 		},
 	}
@@ -308,7 +309,7 @@ func journalCmd(storePath *string) *cobra.Command {
 
 			if err := form.Run(); err != nil {
 				if errors.Is(err, huh.ErrUserAborted) {
-					fmt.Fprintln(os.Stdout, "Cancelled.")
+					_, _ = fmt.Fprintln(os.Stdout, "Cancelled.")
 					return nil
 				}
 				return err
@@ -322,11 +323,12 @@ func journalCmd(storePath *string) *cobra.Command {
 				Title:  title,
 				Body:   body,
 				LinkID: linkID,
+				Index:  s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created journal node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created journal node %s\n", id)
 			return nil
 		},
 	}
@@ -365,7 +367,7 @@ func noteCmd(storePath *string) *cobra.Command {
 
 			if err := form.Run(); err != nil {
 				if errors.Is(err, huh.ErrUserAborted) {
-					fmt.Fprintln(os.Stdout, "Cancelled.")
+					_, _ = fmt.Fprintln(os.Stdout, "Cancelled.")
 					return nil
 				}
 				return err
@@ -379,11 +381,12 @@ func noteCmd(storePath *string) *cobra.Command {
 				Title:  title,
 				Body:   body,
 				LinkID: linkID,
+				Index:  s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created note node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created note node %s\n", id)
 			return nil
 		},
 	}
@@ -497,7 +500,7 @@ When required values are omitted, an interactive form prompts for them.`,
 
 				if err := form.Run(); err != nil {
 					if errors.Is(err, huh.ErrUserAborted) {
-						fmt.Fprintln(os.Stdout, "Cancelled.")
+						_, _ = fmt.Fprintln(os.Stdout, "Cancelled.")
 						return nil
 					}
 					return err
@@ -523,11 +526,12 @@ When required values are omitted, an interactive form prompts for them.`,
 				Period:    period,
 				WarnAt:    warnAt,
 				LinkID:    linkID,
+				Index:     s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created budget node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created budget node %s\n", id)
 			return nil
 		},
 	}
@@ -571,7 +575,7 @@ Use --date YYYY-MM-DD to back-date or future-date the entry; defaults to today.`
 			if warning != "" {
 				fmt.Fprintln(os.Stderr, "warning: "+warning)
 			}
-			fmt.Fprintln(os.Stdout, "Spend recorded.")
+			_, _ = fmt.Fprintln(os.Stdout, "Spend recorded.")
 			return nil
 		},
 	}
@@ -756,7 +760,7 @@ func compactCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			return cli.Compact(s, s.Index(), dryRun, os.Stdout)
 		},

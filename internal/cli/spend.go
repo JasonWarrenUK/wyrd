@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"time"
-
 	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -20,6 +18,9 @@ type SpendOptions struct {
 
 	// Date is an optional explicit date string (YYYY-MM-DD). Empty defaults to today.
 	Date string
+
+	// Clock supplies the current time. Defaults to types.RealClock{} when nil.
+	Clock types.Clock
 }
 
 // Spend logs a spend entry by delegating to budget.RecordSpend. The returned
@@ -33,5 +34,10 @@ func Spend(store types.StoreFS, index types.GraphIndex, opts SpendOptions) (warn
 		return "", &types.ValidationError{Field: "amount", Message: "spend amount must be greater than zero"}
 	}
 
-	return budget.RecordSpend(store, index, opts.Category, opts.Amount, opts.Note, opts.Date, time.Now())
+	clock := opts.Clock
+	if clock == nil {
+		clock = types.RealClock{}
+	}
+
+	return budget.RecordSpend(store, index, opts.Category, opts.Amount, opts.Note, opts.Date, clock.Now())
 }
