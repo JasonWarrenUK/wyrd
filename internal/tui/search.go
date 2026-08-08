@@ -171,7 +171,10 @@ func scoreNode(node *types.Node, query string) (int, bool) {
 			best = max(best, 50)
 		}
 	}
-	if strings.Contains(strings.ToLower(firstLine(node.Body)), query) {
+	// Short-circuit before firstLine, which splits the whole body: a title
+	// match (70) already beats a body match (30), so there is nothing left
+	// for the body check to raise.
+	if best < 30 && strings.Contains(strings.ToLower(firstLine(node.Body)), query) {
 		best = max(best, 30)
 	}
 	if strings.Contains(strings.ToLower(node.ID), query) {
@@ -183,6 +186,13 @@ func scoreNode(node *types.Node, query string) (int, bool) {
 
 // scoreEdge returns the match score, match flag, display title, and description
 // for an edge against query. Uses max-of-fields scoring.
+//
+// Endpoint titles are resolved lazily behind the resolved flag: two
+// index.GetNode lookups and up to two firstLine calls (each splitting a
+// whole markdown body) are deferred until a title match is actually needed
+// to decide the score, or a match has already been found and a display
+// title needs building. This runs on every keystroke via searchAll, so
+// skipping resolution on the (common) non-match case matters.
 func scoreEdge(edge *types.Edge, query string, index types.GraphIndex) (int, bool, string, string) {
 	if edge == nil {
 		return 0, false, "", ""
@@ -194,10 +204,15 @@ func scoreEdge(edge *types.Edge, query string, index types.GraphIndex) (int, boo
 		best = max(best, 50)
 	}
 
-	// Resolve From and To node titles for display and scoring.
 	fromTitle := edge.From
 	toTitle := edge.To
-	if index != nil {
+	resolved := false
+
+	resolveTitles := func() {
+		if resolved || index == nil {
+			return
+		}
+		resolved = true
 		if fromNode, err := index.GetNode(edge.From); err == nil {
 			if fromNode.Title != "" {
 				fromTitle = fromNode.Title
@@ -220,13 +235,26 @@ func scoreEdge(edge *types.Edge, query string, index types.GraphIndex) (int, boo
 		}
 	}
 
-	if strings.Contains(strings.ToLower(fromTitle), query) ||
-		strings.Contains(strings.ToLower(toTitle), query) {
-		best = max(best, 40)
+	// A Type match (50) already beats the max title score (40), so titles
+	// only need resolving to decide the score when Type didn't match.
+	if best < 40 {
+		resolveTitles()
+		if strings.Contains(strings.ToLower(fromTitle), query) ||
+			strings.Contains(strings.ToLower(toTitle), query) {
+			best = max(best, 40)
+		}
 	}
+
+	if best == 0 {
+		return 0, false, "", ""
+	}
+
+	// A Type-only match still needs resolved titles for display, or the
+	// result renders raw endpoint UUIDs instead of node titles.
+	resolveTitles()
 
 	title := edge.Type + ": " + fromTitle + " → " + toTitle
 	description := "edge"
 
-	return best, best > 0, title, description
+	return best, true, title, description
 }

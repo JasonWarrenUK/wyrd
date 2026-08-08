@@ -68,6 +68,18 @@ func (s *stubIndex) NodesByType(typeName string) []*types.Node {
 	return out
 }
 
+// countingIndex wraps stubIndex and counts GetNode calls, so tests can
+// assert lazy title resolution in scoreEdge is actually lazy.
+type countingIndex struct {
+	stubIndex
+	getNodeCalls int
+}
+
+func (c *countingIndex) GetNode(id string) (*types.Node, error) {
+	c.getNodeCalls++
+	return c.stubIndex.GetNode(id)
+}
+
 // helpers
 
 func makeNode(id, title, body string, types_ []string) *types.Node {
@@ -279,6 +291,93 @@ func TestSearchAllEdgeMatchByConnectedNodeTitle(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected edge to be matched via connected node title")
+	}
+}
+
+// ── scoreEdge lazy title resolution tests (TD.9) ────────────────────────────
+
+// TestScoreEdgeDoesNotResolveTitlesOnMiss is the flagship regression guard
+// for the reorder: a Type match (50) already beats the maximum possible
+// title score (40), so once edge.Type matches, resolving endpoint titles to
+// test them against the query buys nothing and must not happen. Without
+// this short-circuit, the lazy resolution added by this task silently
+// regresses back to the old unconditional-resolve behaviour on the next
+// edit. Display still needs the real titles for a matched edge (or the
+// result renders raw endpoint UUIDs), so a single resolution pass — not
+// zero — is the correct assertion here.
+func TestScoreEdgeDoesNotResolveTitlesOnMiss(t *testing.T) {
+	idx := &countingIndex{stubIndex: stubIndex{
+		nodes: []*types.Node{
+			makeNode("n1", "Fix the bug", "", []string{"task"}),
+			makeNode("n2", "Deploy release", "", []string{"task"}),
+		},
+	}}
+	edge := makeEdge("e1", "blocks", "n1", "n2")
+
+	score, matched, title, _ := scoreEdge(edge, "blocks", idx)
+	if !matched {
+		t.Fatal("expected a match on edge.Type")
+	}
+	if score != 50 {
+		t.Errorf("expected score 50 for type match, got %d", score)
+	}
+	if idx.getNodeCalls != 2 {
+		t.Errorf("expected exactly 2 GetNode calls (single resolution pass for display, none spent re-testing a title score that Type already beat), got %d", idx.getNodeCalls)
+	}
+	wantTitle := "blocks: Fix the bug → Deploy release"
+	if title != wantTitle {
+		t.Errorf("expected title %q, got %q", wantTitle, title)
+	}
+}
+
+// TestScoreEdgeNoMatchAnywhere covers the genuine full-miss case: neither
+// edge.Type nor either endpoint title contains the query. Testing the title
+// match is unavoidable here — it's a real match path — so this documents
+// (rather than eliminates) the 2 GetNode calls the miss case still pays,
+// contrasting with the Type-match short-circuit above.
+func TestScoreEdgeNoMatchAnywhere(t *testing.T) {
+	idx := &countingIndex{stubIndex: stubIndex{
+		nodes: []*types.Node{
+			makeNode("n1", "Fix the bug", "", []string{"task"}),
+			makeNode("n2", "Deploy release", "", []string{"task"}),
+		},
+	}}
+	edge := makeEdge("e1", "blocks", "n1", "n2")
+
+	score, matched, title, description := scoreEdge(edge, "nonexistent", idx)
+	if matched {
+		t.Errorf("expected no match, got score=%d title=%q description=%q", score, title, description)
+	}
+	if score != 0 {
+		t.Errorf("expected score 0 on miss, got %d", score)
+	}
+}
+
+func TestScoreEdgeEndpointTitleMatchStillReached(t *testing.T) {
+	// query doesn't match edge.Type, so the score must still fall through
+	// to the endpoint-title check — proving the reorder didn't remove the
+	// title-match path itself, only the redundant/unconditional cost.
+	idx := &countingIndex{stubIndex: stubIndex{
+		nodes: []*types.Node{
+			makeNode("n1", "Fix the bug", "", []string{"task"}),
+			makeNode("n2", "Deploy release", "", []string{"task"}),
+		},
+	}}
+	edge := makeEdge("e1", "precedes", "n1", "n2")
+
+	score, matched, title, _ := scoreEdge(edge, "deploy", idx)
+	if !matched {
+		t.Fatal("expected a match via connected node title")
+	}
+	if score != 40 {
+		t.Errorf("expected score 40 for endpoint title match, got %d", score)
+	}
+	wantTitle := "precedes: Fix the bug → Deploy release"
+	if title != wantTitle {
+		t.Errorf("expected title %q, got %q", wantTitle, title)
+	}
+	if idx.getNodeCalls != 2 {
+		t.Errorf("expected exactly 2 GetNode calls to resolve endpoint titles, got %d", idx.getNodeCalls)
 	}
 }
 
