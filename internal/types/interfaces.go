@@ -134,3 +134,16 @@ type QueryRunner interface {
 	// Variables like $today and $now are resolved against the provided clock.
 	Run(query string, clock Clock) (*QueryResult, error)
 }
+
+// Compactor is a narrow, optional interface for evicting entities from a
+// live in-memory index after they have been moved out of the store's
+// working directories (e.g. by archival/compaction). It is deliberately not
+// part of StoreFS: StoreFS is a per-entity I/O facade with ten mock
+// implementations, and a whole-store maintenance operation doesn't belong on
+// it. Callers that need index eviction type-assert for Compactor instead.
+type Compactor interface {
+	// RemoveFromIndex evicts the given node and edge IDs from the in-memory
+	// index. Removing a node also removes any edges incident to it, so
+	// edgeIDs need only cover edges not already implied by nodeIDs.
+	RemoveFromIndex(nodeIDs, edgeIDs []string)
+}

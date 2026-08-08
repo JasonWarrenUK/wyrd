@@ -20,7 +20,7 @@ func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Wr
 	if n, err := MigrateBudgetPeriods(store, index, dryRun, out); err != nil {
 		return fmt.Errorf("migrating budget periods: %w", err)
 	} else if n > 0 && dryRun {
-		fmt.Fprintln(out, "")
+		_, _ = fmt.Fprintln(out, "")
 	}
 
 	storePath := store.StorePath()
@@ -36,7 +36,7 @@ func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Wr
 	}
 
 	if len(archivedIDs) == 0 {
-		fmt.Fprintln(out, "Nothing to compact.")
+		_, _ = fmt.Fprintln(out, "Nothing to compact.")
 		return nil
 	}
 
@@ -60,8 +60,17 @@ func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Wr
 		}
 	}
 
+	// If the caller can evict from a live in-memory index (i.e. it's backed
+	// by *store.Store), collect the moved IDs so a running TUI's index
+	// doesn't keep serving nodes/edges that have just been moved out of
+	// nodes/ and edges/ on disk. compactor is nil when store doesn't
+	// implement types.Compactor (e.g. a test double), in which case eviction
+	// is simply skipped — dry runs never populate it either way.
+	compactor, _ := store.(types.Compactor)
+
 	// Move (or preview) archived nodes.
 	movedNodes := 0
+	var movedNodeIDs []string
 	for id := range archivedIDs {
 		// Find a display label: prefer Title, fall back to truncated Body.
 		node, err := index.GetNode(id)
@@ -82,39 +91,52 @@ func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Wr
 		dst := filepath.Join(storePath, "archive", "nodes", id+".jsonc")
 
 		if dryRun {
-			fmt.Fprintf(out, "  would move node: %s (%s)\n", id, label)
+			_, _ = fmt.Fprintf(out, "  would move node: %s (%s)\n", id, label)
 		} else {
 			if err := os.Rename(src, dst); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("archiving node %s: %w", id, err)
 			}
-			fmt.Fprintf(out, "  archived node: %s (%s)\n", id, label)
+			_, _ = fmt.Fprintf(out, "  archived node: %s (%s)\n", id, label)
+			movedNodeIDs = append(movedNodeIDs, id)
 		}
 		movedNodes++
 	}
 
 	// Move (or preview) orphan edges.
 	movedEdges := 0
+	var movedEdgeIDs []string
 	for id := range archivedEdgeIDs {
 		src := filepath.Join(storePath, "edges", id+".jsonc")
 		dst := filepath.Join(storePath, "archive", "edges", id+".jsonc")
 
 		if dryRun {
-			fmt.Fprintf(out, "  would move edge: %s\n", id)
+			_, _ = fmt.Fprintf(out, "  would move edge: %s\n", id)
 		} else {
 			if err := os.Rename(src, dst); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("archiving edge %s: %w", id, err)
 			}
-			fmt.Fprintf(out, "  archived edge: %s\n", id)
+			_, _ = fmt.Fprintf(out, "  archived edge: %s\n", id)
+			movedEdgeIDs = append(movedEdgeIDs, id)
 		}
 		movedEdges++
 	}
 
+	// Evict the moved entities from the live index so a running TUI (or any
+	// other holder of this GraphIndex) stops serving nodes/edges that no
+	// longer exist in nodes/ and edges/ on disk. removeNode already handles
+	// edges incident to a removed node, so movedEdgeIDs here only needs to
+	// cover edges not already implied by movedNodeIDs — RemoveFromIndex's
+	// edge pass is a no-op for anything already gone.
+	if !dryRun && compactor != nil {
+		compactor.RemoveFromIndex(movedNodeIDs, movedEdgeIDs)
+	}
+
 	// Print summary.
 	if dryRun {
-		fmt.Fprintf(out, "\nWould move %d node(s) and %d edge(s) (dry run — no files changed).\n",
+		_, _ = fmt.Fprintf(out, "\nWould move %d node(s) and %d edge(s) (dry run — no files changed).\n",
 			movedNodes, movedEdges)
 	} else {
-		fmt.Fprintf(out, "\nMoved %d node(s) and %d edge(s) to archive/.\n",
+		_, _ = fmt.Fprintf(out, "\nMoved %d node(s) and %d edge(s) to archive/.\n",
 			movedNodes, movedEdges)
 	}
 
