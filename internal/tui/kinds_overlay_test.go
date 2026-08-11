@@ -96,6 +96,54 @@ func TestKindsOverlay_ProvenanceMarker(t *testing.T) {
 	}
 }
 
+// TestKindsOverlay_DivergedMarker covers TD.5: a shadowed kind whose
+// ShadowOf no longer matches the current default's hash renders (diverged)
+// instead of (edited) — the more actionable state takes priority since a
+// diverged entry is necessarily also an edited shadow.
+func TestKindsOverlay_DivergedMarker(t *testing.T) {
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+
+	diverged := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "★", Colour: "#9b70ff", ShadowOf: "sha256:0000000000000000"}
+	faithful := types.Kind{Name: "Goblin", StageGroup: "task-flow", Glyph: "◈", Colour: "#d57300", ShadowOf: stage.DefaultKindHash("Goblin")}
+
+	kindsReg := stage.MergeKinds(defaults, []types.Kind{diverged, faithful})
+	groupsReg := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate},
+	})
+	theme := loadStagesTestTheme(t)
+
+	ko := newKindsOverlay(theme, kindsReg, groupsReg)
+	ko.Open(160, 50)
+
+	view := ko.View(160, 50)
+
+	if !strings.Contains(view, "(diverged)") {
+		t.Error("expected (diverged) marker for the entry whose default changed")
+	}
+	// Goblin is faithfully shadowed (ShadowOf matches the current default),
+	// so it must show (edited), never (diverged).
+	lines := strings.Split(view, "\n")
+	var goblinLine string
+	for _, l := range lines {
+		if strings.Contains(l, "Goblin") {
+			goblinLine = l
+			break
+		}
+	}
+	if goblinLine == "" {
+		t.Fatal("expected a Goblin row in the overlay")
+	}
+	if strings.Contains(goblinLine, "(diverged)") {
+		t.Error("Goblin's ShadowOf matches its current default — must not show (diverged)")
+	}
+	if !strings.Contains(goblinLine, "(edited)") {
+		t.Error("expected Goblin's row to show (edited)")
+	}
+}
+
 // TestKindsOverlay_UntouchedDefaultHasNoMarker isolates the "no marker"
 // case, mirroring TestStagesOverlay_UntouchedDefaultHasNoMarker.
 func TestKindsOverlay_UntouchedDefaultHasNoMarker(t *testing.T) {

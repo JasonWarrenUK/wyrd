@@ -117,6 +117,16 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 	// TD.5's drift detection: these entries are indistinguishable from
 	// purely user-authored kinds despite never having been hand-edited.
 	//
+	// ShadowReason is stamped as ShadowRenameFanOut, not the default
+	// (ShadowEdited-equivalent) empty value: this shadow's StageGroup was
+	// just deliberately changed to newName, so it can never again
+	// hash-equal the default it forked from — that permanent, structural
+	// divergence is a side effect of the rename the user drove, not a
+	// choice to fork and hand-edit this specific kind. TD.5 needs the
+	// distinction to avoid either mislabelling this as ordinary edited
+	// drift or, worse, having to guess from content alone which shadows are
+	// which.
+	//
 	// Hashes d directly via hashEntry rather than calling DefaultKindHash(d.Name):
 	// d is already the matching default from the defaults slice loaded above, so
 	// re-fetching DefaultKinds() and re-scanning it by name for every shadowed
@@ -127,8 +137,10 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 		}
 		shadow := d
 		shadow.StageGroup = newName
+		shadow.ShadowReason = types.ShadowRenameFanOut
 		unhashed := d
 		unhashed.ShadowOf = ""
+		unhashed.ShadowReason = ""
 		shadow.ShadowOf = hashEntry(unhashed)
 		out = append(out, shadow)
 		rewritten++

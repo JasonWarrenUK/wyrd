@@ -73,6 +73,18 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
+		// TD.5: recomputed fresh on every Open — see kindsOverlay's matching
+		// comment for why this doesn't need constructor threading. Passing
+		// nil for kinds is safe (DetectDiverged nil-guards both registries)
+		// and correct here: stagesOverlay has no kinds registry of its own,
+		// and only the StageGroup half of the report (!d.Kind) is used.
+		divergedNames := map[string]bool{}
+		for _, d := range stage.DetectDiverged(nil, so.stageGroups).Diverged {
+			if !d.Kind {
+				divergedNames[d.Name] = true
+			}
+		}
+
 		// Measure name column width (min 12, longest display width + 2).
 		// Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
 		// cell width, not byte length.
@@ -83,9 +95,9 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
-		// Fixed provenance column width — "(custom)" and "(edited)" are both
-		// 8 display cells + 2 padding.
-		const provenanceColWidth = 10
+		// Provenance column width: the widest possible marker is "(diverged)"
+		// at 10 display cells + 2 padding.
+		const provenanceColWidth = 12
 
 		// Measure cycle column width from the possible rendered strings.
 		// cycleString may contain "→" and "↺" (multi-byte but single-cell), so
@@ -106,8 +118,12 @@ func (so *stagesOverlay) Open(width, height int) {
 				namePad = 1
 			}
 
-			// Provenance column.
+			// Provenance column. (diverged) takes priority over (edited) —
+			// see kindsOverlay's matching comment.
 			marker := provenanceMarker(g.Name, so.stageGroups.IsUserDefined, defaultNames)
+			if divergedNames[g.Name] {
+				marker = "(diverged)"
+			}
 			provSeg := mutedStyle.Render(marker)
 			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {

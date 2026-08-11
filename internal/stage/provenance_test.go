@@ -12,11 +12,14 @@ import (
 )
 
 // hashKindLikeProvenance reimplements the hashing algorithm inline (zero
-// ShadowOf, marshal, sha256, hex, truncate to 16, prefix "sha256:") so
-// TestDefaultKindHashDiffersOnFieldChange fails loudly if the production
-// algorithm ever silently changes shape rather than passing vacuously.
+// ShadowOf and ShadowReason, marshal, sha256, hex, truncate to 16, prefix
+// "sha256:") so TestDefaultKindHashDiffersOnFieldChange fails loudly if the
+// production algorithm ever silently changes shape rather than passing
+// vacuously. ShadowReason (TD.5) is zeroed for the same reason ShadowOf is:
+// it's provenance about the fork, not content of the default.
 func hashKindLikeProvenance(k types.Kind) string {
 	k.ShadowOf = ""
+	k.ShadowReason = ""
 	data, err := json.Marshal(k)
 	if err != nil {
 		return ""
@@ -104,6 +107,35 @@ func TestDefaultKindHashIgnoresShadowOf(t *testing.T) {
 	}
 }
 
+// TestDefaultKindHashIgnoresShadowReason mirrors
+// TestDefaultKindHashIgnoresShadowOf for the ShadowReason field added by
+// TD.5: a copy of the default carrying a ShadowReason value must hash
+// identically to the pristine default, or adding ShadowReason would
+// retroactively invalidate every hash stamped before this field existed.
+func TestDefaultKindHashIgnoresShadowReason(t *testing.T) {
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+	var task types.Kind
+	for _, k := range defaults {
+		if k.Name == "Task" {
+			task = k
+			break
+		}
+	}
+	if task.Name == "" {
+		t.Fatal("precondition failed: no built-in Task kind found")
+	}
+
+	withReason := task
+	withReason.ShadowReason = types.ShadowRenameFanOut
+
+	if got, want := hashKindLikeProvenance(withReason), stage.DefaultKindHash("Task"); got != want {
+		t.Errorf("hash with ShadowReason set = %q, want %q (ShadowReason must be zeroed before hashing)", got, want)
+	}
+}
+
 // TestDefaultKindHashUnknownNameEmpty verifies a name with no matching
 // built-in default returns "".
 func TestDefaultKindHashUnknownNameEmpty(t *testing.T) {
@@ -130,8 +162,10 @@ func TestDefaultKindHashDiffersBetweenKinds(t *testing.T) {
 // DefaultStageGroupHash — mirrors the Kind tests above.
 // ---------------------------------------------------------------------------
 
+// ShadowReason is zeroed for the same reason as in hashKindLikeProvenance.
 func hashStageGroupLikeProvenance(g types.StageGroup) string {
 	g.ShadowOf = ""
+	g.ShadowReason = ""
 	data, err := json.Marshal(g)
 	if err != nil {
 		return ""

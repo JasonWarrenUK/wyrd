@@ -76,6 +76,19 @@ func (ko *kindsOverlay) Open(width, height int) {
 			}
 		}
 
+		// TD.5: recomputed fresh on every Open rather than threaded through
+		// the constructor — ko.kinds/ko.stageGroups are always current by
+		// the time Open runs (every rebuild site re-points them before the
+		// overlay is next opened), so there's no staleness risk, and this
+		// avoids reintroducing the exact kind of parallel side-channel
+		// TD.15 just removed.
+		divergedNames := map[string]bool{}
+		for _, d := range stage.DetectDiverged(ko.kinds, ko.stageGroups).Diverged {
+			if d.Kind {
+				divergedNames[d.Name] = true
+			}
+		}
+
 		// Measure name column width for alignment (min 12, max longest name +
 		// 2). Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
 		// cell width, not byte length.
@@ -86,9 +99,10 @@ func (ko *kindsOverlay) Open(width, height int) {
 			}
 		}
 
-		// Fixed provenance column width — "(edited)" and "(custom)" are both
-		// 8 display cells + 2 padding.
-		const provenanceColWidth = 10
+		// Provenance column width: the widest possible marker is "(diverged)"
+		// at 10 display cells + 2 padding. "(edited)"/"(custom)" (8 cells)
+		// pad out to the same width.
+		const provenanceColWidth = 12
 
 		// Measure stage-group column width similarly.
 		groupColWidth := 12
@@ -120,8 +134,14 @@ func (ko *kindsOverlay) Open(width, height int) {
 				namePad = 1
 			}
 
-			// Provenance column.
+			// Provenance column. A diverged entry is necessarily also an
+			// edited shadow (only shadowed entries can diverge), so
+			// (diverged) takes priority over (edited) rather than the two
+			// stacking — it's the more actionable state to surface.
 			marker := provenanceMarker(k.Name, ko.kinds.IsUserDefined, defaultNames)
+			if divergedNames[k.Name] {
+				marker = "(diverged)"
+			}
 			provSeg := mutedStyle.Render(marker)
 			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {

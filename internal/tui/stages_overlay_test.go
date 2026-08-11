@@ -106,6 +106,54 @@ func TestStagesOverlay_ProvenanceMarker(t *testing.T) {
 	}
 }
 
+// TestStagesOverlay_DivergedMarker covers TD.5, mirroring
+// TestKindsOverlay_DivergedMarker for stage groups.
+func TestStagesOverlay_DivergedMarker(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+
+	diverged := types.StageGroup{
+		Name: "task-flow", Stages: []string{"Open", "Doing", "Done", "Archived"}, Cycle: types.CycleTerminate,
+		ShadowOf: "sha256:0000000000000000",
+	}
+	faithful := types.StageGroup{
+		Name: "habit-flow", Stages: []string{"Todo", "Done"}, Cycle: types.CycleLoop,
+		ShadowOf: stage.DefaultStageGroupHash("habit-flow"),
+	}
+
+	reg := stage.MergeStageGroups(defaults, []types.StageGroup{diverged, faithful})
+	theme := loadStagesTestTheme(t)
+
+	so := newStagesOverlay(theme, reg)
+	so.Open(160, 50)
+
+	view := so.View(160, 50)
+
+	if !strings.Contains(view, "(diverged)") {
+		t.Error("expected (diverged) marker for the stage group whose default changed")
+	}
+
+	lines := strings.Split(view, "\n")
+	var habitLine string
+	for _, l := range lines {
+		if strings.Contains(l, "habit-flow") {
+			habitLine = l
+			break
+		}
+	}
+	if habitLine == "" {
+		t.Fatal("expected a habit-flow row in the overlay")
+	}
+	if strings.Contains(habitLine, "(diverged)") {
+		t.Error("habit-flow's ShadowOf matches its current default — must not show (diverged)")
+	}
+	if !strings.Contains(habitLine, "(edited)") {
+		t.Error("expected habit-flow's row to show (edited)")
+	}
+}
+
 // TestStagesOverlay_UntouchedDefaultHasNoMarker isolates the "no marker"
 // case against a registry with only defaults and no user groups merged in —
 // TestStagesOverlay_ProvenanceMarker's view contains both markers elsewhere,

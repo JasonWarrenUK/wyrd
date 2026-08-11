@@ -148,6 +148,34 @@ func (m *Model) orphanAdvisory() string {
 	return advisory
 }
 
+// divergenceAdvisory turns a TD.5 stage.DivergenceReport into a startup
+// status-bar message, or "" when there's nothing to flag. Unlike
+// orphanAdvisory, this doesn't re-scan — the report is computed once by
+// buildRegistries (cmd/wyrd/main.go) and passed straight through
+// Config.Divergence, since nothing in a TUI session can itself cause new
+// divergence (that only happens when the embedded defaults change, which
+// requires a new binary).
+//
+// SchemaDrift is reported as a distinct, softer message: it means the
+// Kind/StageGroup struct shape changed, not that the user edited anything,
+// so pointing them at :kinds/:stages to "review drift" would send them
+// looking for a divergence that isn't really there in the way the message
+// implies.
+func divergenceAdvisory(report stage.DivergenceReport) string {
+	if report.SchemaDrift {
+		return "Shadow-provenance hashes are stale after an app update; re-save a kind/stage-group edit to refresh them"
+	}
+	n := len(report.Diverged)
+	if n == 0 {
+		return ""
+	}
+	suffix := "ies"
+	if n == 1 {
+		suffix = "y"
+	}
+	return fmt.Sprintf("%d shadowed kind/stage-group entr%s diverged from upstream defaults — see :kinds / :stages", n, suffix)
+}
+
 // ritualTriggerMsg is sent when a ritual should be presented to the user.
 type ritualTriggerMsg struct {
 	ritual *types.Ritual
@@ -322,6 +350,12 @@ type Config struct {
 	// groups from stages.jsonc added by SL.13). May be nil; SL.6 stage keypresses
 	// are silently no-ops when nil.
 	StageGroups *types.StageGroupRegistry
+
+	// Divergence reports which shadowed kinds/stage groups have drifted from
+	// the upstream default they were forked from (TD.5). Computed by
+	// buildRegistries alongside Kinds/StageGroups — the zero value (an empty
+	// report) is safe and renders no advisory or overlay markers.
+	Divergence stage.DivergenceReport
 
 	// Logger is the structured logger. May be nil.
 	Logger *clog.Logger
@@ -578,6 +612,16 @@ func New(cfg Config) (Model, error) {
 
 	// Populate initial keybind hints for the focused (left) pane.
 	m.syncKeyHints()
+
+	// TD.5 startup advisory: surface upstream-default divergence, if any.
+	// Sticky (not the usual 2s auto-clear) since this is worth reading
+	// rather than a transient confirmation, and only set when there's
+	// something to say — an empty advisory would otherwise stomp on
+	// whatever placeholder text the capture bar already shows.
+	if advisory := divergenceAdvisory(cfg.Divergence); advisory != "" {
+		m.statusBar.SetCaptureText(advisory)
+		m.statusBar.MarkCaptureSticky()
+	}
 
 	return m, nil
 }

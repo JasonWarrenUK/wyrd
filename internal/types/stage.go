@@ -1,5 +1,48 @@
 package types
 
+// ShadowReason records why a user-authored Kind or StageGroup entry carries
+// a non-empty ShadowOf, distinguishing shadows a person deliberately edited
+// from ones the app wrote on their behalf. TD.5's upstream-divergence
+// detection needs this distinction: a rename-fan-out shadow is, by
+// construction, permanently unequal to the default it forked from (its one
+// changed field — StageGroup, for a Kind — is exactly the field the rename
+// changed), so treating it the same as a hand-edited shadow would either
+// misreport a "divergence" the user never chose, or (if silently excluded
+// by some other heuristic) mask a real hand-edited divergence with the same
+// shape.
+//
+// Deliberately excluded from the ShadowOf content hash (hashEntry) — see
+// both structs' hashing doc comments — so introducing this field does not
+// itself invalidate every previously-stamped hash the way adding a
+// hash-included field would.
+type ShadowReason string
+
+const (
+	// ShadowEdited marks a shadow created because a person opened the edit
+	// form for a baked-in default and changed it (SL.16/SL.17). The default
+	// case: absent ShadowReason on an entry with a non-empty ShadowOf is
+	// treated identically to ShadowEdited for backward compatibility with
+	// entries stamped before this field existed.
+	ShadowEdited ShadowReason = "edited"
+
+	// ShadowTombstone marks the verbatim copy of a default written under its
+	// old name when a person renames a kind or stage group that was shadowed
+	// (or still baked-in) — see kindFormPane's and stageFormPane's tombstone
+	// comments. Content-identical to the default it shadows at write time,
+	// by construction; a tombstone diverging later would mean the embedded
+	// default itself changed, which TD.5 still surfaces normally.
+	ShadowTombstone ShadowReason = "tombstone"
+
+	// ShadowRenameFanOut marks a shadow RenameStageGroup wrote automatically
+	// for a default kind that referenced the renamed group but wasn't
+	// already shadowed — a side effect of a group rename the user drove,
+	// not a kind edit they consciously made. Permanently divergent from the
+	// default it forked from (its StageGroup was deliberately changed to
+	// the new name), so TD.5 treats it as a distinct, lower-urgency
+	// category rather than ordinary edited drift.
+	ShadowRenameFanOut ShadowReason = "rename-fan-out"
+)
+
 // CycleBehaviour describes what happens when a node advances past the final
 // stage of its group, or retreats before the first.
 type CycleBehaviour string
@@ -45,6 +88,10 @@ type StageGroup struct {
 	// ShadowOf records the content hash of the embedded default this entry was
 	// forked from; empty for purely user-authored entries.
 	ShadowOf string `json:"shadow_of,omitempty"`
+
+	// ShadowReason records why ShadowOf is set — see ShadowReason's doc
+	// comment. Excluded from the ShadowOf content hash.
+	ShadowReason ShadowReason `json:"shadow_reason,omitempty"`
 }
 
 // Validate checks the minimal structural invariants for a usable stage group:

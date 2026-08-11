@@ -286,6 +286,14 @@ func TestRenameStageGroupStampsTransitiveShadows(t *testing.T) {
 		if k.ShadowOf != want {
 			t.Errorf("shadow %q ShadowOf = %q, want %q (pre-rename default's hash)", k.Name, k.ShadowOf, want)
 		}
+		// TD.5: these shadows are permanently divergent by construction
+		// (their StageGroup was just changed to the rename target), so they
+		// must be tagged ShadowRenameFanOut — not the ShadowEdited-implying
+		// zero value — or DetectDiverged would report every default kind
+		// referencing a renamed group as ordinary user-edited drift.
+		if k.ShadowReason != types.ShadowRenameFanOut {
+			t.Errorf("shadow %q ShadowReason = %q, want %q", k.Name, k.ShadowReason, types.ShadowRenameFanOut)
+		}
 	}
 }
 
