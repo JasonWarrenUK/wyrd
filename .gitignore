@@ -27,7 +27,8 @@ coverage.html
 # Development store (user data — not committed)
 # The user's actual /store is managed as its own git repo.
 # Only the embedded starter assets (internal/embed/starter/) are committed here.
-/.claude
+/.claude/*
+!/.claude/roadmaps.json
 
 # Generated documentation assets (regenerate with make demo / make screenshots)
 docs/vhs/output/*.gif
