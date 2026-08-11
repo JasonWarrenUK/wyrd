@@ -115,11 +115,16 @@ func (r *TimelineRenderer) View(result types.QueryResult, width int) string {
 // Render produces a styled timeline string from result.
 // Entries are sorted newest-first. width is the available terminal width.
 //
-// TD.6: every style below carries both Background and Foreground (rule 1),
-// and the blank lines between entries are rendered on bg rather than left
-// as a bare "\n" (rule 2/3) — mirroring RenderBlocks, which already
-// followed these rules; Render was the one path in this file that hadn't
-// been brought into line yet.
+// TD.6: every style below carries both Background and Foreground (rule 1).
+// Unlike RenderBlocks, Render does not pad its own lines to width on bg —
+// the newlines separating entries and following the date header are bare
+// "\n" (see the loop below), and the full-width separator rule is the only
+// line here that happens to cover its own row edge-to-edge. This is safe in
+// practice because the sole caller, viewPane.View, wraps the whole returned
+// string in PadLines before it reaches the screen, but treat that as an
+// external guarantee rather than something this function itself provides —
+// a future caller that renders Render's output directly would reintroduce
+// background bleed.
 func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 	bg := r.Palette.Background
 
