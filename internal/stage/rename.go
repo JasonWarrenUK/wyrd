@@ -98,8 +98,21 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 		if k.StageGroup == oldName {
 			// out[i] starts as a copy of the existing user entry, so
 			// ShadowOf (whatever it was — set or empty) carries through
-			// untouched. Only StageGroup changes.
+			// untouched: it still records whatever the user actually
+			// hand-edited, and TestRenameStageGroupPreservesExistingShadowOf
+			// pins that. Only StageGroup changes.
 			out[i].StageGroup = newName
+			// An already-shadowed entry (ShadowOf set) now diverges from
+			// its default in exactly the field this rename just changed —
+			// a mechanical side effect of the rename, not a second
+			// hand-edit. Stamp ShadowEditedAndRenamed so TD.5 can tell the
+			// two apart, same reasoning as ShadowRenameFanOut below for the
+			// fresh-shadow case. An unshadowed entry (ShadowOf == "", an
+			// ordinary user kind that happens to reference the group) gets
+			// no shadow reason at all — it was never a fork of a default.
+			if out[i].ShadowOf != "" {
+				out[i].ShadowReason = types.ShadowEditedAndRenamed
+			}
 			rewritten++
 		}
 	}

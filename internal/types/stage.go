@@ -41,6 +41,19 @@ const (
 	// the new name), so TD.5 treats it as a distinct, lower-urgency
 	// category rather than ordinary edited drift.
 	ShadowRenameFanOut ShadowReason = "rename-fan-out"
+
+	// ShadowEditedAndRenamed marks a shadow that was already shadowed
+	// (ShadowEdited or the empty-equivalent) when RenameStageGroup rewrote
+	// its StageGroup field in place. ShadowOf itself is left untouched in
+	// that case — it still records the hand-edit the user actually made —
+	// but the entry's live content no longer matches ShadowOf in exactly
+	// the field the rename changed, which is a mechanical side effect of
+	// the rename, not a second hand-edit. Same rationale as
+	// ShadowRenameFanOut, applied to the in-place branch rather than the
+	// fresh-shadow branch: without this, TD.5 would misreport a divergence
+	// nobody chose for every kind a group rename happens to touch that was
+	// already shadowed.
+	ShadowEditedAndRenamed ShadowReason = "edited-and-renamed"
 )
 
 // CycleBehaviour describes what happens when a node advances past the final
