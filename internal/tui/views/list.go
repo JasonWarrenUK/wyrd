@@ -29,6 +29,11 @@ type ListPalette struct {
 	Foreground color.Color
 	// Muted is used for empty-state messaging.
 	Muted color.Color
+	// Background is the pane background colour, carried on every style
+	// (TD.6) to prevent background bleed — see Background's twin on
+	// TimelinePalette for the same rationale. Set to lipgloss.NoColor{}
+	// when no explicit background is in use.
+	Background color.Color
 }
 
 // DefaultListPalette returns the default Cairn-themed list colours.
@@ -38,6 +43,7 @@ func DefaultListPalette() ListPalette {
 		Selection:  lipgloss.Color("#2a2a3d"),
 		Foreground: lipgloss.Color("#e0e0e0"),
 		Muted:      lipgloss.Color("#8b8b8b"),
+		Background: lipgloss.NoColor{},
 	}
 }
 
@@ -65,10 +71,12 @@ func NewListRenderer(columns []string) *ListRenderer {
 // width is the available terminal width in characters.
 func (r *ListRenderer) Render(result types.QueryResult, selectedIdx int, width int) string {
 	cols := r.resolveColumns(result)
+	bg := r.Palette.Background
 
 	if len(result.Rows) == 0 {
 		return lipgloss.NewStyle().
 			Foreground(r.Palette.Muted).
+			Background(bg).
 			Render("No results.")
 	}
 
@@ -84,9 +92,11 @@ func (r *ListRenderer) Render(result types.QueryResult, selectedIdx int, width i
 	for i, row := range result.Rows {
 		line := r.renderDataRow(row, cols, colWidths)
 		if i == selectedIdx {
-			line = lipgloss.NewStyle().
-				Background(r.Palette.Selection).
-				Render(line)
+			// Re-render on the selection background rather than restyling
+			// the already-rendered ANSI string: Background() on a string
+			// containing other styles' reset codes wouldn't reliably
+			// recolour the whole line.
+			line = r.renderDataRowOn(row, cols, colWidths, r.Palette.Selection)
 		}
 		sb.WriteString(line)
 		if i < len(result.Rows)-1 {
@@ -166,23 +176,42 @@ func (r *ListRenderer) calculateColumnWidths(result types.QueryResult, cols []st
 
 // renderHeaderRow produces the styled column-header line.
 func (r *ListRenderer) renderHeaderRow(cols []string, widths []int) string {
-	style := lipgloss.NewStyle().Foreground(r.Palette.Header).Bold(true)
+	bg := r.Palette.Background
+	style := lipgloss.NewStyle().Foreground(r.Palette.Header).Background(bg).Bold(true)
 	cells := make([]string, len(cols))
 	for i, col := range cols {
 		cells[i] = style.Render(padOrTruncate(col, widths[i]))
 	}
-	return strings.Join(cells, strings.Repeat(" ", listColPadding))
+	return strings.Join(cells, spacer(listColPadding, bg))
 }
 
-// renderDataRow produces a single un-highlighted data row string.
+// renderDataRow produces a single un-highlighted data row string, using the
+// pane background (TD.6).
 func (r *ListRenderer) renderDataRow(row map[string]interface{}, cols []string, widths []int) string {
-	style := lipgloss.NewStyle().Foreground(r.Palette.Foreground)
+	return r.renderDataRowOn(row, cols, widths, r.Palette.Background)
+}
+
+// renderDataRowOn produces a data row string rendered on bg — the pane
+// background for an ordinary row, or the Selection colour for the
+// highlighted row. Both the cell text and the inter-column gaps carry bg
+// (rule 1/2: every style needs both fg+bg, and joins between Render() calls
+// use a bg-aware spacer rather than a bare " ").
+func (r *ListRenderer) renderDataRowOn(row map[string]interface{}, cols []string, widths []int, bg color.Color) string {
+	style := lipgloss.NewStyle().Foreground(r.Palette.Foreground).Background(bg)
 	cells := make([]string, len(cols))
 	for i, col := range cols {
 		val := formatCellValue(row[col])
 		cells[i] = style.Render(padOrTruncate(val, widths[i]))
 	}
-	return strings.Join(cells, strings.Repeat(" ", listColPadding))
+	return strings.Join(cells, spacer(listColPadding, bg))
+}
+
+// spacer returns n spaces rendered on bg — the views-package-local
+// equivalent of tui.Spacer, needed because this package cannot import
+// internal/tui without a circular dependency (see timeline.go's padLine for
+// the matching precedent).
+func spacer(n int, bg color.Color) string {
+	return lipgloss.NewStyle().Background(bg).Render(strings.Repeat(" ", n))
 }
 
 // padOrTruncate pads a string with spaces to width, or truncates it with an

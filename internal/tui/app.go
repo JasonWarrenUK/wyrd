@@ -58,6 +58,14 @@ type openStageEditFormMsg struct {
 // openStagesOverlayMsg is emitted when the bare :stages command is invoked.
 type openStagesOverlayMsg struct{}
 
+// openViewMsg is emitted when the :view <name> command is invoked (TD.13).
+// name is the raw, possibly-empty argument text — resolution (store read,
+// query execution, not-found handling) happens in the mount handler, which
+// has access to m.store/m.queryRunner the command closure doesn't.
+type openViewMsg struct {
+	name string
+}
+
 // openRemapFormMsg is emitted when the :stages remap command is invoked.
 type openRemapFormMsg struct{}
 
@@ -566,6 +574,22 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
+	// Wire up the "view" command (TD.13): ":view <name>" loads a saved view
+	// from the store, runs its query, and mounts the left pane using the
+	// renderer matching its Display mode. Requires an argument — unlike
+	// :kinds/:stages, there is no bare-command "list saved views" mode yet.
+	palette.Register(Command{
+		Name:        "view",
+		Description: "Open a saved view by name (e.g. view today)",
+		Execute: func(args []string) tea.Cmd {
+			if len(args) == 0 {
+				return nil
+			}
+			name := strings.Join(args, " ")
+			return func() tea.Msg { return openViewMsg{name: name} }
+		},
+	})
+
 	m := Model{
 		theme:              theme,
 		storePath:          storePath,
@@ -841,6 +865,37 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.stagesOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
+
+	case openViewMsg:
+		// TD.13: load a saved view, run its query, and mount the left pane
+		// with the renderer matching its Display mode. Read through
+		// StoreFS.ReadView — the same interface seam refreshDashboard and
+		// cli.RunView already use — rather than views.LoadViews, which
+		// bypasses StoreFS's typed errors and diverges on which file
+		// extensions it accepts.
+		if m.store == nil || m.queryRunner == nil {
+			m.statusBar.SetCaptureText("View unavailable: no store or query runner")
+			return m, m.clearCaptureCmd()
+		}
+		view, err := m.store.ReadView(msg.name)
+		if err != nil {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No view %q", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+		result, err := m.queryRunner.Run(view.Query, m.clock)
+		if err != nil {
+			m.statusBar.SetCaptureText(fmt.Sprintf("View %q query failed: %v", msg.name, err))
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
+		vp := newViewPane(view, *result, m.theme)
+		sized, _ := vp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.MountLeft(sized)
+		m.statusBar.SetCaptureText(fmt.Sprintf("Opened view %q", msg.name))
+		return m, m.clearCaptureCmd()
 
 	case openKindFormMsg:
 		// Guard against clobbering an active form, or mounting a form

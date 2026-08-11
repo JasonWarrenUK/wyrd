@@ -127,6 +127,12 @@ func builtinCommands() []Command {
 			Hint:        "",
 			Execute:     nil, // wired up in app.go
 		},
+		{
+			Name:        "view",
+			Description: "Open a saved view by name",
+			Hint:        "",
+			Execute:     nil, // wired up in app.go
+		},
 	}
 }
 
