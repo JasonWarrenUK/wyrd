@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -240,5 +241,53 @@ func TestExtractTypes_NilValue(t *testing.T) {
 	got := extractTypes(row, "types")
 	if got != nil {
 		t.Errorf("expected nil for nil value, got %v", got)
+	}
+}
+
+// TestTimelineRenderer_RenderBackgroundCarriesThroughEveryStyle covers
+// TD.6's Render path (RenderBlocks already carried Background — this
+// asserts the plain, non-block Render mode was brought up to the same
+// standard): date header, separator, body text, and the blank inter-entry
+// line must all carry the palette's Background.
+func TestTimelineRenderer_RenderBackgroundCarriesThroughEveryStyle(t *testing.T) {
+	r := NewTimelineRenderer()
+	r.Palette.Background = lipgloss.Color("#1a1a2e")
+	result := types.QueryResult{
+		Columns: []string{"created", "body"},
+		Rows: []map[string]interface{}{
+			{"created": time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC), "body": "First entry"},
+			{"created": time.Date(2026, 3, 2, 9, 0, 0, 0, time.UTC), "body": "Second entry"},
+		},
+	}
+
+	out := r.Render(result, 40)
+	if !ansiTruecolourBgRe.MatchString(out) {
+		t.Errorf("expected a truecolour background in output, got %q", out)
+	}
+
+	empty := r.Render(types.QueryResult{Columns: []string{"created", "body"}}, 40)
+	if !ansiTruecolourBgRe.MatchString(empty) {
+		t.Errorf("expected the empty-state message to carry a background too, got %q", empty)
+	}
+}
+
+// TestTimelineRenderer_RenderTypeBadgeSpacerCarriesBackground covers the
+// space between the date header and its type badge — a bare "  " literal
+// (rule 3) rather than a background-aware spacer would show the terminal's
+// default background in that gap.
+func TestTimelineRenderer_RenderTypeBadgeSpacerCarriesBackground(t *testing.T) {
+	r := NewTimelineRenderer()
+	r.Palette.Background = lipgloss.Color("#1a1a2e")
+	r.TypeColour = func(typeName string) (bg, fg string) { return "#9b70ff", "#ffffff" }
+	result := types.QueryResult{
+		Columns: []string{"created", "body", "types"},
+		Rows: []map[string]interface{}{
+			{"created": time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC), "body": "Entry", "types": []string{"task"}},
+		},
+	}
+
+	out := r.Render(result, 40)
+	if !ansiTruecolourBgRe.MatchString(out) {
+		t.Errorf("expected a truecolour background in output with a type badge, got %q", out)
 	}
 }

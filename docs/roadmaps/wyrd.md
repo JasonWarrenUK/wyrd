@@ -92,7 +92,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [x] **DA.1** — Install `freeze` and `vhs` (via Homebrew or Go install); document in README prerequisites
 - [ ] **DA.2** — Capture freeze screenshot of main TUI view (node list + detail pane) for README hero _(blocked — depends on CP.15, DA.1, DL.2, DL.5, NW.2, SL.11, SL.12, SL.14, SL.16, SL.17, SL.7c, VP.6, VP.7, VP.8, MA, MB, MC, MF)_
 - [ ] **DA.3** — Capture freeze screenshot of budget view with progress bars _(blocked — depends on DA.1, SP.11, SP.4, SP.6, SP.9, VP.6, VP.7, VP.8, MF, MG)_
-- [ ] **DA.4** — Capture freeze screenshot of schedule view _(blocked — depends on DA.1, TD.13, VP.6, VP.7, VP.8, MF)_
+- [ ] **DA.4** — Capture freeze screenshot of schedule view _(blocked — depends on DA.1, TD.19, VP.6, VP.7, VP.8, MF)_ — repointed from TD.13: TD.13 shipped without a schedule view (list/timeline only), so its real precondition is now TD.19
 - [ ] **DA.5** — Write VHS tape for task creation flow (capture bar → huh form → node appears in list) _(blocked — depends on CP.2, DA.1, SL.11, SL.12, SL.14, SL.16, SL.17, SL.7c, VP.6, VP.7, VP.8, MA, MF)_
 - [ ] **DA.6** — Write VHS tape for ritual run (startup prompt → steps → gate → completion) _(blocked — depends on DA.1, RT.5, RT.6, RT.7, RT.8, VP.6, VP.7, VP.8, M6, MF)_
 - [ ] **DA.7** — Write VHS tape for `wyrd sync` (stage → commit → push with animated spinner) _(blocked — depends on DA.1, VP.6, VP.7, VP.8, MF)_
@@ -197,18 +197,22 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [x] **TD.2** — ADR: unify default-asset lifecycle — recorded as [ADR-014](../adr/adr-014-default-asset-lifecycle.md). Themes/templates/views/config keep the copy-to-disk model (whole-file, materialised at `Init`); stage groups and kinds keep the in-binary-plus-shadow model (per-entry, TD.14's content-hash stamping accepted as the right shadow-provenance shape). The ADR also names the inconsistencies the two models had accreted independently: the `config.jsonc` path contradiction (fixed alongside TD.11), two divergent store-directory lists (`cli/init.go` vs `store/store.go`), `builtinTheme()` duplicating `cairn.jsonc` with no derivation link, no starter rituals despite ADR-010's claim, no repair path for a deleted copy-to-disk file, `WriteKinds`/`WriteStages` destroying hand-added comments on write, and the invisible shadow fan-out from `stage.RenameStageGroup` _(depended on SL.3)_
 - [x] **TD.3** — Node/Edge date-block restructure — `types.Edge` gained a separate `EdgeDates{Created, Modified}` block (not shared `DateFields`, which would leak five meaningless nil pointers into query-engine property resolution for a shape edges don't have); `types.Node`'s flat `Created`/`Modified` fields were deleted outright in favour of the existing `Date DateFields` block, resolving the symmetry question the original scope left open. On-disk format is nested-only — flat top-level `created`/`modified` keys are dropped (pre-production, no migration). `WriteNode`/`WriteEdge` now stamp `Modified` from the store's clock unconditionally on every write, which also let `form.go`'s TD.10(a) self-assignment disappear rather than be mechanically rewritten. The merge driver's `extractTime` tries `date.modified` first, falling back to the flat key for files written by an older binary. ⚠️ Breaking change — `types.Node`/`types.Edge` lose exported fields and the on-disk node/edge format changed
 - [x] **TD.12** — Overlay message-routing fix — the roadmap's framing was wrong on two counts: this was a **five**-guard problem, not one (the four viewport overlays — log/help/kinds/stages — were byte-identical and returned `return cmd, true` unconditionally, same defect class as the palette guard; only the ritual overlay already declined correctly), and the unmount block was duplicated **9×** (`app.go:1007,1025,1031,1043,1134,1141,1247,1254,1266`), not 4×. Fixed structurally: a new `keyOverlay` interface (`IsActive`, `Update` contractually required to return `(nil, false)` for anything it doesn't handle) with the four viewport overlays collapsed into one ranged dispatch, and the palette/ritual guards kept bespoke (documented why) but fixed to fall through on non-key messages. `ritualCheckTickMsg`, `tea.WindowSizeMsg`, and `spinner.TickMsg` all now reach the root switch with an overlay open. Mount dedupe added a `formMountable` interface for the 5 mount sites; unmount dedupe added `unmountForm`/`unmountFormToDetail` for the 9 sites
-- [ ] **TD.16** — Live status-bar clock tick — TD.10(c) wired the status-bar clock to the injected `types.Clock` but deliberately left it updating only on the next render; a per-minute `tea.Tick` for idle-staleness display is a new always-on timer (a behaviour change, not a cleanup) and must itself be routed correctly through TD.12's overlay message-routing fix rather than being swallowed the way `ritualCheckTickMsg` was _(depends on TD.12)_
-- [ ] **TD.6** — Restyle `internal/tui/views/` for theme compliance, as part of mounting it (TD.13) rather than as a standalone retrofit — the package predates the TUI styling rules and violates all four (foreground-only styles, `strings.Repeat(" ", …)` spacers between `Render()` calls, bare `"  "` literals, hardcoded Cairn hex instead of the theme). Fix while wiring each view onto `ActiveTheme`/`PadLines`/`Spacer` rather than before, so the styling work isn't redone against the real `PaneModel` integration _(depends on TD.13)_
+- [x] **TD.16** — Live status-bar clock tick — a new self-rearming `clockTickMsg`, seeded from `Init` alongside the existing ritual check tick and handled in the root switch next to `ritualCheckTickMsg`; the handler mutates no state (`StatusBar.View` already reads `m.clock` live), its only job is to force a render. Aligns to the wall-clock minute boundary (`delayToNextMinute`) rather than a flat 60s interval, which would free-run from whenever it happened to be armed and leave the displayed minute up to 59s stale. Deliberately not gated behind `reduce_motion` — that flag disables spring-eased animation (VP.6); gating a once-a-minute digit change behind it would trade a correctness bug for an accessibility label. No routing changes needed: TD.12's `keyOverlay` contract already guarantees overlays decline messages they don't recognise, confirmed by a `TestClockTickSurvivesOpenOverlay` table across all five overlays
+- [x] **TD.6** — Restyle `internal/tui/views/` for theme compliance — absorbed into TD.13's mounting work per this task's own instruction to fix while wiring rather than as a standalone retrofit. `list.go` and `timeline.go`'s `Render` path (its `RenderBlocks` sibling was already compliant and served as the template) violated all four styling rules: foreground-only styles, `strings.Repeat(" ", n)` column/element gaps, and no `PadLines` wrap. Both renderers gained a `Background` field on their palette structs; `viewPane` (TD.13) builds the palette from `ActiveTheme` instead of calling `Default*Palette()`, and wraps the dispatched output in `PadLines` itself so `internal/tui/views` stays free of the `internal/tui` import that would create a circular dependency
 - [x] **TD.7** — `detailReadyMsg` staleness guard — added `Model.currentSelectedID()` (reads the list pane's live selection rather than mirroring it into a root-visible field, which would itself drift) and a guard dropping any `detailReadyMsg` whose `nodeID` doesn't match the current selection, at the three call sites whose shape matched. Deterministic out-of-order-delivery tests cover the race directly rather than via real concurrency
 - [x] **TD.8** — Index-aware node removal — the roadmap's claim that `memIndex.removeNode` was "already correct" was wrong: it deleted `idx.nodes`/`from`/`to` but left the node's incident edges in `idx.edges` and dangling refs in the *other* endpoint's bucket, unlike `removeEdge`, which properly calls `removeEdgeRefs`. Fixed to gather incident edge IDs into a copy first, then remove each edge properly; confirmed idempotent (compaction removes synchronously, then the watcher fires on the same file). `cli.Compact` (the live path — `store.Compact` was dead code, now deleted along with its test) routes through a new narrow `types.Compactor` interface rather than joining `StoreFS`. The watcher now handles `Remove`/`Rename` for nodes and `Rename` for edges (deliberately not `Chmod`, which carries no removal semantics). First watcher tests added, weighted toward direct synchronous `handleWatchEvent` calls plus four fs-driven tests gated behind `testing.Short()`
 - [x] **TD.9** — Palette search performance — reordered `scoreEdge` to test `edge.Type` first and resolve endpoint titles lazily behind a `resolved` flag, early-returning before building the title string when nothing matched; `scoreNode` short-circuits `firstLine` when the title already matched. No cache added — `PaletteState` has no invalidation signal it could observe, so a cache would trade a latency bug for a stale-results bug. A counting-fake-index test asserts zero `GetNode` calls on a title-only miss
 - [x] **TD.10** — TUI small-fix batch — (a) absorbed into TD.3: the `buildNode` unconditional `Date.Created` overwrite was writing to a field nothing read, and the line disappeared rather than being rewritten; (b) `shortNodeLabel`'s unguarded `nodeID[:8]` extracted into `truncateID`, shared with the already-correct guarded branch so the two paths can't disagree — byte-slicing is safe here because node IDs are ASCII UUIDs, unlike the adjacent `title[:27]` truncation at `form.go:909`, which is a genuine multi-byte rune-splitting bug and is out of scope here, tracked as a new task below; (c) `StatusBar` now takes an injected `types.Clock` with a nil-safe fallback to `time.Now()`, matching the pattern at `app.go:1945-1948`; (d) the roadmap missed a fourth dead symbol — `StyleBorder` was in the same unusable (no `.Background()`) state as `StyleAccent`/`StyleSectionHeader`/`SectionHeader`. All four deleted, along with their now-pointless tests
 - [x] **TD.11** — Store/CLI small-fix batch — the roadmap undercounted scope on two points: `--link` validation touches **four** functions (`add.go`, `journal.go` ×2, `budget.go`), not five — `cli.Spend` has no `LinkID` field and creates no edge. `ReadNode` now matches `ReadEdge`'s `isNotExist` shape instead of conflating every read error into `NotFoundError`; `buildIndex` and the `AllTemplates`/`AllViews`/`AllRituals`/`AllPluginManifests` silent-skip sites now log via `s.logWarn` and converge on one shape for dir-read failures; core-key collision guards (previously three different spellings, and entirely absent from `WriteNode`/`WriteEdge`) are now one package-level `nodeCoreFields`/`edgeCoreFields` pair used at all five sites; `FieldsForType` returns a copy so callers can no longer mutate the live template cache (documented, not rebuilt: still process-lifetime, no invalidation). CLI clock injection added via the existing `*Options` structs (non-breaking); `--link` validation now runs before the node write, so a bad link no longer leaves an orphaned node behind
 - [x] **TD.4** — `gofmt` cleanup — originally scoped to `cmd/wyrd/main.go` (import-ordering drift plus a trailing-space alignment nit on the `query` command's `Args:` field), but `gofmt -l .` surfaced the same class of drift (struct-field/map-key/const-block alignment, import ordering) across 30 files repo-wide; ran `gofmt -w .` for the full sweep instead of the single-file fix. Whitespace/import-ordering only, no behavioural change
-- [ ] **TD.5** — Upstream default reconciliation — shadowing a built-in kind or stage group (SL.16/SL.17) permanently overrides it, so improvements shipped to `internal/stage/kinds/` or `internal/stage/defaults/` in later releases never reach users who edited that entry, with no signal that they are diverged. Detect at startup by comparing each shadowing user entry against the current embedded default it shadows; where the default has changed since the user's copy was written, surface it (status-bar advisory plus a marker in the `:kinds`/`:stages` overlays alongside the SL.16/SL.17 `(edited)` marker) and offer a combine flow — a per-field three-way view of user value versus old default versus new default, letting the user adopt individual upstream changes without discarding their own. Unblocked now TD.14 has shipped the `ShadowOf` baseline to compare against; must also account for the tombstone case TD.14 flagged (a stamped tombstone will surface as diverged though the user never consciously edited it) and the fan-out ADR-014 names (a stage-group rename can shadow several kinds the user never chose to fork) _(depends on TD.14)_
+- [x] **TD.5** — Upstream default reconciliation (detection + markers) — shadowing a built-in kind or stage group (SL.16/SL.17) permanently overrides it, so improvements shipped to `internal/stage/kinds/` or `internal/stage/defaults/` in later releases never reach users who edited that entry, with no signal that they are diverged. `internal/stage/reconcile.go` adds `DetectDiverged(kinds, groups)`, comparing every shadowed entry's stored `ShadowOf` against the current embedded default's hash under the same name. Three cases are deliberately excluded from being reported: tombstones (verbatim shadows written under an old name on rename — content-identical to their default by construction), `RenameStageGroup`'s transitive fan-out shadows (permanently divergent by construction since their `StageGroup` was deliberately changed — a side effect of a rename, not drift to review), and a registry-wide 100% mismatch (treated as schema drift — a `types.Kind`/`StageGroup` field changed, invalidating every stored hash at once — rather than reported as universal divergence). Distinguishing the first two from an ordinary hand-edited shadow required a new `types.ShadowReason` field (`ShadowEdited`/`ShadowTombstone`/`ShadowRenameFanOut`, not in the original scope), deliberately excluded from the `ShadowOf` content hash so introducing it doesn't itself invalidate every previously-stamped hash; stamped at all five sites that write a shadow. `buildRegistries` (`cmd/wyrd/main.go`) now also returns a `stage.DivergenceReport`, threaded through `tui.Config.Divergence` — the two CLI query paths discard it. Surfaced as a sticky startup status-bar advisory and a `(diverged)` marker in the `:kinds`/`:stages` overlays (recomputed fresh on every `Open`, `provenanceColWidth` widened 10→12 cells to fit). ⚠️ Scope note: ships detection + markers only — the three-way combine UI (user value vs old default vs new default) is deferred to TD.18
 - [x] **TD.14** — Stamp shadow provenance at write time — `types.Kind`/`types.StageGroup` gained `ShadowOf string` (content hash of the pre-edit embedded default, `sha256:`-prefixed, truncated to 16 hex chars; `omitempty` so hand-written files stay clean). Hashing lives in `internal/stage` (`DefaultKindHash`/`DefaultStageGroupHash`, deterministic `json.Marshal` over the zero-`ShadowOf` struct). Stamped at **four** sites, not two as originally scoped: `kindFormPane`/`stageFormPane` before calling `upsert*` (carrying the old hash forward on re-edit of an already-shadowed entry, rather than recomputing and silently resolving drift the user never reviewed); the tombstone-write sites in both form panes; and `stage.RenameStageGroup`, which the original scope missed entirely — it creates fresh shadows of default kinds transitively during a rename cascade, and would otherwise have been a permanent blind spot for TD.5. The `userNames` side-channel (`app.go`) is kept as-is for now, since `ShadowOf == ""` alone can't distinguish "purely custom" from "untouched default" — collapsing it into the merge functions is tracked as TD.15 below. ⚠️ Breaking change — `kinds.jsonc`/`stages.jsonc` gain a field; mitigated by `omitempty` and forward/backward JSON compatibility
-- [ ] **TD.15** — Collapse the `userNames` side channel into the merge functions — `MergeKinds`/`MergeStageGroups` currently see defaults and user entries unmerged and don't themselves record which merged names came from the user, so `app.go` rebuilds a parallel `userNames` map at three inline sites (`app.go:528-549,1065-1082,1166-1200`) to drive the `(custom)`/`(edited)` overlay markers. Fold that bookkeeping into the merge functions themselves so the three call sites stop duplicating it _(depends on TD.14)_
-- [ ] **TD.17** — `form.go:909` rune-splitting bug — `shortNodeLabel`'s `title[:27]` byte-slices a node *title*, which (unlike the UUID `truncateID` handles safely at TD.10(b)) can contain multi-byte UTF-8 and will emit mojibake on truncation. Slice on runes, not bytes
+- [x] **TD.15** — Collapse the `userNames` side channel into the merge functions — the roadmap undercounted scope: this was **four** inline rebuild sites, not three (construction plus both branches of `stageFormSubmitMsg`'s kind/stage-group rebuild). `MergeKinds`/`MergeStageGroups` now return a registry that tracks user-origin itself, via new `types.NewKindRegistryFromMerge`/`NewStageGroupRegistryFromMerge` and an `IsUserDefined(name)` accessor (nil-receiver safe); plain `NewKindRegistry`/`NewStageGroupRegistry` are unchanged and always report `false` — outside a defaults+user merge, "user-defined" isn't a meaningful question. `provenanceMarker` now takes an `isUserDefined func(string) bool` instead of a map. The construction-site rebuild — which did an independent `ReadKinds`/`ReadStages` solely to discover provenance, since `cfg.Kinds`/`StageGroups` arrive pre-merged — is now dead code and removed outright; the registry `buildRegistries` already produces carries everything the overlays need
+- [x] **TD.17** — Rune-splitting truncation bugs — the roadmap named one site (`form.go:909`, now `form.go:927` after TD.10(b) shifted lines); three more identical `>N → [:N-3]+"…"` byte-slicing sites existed, two of them on node `Body` (arbitrary free text): `form.go:1072`, `app.go:1629`, `cli/compact.go:84`. All four fixed. `internal/tui/form.go` gained a shared `truncateDisplay` using `runewidth` (matching `node_list_pane.go`'s existing `listPadOrTruncate` convention — display cells, not rune count); `internal/cli` can't import `internal/tui` without inverting the CLI/TUI layering, so `cli/compact.go` got its own small rune-count `truncateBody` instead, proportionate to a plain stdout summary line rather than a fixed terminal-cell budget
+- [ ] **TD.18** — Three-way combine UI for TD.5 divergence — TD.5 shipped detection and markers only; this adds the per-field combine flow: a `huh` form showing user value vs old default vs new default for each diverged entry (from `stage.DetectDiverged`), letting the user adopt individual upstream changes without discarding their own edits. Must not touch `ShadowOf`/`ShadowReason` except on explicit user action — the re-edit-preserves-`ShadowOf` invariant TD.5's tests guard is exactly what a careless combine flow would violate _(depends on TD.5)_
+- [ ] **TD.19** — Mount `DisplaySchedule` (TD.13 follow-up) — `ScheduleRenderer` takes a `DisplacementResult`, which only `displacement.Calculate` produces from a `[]ScheduleEntry` input; nothing in the codebase currently constructs a `ScheduleEntry` from query results or anywhere else — this task needs to build that data source (query → `ScheduleEntry` adapter) as well as add a `DisplaySchedule` `DisplayMode` constant to `types.SavedView` before the renderer can mount at all. This is `DA.4`'s real precondition, not TD.13 itself, since TD.13 shipped without a schedule view _(depends on TD.13)_
+- [ ] **TD.20** — Mount `DisplayProse` into the right pane (TD.13 follow-up) — `ProseRenderer` takes (node, edges), a right-pane shape unlike list/timeline's `QueryResult`, so this needs design work on how a left-pane `:view` command drives right-pane content, plus a decision on the overlap with `internal/tui/detail.go`'s existing VP.3 glamour-styled markdown renderer — which wins, or do they merge _(depends on TD.13)_
+- [ ] **TD.21** — Mount `DisplayBudget` (TD.13 follow-up) — `BudgetRenderer` takes `[]*types.Node`, not a `types.QueryResult`, so this needs a row-id-to-node hydration adapter (query rows → extract id column → `index.GetNode` → `[]*types.Node`) before the renderer can mount. Budget nodes already exist in the store today (SL.7b ships a Budget kind), so this has real data behind it unlike the schedule task _(depends on TD.13)_
 
 ---
 
@@ -225,7 +229,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [x] **VP.5** — Floating modal overlays via compositor — overlays are composited via `lipgloss.Place` + `Layer`/`Compositor`, floating over the main frame and centred horizontally and vertically, with content-driven height rather than a fixed clamp; the log, help, and kinds overlays inherit correct sizing from the VP.9 height work _(depends on VP.9)_
 - [x] **VP.9** — Fix overlay panel overflow — resolved as part of VP.5: content-driven viewport height clamping was added to all three overlays (`log_overlay.go`, `help_overlay.go`, `kinds_overlay.go`), so they no longer extend past the bottom of the visible TUI
 - [x] **VP.2** — Wyrd-themed `huh` forms — `wyrdHuhTheme` fully derives from `ActiveTheme`: all focused/blurred/multi-select/button/help-footer styles carry the Cairn palette and `BgPrimary` on every style to prevent background bleed; the `Blurred` block is set explicitly (huh's `ThemeCharm` copies `Focused → Blurred` before our overrides run, so each field must be set in both blocks) _(depends on SL.7c)_
-- [ ] **TD.13** — Mount `internal/tui/views/` display modes — the package (list/timeline/prose/budget/schedule/displacement renderers, shipped under two prior "Unit 6/Unit 7" feature commits) is imported nowhere; the live dashboard only merges query results into one flat list and has no timeline/schedule/prose rendering. Wire these renderers into the `PaneModel` system so they are reachable from the TUI. `DA.4` (schedule view screenshot) has no other task that makes a schedule view exist to screenshot — this is its real precondition
+- [x] **TD.13** — Mount `internal/tui/views/` display modes — the package (list/timeline/prose/budget/schedule/displacement renderers) was imported nowhere, and `types.SavedView.Display` (a typed enum already parsed from every saved view on disk) was read nowhere. Adds `viewPane` (`internal/tui/view_pane.go`), a `PaneModel` dispatching on `Display` to the matching renderer, wired via a new `:view <name>` palette command following the `:kinds`/`:stages` two-stage registration pattern, reading through `StoreFS.ReadView` rather than the parallel `views.LoadViews` loader (left in place, noted for later removal — it bypasses `StoreFS`'s typed errors and diverges on which file extensions it accepts). ⚠️ Scope note: mounted `DisplayList` and `DisplayTimeline` only — both take a `types.QueryResult` directly, the shape the dashboard already produces, so they mount with no data adapter. `DisplayProse` (node + edges — a right-pane shape), `DisplayBudget` (`[]*types.Node` — needs row-id-to-node hydration), and a schedule/displacement mode (no `DisplayMode` constant exists yet, and nothing in the codebase constructs the `DisplacementInput` a schedule render needs) are split out as TD.20, TD.21, and TD.19 respectively — `DA.4` now depends on TD.19, not this task, since TD.13 as shipped does not create a schedule view. Absorbed TD.6 in full
 
 ---
 
@@ -258,7 +262,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 
 **Goal:** Further development of the plugin system (`internal/plugin/`: manager, protocol, shell, install) is deliberately gated on TD.5 shipping first — extending an extensibility surface before upstream-default reconciliation exists would compound the same silent-drift problem TD.5 is meant to close.
 
-- [ ] **PL.1** — Design spike: further plugin-feature work — scope what comes next for the plugin system (`internal/plugin/`) now that TD.5's upstream-default reconciliation exists as a precedent for how wyrd should handle user customisation drifting from built-in behaviour over time. Produces a proposal, not code — the outcome is a set of scoped follow-up tasks (plugin API surface, versioning story, discovery/install UX, etc.) added to this milestone once the spike concludes _(blocked — depends on TD.5)_
+- [ ] **PL.1** — Design spike: further plugin-feature work — scope what comes next for the plugin system (`internal/plugin/`) now that TD.5's upstream-default reconciliation exists as a precedent for how wyrd should handle user customisation drifting from built-in behaviour over time. Produces a proposal, not code — the outcome is a set of scoped follow-up tasks (plugin API surface, versioning story, discovery/install UX, etc.) added to this milestone once the spike concludes — unblocked now TD.5 has shipped the reconciliation pattern (TD.5's own TD.18 combine-flow follow-up is not itself a dependency here — PL.1 only needed the pattern to exist)
 
 ---
 
@@ -364,21 +368,23 @@ graph LR
 	SK.3["SK.3: Query engine: resolve skein references at…"]
 	SK.4["SK.4: TUI: skein management via palette — `:ske…"]
 	MD["MD: Milestone D: Skeins"]:::mile
-	TD.1["TD.1: Consolidate JSONC parsing — seven duplicat…"]
-	TD.2["TD.2: ADR: unify default-asset lifecycle — reco…"]
-	TD.3["TD.3: Node/Edge date-block restructure — `types…"]
+	TD.1["TD.1: Consolidate JSONC parsing — six duplicate…"]
+	TD.2["TD.2: ADR: unify default-asset lifecycle — them…"]
+	TD.3["TD.3: Edge `Modified` timestamp — restructure `…"]
 	TD.4["TD.4: `gofmt` cleanup — originally scoped to `c…"]
-	TD.12["TD.12: Overlay message-routing fix — five-guard…"]
-	TD.16["TD.16: Live status-bar clock tick — a per-minute…"]
+	TD.5["TD.5: Upstream default reconciliation (detectio…"]
+	TD.12["TD.12: Overlay message-routing fix — the palett…"]
+	TD.6["TD.6: Restyle internal/tui/views/ for theme com…"]
 	TD.7["TD.7: `detailReadyMsg` staleness guard — the ha…"]
 	TD.8["TD.8: Index-aware node removal — the fsnotify w…"]
 	TD.9["TD.9: Palette search performance — fuzzy search…"]
 	TD.10["TD.10: TUI small-fix batch — `buildNode` uncond…"]
 	TD.11["TD.11: Store/CLI small-fix batch — `ReadNode` c…"]
 	TD.14["TD.14: Stamp shadow provenance at write time —…"]
-	TD.15["TD.15: Collapse the `userNames` side channel in…"]
-	TD.17["TD.17: `form.go:909` rune-splitting bug — `shor…"]
-	TD.5["TD.5: Upstream default reconciliation — shadowi…"]
+	TD.15["TD.15: Collapse the userNames side channel into…"]
+	TD.16["TD.16: Live status-bar clock tick — TD.10(c) wi…"]
+	TD.17["TD.17: form.go:909 rune-splitting bug — shortNo…"]
+	TD.18["TD.18: Three-way combine UI for TD.5 divergence…"]
 	VP.1["VP.1: Logo/title pane atop the detail column —…"]
 	VP.3["VP.3: Theme-derived glamour stylesheet — build…"]
 	VP.4["VP.4: Gradient focus border — replace the flat…"]
@@ -388,18 +394,20 @@ graph LR
 	VP.9["VP.9: Fix overlay panel overflow — resolved as…"]
 	VP.5["VP.5: Floating modal overlays via compositor —…"]
 	VP.2["VP.2: Wyrd-themed `huh` forms — `wyrdHuhTheme`…"]
-	TD.13["TD.13: Mount `internal/tui/views/` display mode…"]
+	TD.13["TD.13: Mount internal/tui/views/ display modes…"]
 	MF["MF: Milestone F: Visual Polish"]:::mile
 	DA.2["DA.2: Capture freeze screenshot of main TUI vie…"]
 	DA.3["DA.3: Capture freeze screenshot of budget view…"]
-	DA.4["DA.4: Capture freeze screenshot of schedule view"]
 	DA.5["DA.5: Write VHS tape for task creation flow (ca…"]
 	DA.6["DA.6: Write VHS tape for ritual run (startup pr…"]
 	DA.7["DA.7: Write VHS tape for `wyrd sync` (stage → c…"]
-	DA.8["DA.8: Integrate screenshots and gifs into READM…"]
 	DA.9["DA.9: Store VHS tapes in `docs/vhs/` directory;…"]
+	TD.19["TD.19: Mount DisplaySchedule (TD.13 follow-up)…"]
+	DA.4["DA.4: Capture freeze screenshot of schedule view"]
+	DA.8["DA.8: Integrate screenshots and gifs into READM…"]
 	M7["M7: Milestone 7: Documentation Assets"]:::mile
-	TD.6["TD.6: Restyle `internal/tui/views/` for theme c…"]
+	TD.20["TD.20: Mount DisplayProse into the right pane (…"]
+	TD.21["TD.21: Mount DisplayBudget (TD.13 follow-up) —…"]
 	ME["ME: Milestone E: Tech Debt"]:::mile
 	SY.2["SY.2: String-aware JSONC parsing in the merge d…"]
 	SY.3["SY.3: `MergeFiles` distinguishes missing from u…"]
@@ -477,10 +485,10 @@ graph LR
 	M6 --> DA.6
 	DA.1 --> DA.2
 	DA.1 --> DA.3
-	DA.1 --> DA.4
 	DA.1 --> DA.5
 	DA.1 --> DA.6
 	DA.1 --> DA.7
+	DA.1 --> DA.4
 	CO.1 --> CO.2
 	CO.2 --> CO.3
 	CO.3 --> M8
@@ -494,7 +502,6 @@ graph LR
 	SL.3 --> SL.13
 	SL.3 --> SL.4
 	SL.3 --> SP.7
-	SL.3 --> TD.2
 	SL.12 --> MA
 	SL.12 --> DA.2
 	SL.12 --> DA.5
@@ -570,81 +577,82 @@ graph LR
 	SK.3 --> SK.4
 	SK.4 --> MD
 	TD.1 --> ME
-	TD.1 --> SY.2
 	TD.2 --> ME
 	TD.3 --> ME
 	TD.4 --> ME
+	TD.5 --> TD.18
+	TD.5 --> PL.1
 	TD.12 --> ME
-	TD.12 --> TD.16
-	TD.16 --> ME
+	TD.6 --> ME
 	TD.7 --> ME
 	TD.8 --> ME
 	TD.9 --> ME
 	TD.10 --> ME
 	TD.11 --> ME
-	TD.14 --> TD.5
-	TD.14 --> TD.15
+	TD.14 --> ME
 	TD.15 --> ME
+	TD.16 --> ME
 	TD.17 --> ME
-	TD.5 --> ME
-	TD.5 --> PL.1
+	TD.18 --> ME
 	VP.1 --> MF
 	VP.3 --> MF
 	VP.4 --> VP.6
 	VP.6 --> MF
 	VP.6 --> DA.2
 	VP.6 --> DA.3
-	VP.6 --> DA.4
 	VP.6 --> DA.5
 	VP.6 --> DA.6
 	VP.6 --> DA.7
+	VP.6 --> DA.4
 	VP.7 --> MF
 	VP.7 --> DA.2
 	VP.7 --> DA.3
-	VP.7 --> DA.4
 	VP.7 --> DA.5
 	VP.7 --> DA.6
 	VP.7 --> DA.7
+	VP.7 --> DA.4
 	VP.8 --> MF
 	VP.8 --> DA.2
 	VP.8 --> DA.3
-	VP.8 --> DA.4
 	VP.8 --> DA.5
 	VP.8 --> DA.6
 	VP.8 --> DA.7
+	VP.8 --> DA.4
 	VP.9 --> VP.5
 	VP.5 --> MF
 	VP.5 --> DA.2
 	VP.5 --> DA.3
-	VP.5 --> DA.4
 	VP.5 --> DA.5
 	VP.5 --> DA.6
 	VP.5 --> DA.7
 	VP.2 --> MF
 	VP.2 --> DA.2
 	VP.2 --> DA.3
-	VP.2 --> DA.4
 	VP.2 --> DA.5
 	VP.2 --> DA.6
 	VP.2 --> DA.7
 	TD.13 --> MF
-	TD.13 --> DA.4
-	TD.13 --> TD.6
+	TD.13 --> TD.19
+	TD.13 --> TD.20
+	TD.13 --> TD.21
 	MF --> DA.2
 	MF --> DA.3
-	MF --> DA.4
 	MF --> DA.5
 	MF --> DA.6
 	MF --> DA.7
+	MF --> DA.4
 	DA.2 --> DA.8
 	DA.3 --> DA.8
-	DA.4 --> DA.8
 	DA.5 --> DA.9
 	DA.6 --> DA.9
 	DA.7 --> DA.9
-	DA.8 --> M7
 	DA.9 --> M7
-	TD.6 --> ME
+	TD.19 --> DA.4
+	TD.19 --> ME
+	DA.4 --> DA.8
+	DA.8 --> M7
+	TD.20 --> ME
+	TD.21 --> ME
 	SY.2 --> SY.1
 	SY.2 --> SY.5
 	SY.3 --> SY.1
@@ -659,7 +667,7 @@ graph LR
 	QC.5 --> MI
 	QC.6 --> MI
 	PL.1 --> MJ
-	class CO.3,DL.4,NW.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.1,SY.3,SY.4,TD.13,TD.15,TD.16,TD.17,TD.5,VP.7,VP.8 todo
-	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,PL.1,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9,SY.5,TD.6 blocked
-	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,SY.2,TD.1,TD.10,TD.11,TD.12,TD.14,TD.2,TD.3,TD.4,TD.7,TD.8,TD.9,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
+	class CO.3,DL.4,NW.1,PL.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.3,SY.4,TD.18,TD.19,TD.20,TD.21,VP.7,VP.8 todo
+	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9,SY.1,SY.5 blocked
+	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,SY.2,TD.1,TD.10,TD.11,TD.12,TD.13,TD.14,TD.15,TD.16,TD.17,TD.2,TD.3,TD.4,TD.5,TD.6,TD.7,TD.8,TD.9,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```

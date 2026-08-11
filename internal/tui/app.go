@@ -58,6 +58,14 @@ type openStageEditFormMsg struct {
 // openStagesOverlayMsg is emitted when the bare :stages command is invoked.
 type openStagesOverlayMsg struct{}
 
+// openViewMsg is emitted when the :view <name> command is invoked (TD.13).
+// name is the raw, possibly-empty argument text — resolution (store read,
+// query execution, not-found handling) happens in the mount handler, which
+// has access to m.store/m.queryRunner the command closure doesn't.
+type openViewMsg struct {
+	name string
+}
+
 // openRemapFormMsg is emitted when the :stages remap command is invoked.
 type openRemapFormMsg struct{}
 
@@ -148,6 +156,34 @@ func (m *Model) orphanAdvisory() string {
 	return advisory
 }
 
+// divergenceAdvisory turns a TD.5 stage.DivergenceReport into a startup
+// status-bar message, or "" when there's nothing to flag. Unlike
+// orphanAdvisory, this doesn't re-scan — the report is computed once by
+// buildRegistries (cmd/wyrd/main.go) and passed straight through
+// Config.Divergence, since nothing in a TUI session can itself cause new
+// divergence (that only happens when the embedded defaults change, which
+// requires a new binary).
+//
+// SchemaDrift is reported as a distinct, softer message: it means the
+// Kind/StageGroup struct shape changed, not that the user edited anything,
+// so pointing them at :kinds/:stages to "review drift" would send them
+// looking for a divergence that isn't really there in the way the message
+// implies.
+func divergenceAdvisory(report stage.DivergenceReport) string {
+	if report.SchemaDrift {
+		return "Shadow-provenance hashes are stale after an app update; re-save a kind/stage-group edit to refresh them"
+	}
+	n := len(report.Diverged)
+	if n == 0 {
+		return ""
+	}
+	suffix := "ies"
+	if n == 1 {
+		suffix = "y"
+	}
+	return fmt.Sprintf("%d shadowed kind/stage-group entr%s diverged from upstream defaults — see :kinds / :stages", n, suffix)
+}
+
 // ritualTriggerMsg is sent when a ritual should be presented to the user.
 type ritualTriggerMsg struct {
 	ritual *types.Ritual
@@ -155,6 +191,11 @@ type ritualTriggerMsg struct {
 
 // ritualCheckTickMsg fires on a timer to check whether any rituals are due.
 type ritualCheckTickMsg struct{}
+
+// clockTickMsg fires once per wall-clock minute boundary so the status bar's
+// HH:MM clock (TD.16) stays live rather than only updating on the next
+// unrelated render. The handler carries no payload and re-arms itself.
+type clockTickMsg struct{}
 
 // Model is the root Bubble Tea model for the Wyrd TUI. It owns all mutable
 // state; transitions happen in Update and rendering in View. No state is held
@@ -254,6 +295,16 @@ type Model struct {
 	// stages.jsonc once SL.13 lands). May be nil; always check before use.
 	stageGroups *types.StageGroupRegistry
 
+	// divergence is the TD.5 report of shadowed kinds/stage groups that have
+	// drifted from the upstream default they were forked from. Computed once
+	// by buildRegistries and carried on the Model so the startup advisory and
+	// both overlays agree — previously each overlay recomputed its own
+	// partial report (stagesOverlay passing nil for kinds), which pooled
+	// checked/mismatched counts differently and could disagree with the
+	// startup advisory on the very same on-disk state. Re-pointed alongside
+	// kinds/stageGroups at every rebuild site.
+	divergence stage.DivergenceReport
+
 	// logger is the structured logger. May be nil.
 	logger *clog.Logger
 
@@ -317,6 +368,12 @@ type Config struct {
 	// groups from stages.jsonc added by SL.13). May be nil; SL.6 stage keypresses
 	// are silently no-ops when nil.
 	StageGroups *types.StageGroupRegistry
+
+	// Divergence reports which shadowed kinds/stage groups have drifted from
+	// the upstream default they were forked from (TD.5). Computed by
+	// buildRegistries alongside Kinds/StageGroups — the zero value (an empty
+	// report) is safe and renders no advisory or overlay markers.
+	Divergence stage.DivergenceReport
 
 	// Logger is the structured logger. May be nil.
 	Logger *clog.Logger
@@ -527,28 +584,23 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
-	// userKindNames/userStageGroupNames drive the (custom)/(edited)
-	// provenance markers in the kinds/stages overlays — see
-	// provenanceMarker's doc comment. cfg.Kinds/cfg.StageGroups are already
-	// merged with baked-in defaults by the time they reach here, so the only
-	// way to know which entries are user-owned is a direct read of the user
-	// files. A read failure yields an empty set (no markers), matching the
-	// lenient error handling buildRegistries already applies to the same
-	// read at bootstrap — never blocks startup.
-	userKindNames := map[string]bool{}
-	userStageGroupNames := map[string]bool{}
-	if cfg.Store != nil {
-		if userKinds, err := cfg.Store.ReadKinds(); err == nil {
-			for _, k := range userKinds.All() {
-				userKindNames[k.Name] = true
-			}
-		}
-		if userGroups, err := cfg.Store.ReadStages(); err == nil {
-			for _, g := range userGroups.All() {
-				userStageGroupNames[g.Name] = true
-			}
-		}
-	}
+	// Wire up the "view" command (TD.13): ":view <name>" loads a saved view
+	// from the store, runs its query, and mounts the left pane using the
+	// renderer matching its Display mode. A bare ":view" (no argument)
+	// restores the node-list dashboard instead of doing nothing — msg.name
+	// stays "" and the openViewMsg handler branches on that, mirroring the
+	// esc key's restore path below. Returning a real command here (rather
+	// than nil) also sidesteps PaletteState's typed-input path, which has no
+	// needs-args recovery and would otherwise just close the palette
+	// silently on a bare ":view" + Enter.
+	palette.Register(Command{
+		Name:        "view",
+		Description: "Open a saved view by name (e.g. view today); bare view restores the dashboard",
+		Execute: func(args []string) tea.Cmd {
+			name := strings.Join(args, " ")
+			return func() tea.Msg { return openViewMsg{name: name} }
+		},
+	})
 
 	m := Model{
 		theme:              theme,
@@ -574,13 +626,16 @@ func New(cfg Config) (Model, error) {
 		rituals:            rituals,
 		kinds:              cfg.Kinds,
 		stageGroups:        cfg.StageGroups,
+		divergence:         cfg.Divergence,
 		logger:             cfg.Logger,
 		logOverlay:         newLogOverlay(theme),
 		helpOverlay:        newHelpOverlay(theme),
-		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups, userKindNames),
-		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups, userStageGroupNames),
+		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
+		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups),
 		ready:              false,
 	}
+	m.kindsOverlay.divergence = cfg.Divergence
+	m.stagesOverlay.divergence = cfg.Divergence
 
 	// Pre-populate the right pane with the first selected item so the detail
 	// pane is not blank on startup.
@@ -597,13 +652,25 @@ func New(cfg Config) (Model, error) {
 	// Populate initial keybind hints for the focused (left) pane.
 	m.syncKeyHints()
 
+	// TD.5 startup advisory: surface upstream-default divergence, if any.
+	// Sticky (not the usual 2s auto-clear) since this is worth reading
+	// rather than a transient confirmation, and only set when there's
+	// something to say — an empty advisory would otherwise stomp on
+	// whatever placeholder text the capture bar already shows.
+	if advisory := divergenceAdvisory(cfg.Divergence); advisory != "" {
+		m.statusBar.SetCaptureText(advisory)
+		m.statusBar.MarkCaptureSticky()
+	}
+
 	return m, nil
 }
 
 // Init returns the initial command. We fire the ritual check tick immediately
 // so any due rituals are presented on launch, then every 60 seconds thereafter.
+// The clock tick (TD.16) is seeded alongside it so the status-bar clock
+// starts ticking from launch.
 func (m Model) Init() tea.Cmd {
-	return ritualCheckTick()
+	return tea.Batch(ritualCheckTick(), m.clockTick())
 }
 
 // ritualCheckTick returns a tea.Cmd that fires a ritualCheckTickMsg immediately
@@ -619,6 +686,38 @@ func ritualCheckTick() tea.Cmd {
 func ritualCheckTickNext() tea.Cmd {
 	return tea.Tick(60*time.Second, func(_ time.Time) tea.Msg {
 		return ritualCheckTickMsg{}
+	})
+}
+
+// delayToNextMinute returns how long to wait from now until the next
+// wall-clock minute boundary. Split out from clockTick as a pure function so
+// the boundary-alignment maths is unit-testable without going through
+// tea.Tick, whose returned tea.Cmd is an opaque closure.
+func delayToNextMinute(now time.Time) time.Duration {
+	next := now.Truncate(time.Minute).Add(time.Minute)
+	delay := next.Sub(now)
+	if delay <= 0 {
+		delay = time.Minute
+	}
+	return delay
+}
+
+// clockTick returns a tea.Cmd that fires a clockTickMsg at the next
+// wall-clock minute boundary (per m.clock, so it honours an injected
+// types.StubClock in tests), rather than a flat 60s interval — a flat
+// interval free-runs from whenever it happened to be armed and can leave
+// the displayed HH:MM up to 59s stale relative to the real minute change.
+// Not gated behind reduce_motion: that flag is documented as disabling
+// spring-eased animation (VP.6), and gating a once-a-minute digit change
+// behind it would leave those users a permanently stale clock — a
+// correctness regression, not an accessibility win.
+func (m Model) clockTick() tea.Cmd {
+	now := time.Now()
+	if m.clock != nil {
+		now = m.clock.Now()
+	}
+	return tea.Tick(delayToNextMinute(now), func(_ time.Time) tea.Msg {
+		return clockTickMsg{}
 	})
 }
 
@@ -781,6 +880,77 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.stagesOverlay.Open(m.layout.totalWidth, m.layout.totalHeight)
 		return m, nil
+
+	case openViewMsg:
+		// Guard against clobbering an active form, or mounting a viewPane
+		// invisibly underneath a still-open viewport overlay (see
+		// viewportOverlayActive's doc comment) — the same guard every other
+		// open-message handler in this switch carries. A viewPane mounting
+		// under an open form is worse here than for the sibling form-open
+		// messages: it would also silently pull the rug from under the
+		// selectedID lookups a couple of the capture-form branches above
+		// depend on (m.leftPane.(nodeListPane) stops matching).
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
+			return m, nil
+		}
+
+		// A bare ":view" (no argument) restores the node-list dashboard
+		// rather than trying to look up a view named "". This is the
+		// palette-driven twin of the esc restore path below — both exist
+		// because mounting a viewPane replaces the left pane wholesale, and
+		// nothing else in the app can put a nodeListPane back once that
+		// happens (see the leftPaneIsView/esc handling for the fuller
+		// rationale).
+		if msg.name == "" {
+			m.refreshDashboard()
+			m.statusBar.SetCaptureText("Restored dashboard")
+			return m, m.clearCaptureCmd()
+		}
+
+		// TD.13: load a saved view, run its query, and mount the left pane
+		// with the renderer matching its Display mode. Read through
+		// StoreFS.ReadView — the same interface seam refreshDashboard and
+		// cli.RunView already use — rather than views.LoadViews, which
+		// bypasses StoreFS's typed errors and diverges on which file
+		// extensions it accepts.
+		if m.store == nil || m.queryRunner == nil {
+			m.statusBar.SetCaptureText("View unavailable: no store or query runner")
+			return m, m.clearCaptureCmd()
+		}
+		view, err := m.store.ReadView(msg.name)
+		if err != nil {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No view %q", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+		result, err := m.queryRunner.Run(view.Query, m.clock)
+		if err != nil {
+			m.statusBar.SetCaptureText(fmt.Sprintf("View %q query failed: %v", msg.name, err))
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
+		vp := newViewPane(view, *result, m.theme)
+		sized, _ := vp.Update(tea.WindowSizeMsg{
+			Width:  m.layout.TotalWidth(),
+			Height: m.layout.TotalHeight(),
+		})
+		m.MountLeft(sized)
+
+		// DisplayProse and DisplayBudget aren't wired to a renderer yet (see
+		// viewPane's doc comment) and silently fall back to list rendering.
+		// Still mount so the user's data is visible, but flag the mode by
+		// name via a sticky message rather than leaving the fallback
+		// unexplained — mirrors the sticky error pattern just above for the
+		// query-failure case.
+		switch view.Display {
+		case types.DisplayProse, types.DisplayBudget:
+			m.statusBar.SetCaptureText(fmt.Sprintf(
+				"View %q uses %s display, not yet supported — showing as list", msg.name, view.Display))
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
+
+		m.statusBar.SetCaptureText(fmt.Sprintf("Opened view %q", msg.name))
+		return m, m.clearCaptureCmd()
 
 	case openKindFormMsg:
 		// Guard against clobbering an active form, or mounting a form
@@ -971,6 +1141,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, ritualCheckTickNext()
 
+	case clockTickMsg:
+		// No state to update — StatusBar.View reads m.clock live on every
+		// render. This tick's only job is to cause a render at all, then
+		// re-arm itself for the next minute boundary.
+		return m, m.clockTick()
+
 	case ritualTriggerMsg:
 		if m.store == nil || m.queryRunner == nil {
 			return m, ritualCheckTickNext()
@@ -1079,21 +1255,26 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			if defaults, err := stage.DefaultKinds(); err == nil {
 				if userReg, err := m.store.ReadKinds(); err == nil {
+					// MergeKinds' returned registry tracks which names came
+					// from userReg itself (TD.15), so re-pointing the
+					// overlay at the freshly-merged registry is enough to
+					// keep its (custom)/(edited) markers correct post-write
+					// — no separate userNames rebuild needed here anymore.
 					m.kinds = stage.MergeKinds(defaults, userReg.All())
 					m.kindsOverlay.kinds = m.kinds
-					// Refresh the provenance set from the same read — this is
-					// the only place that knows which names are actually in
-					// the user's file post-write, so it's also the only place
-					// that can keep the kinds overlay's (custom)/(edited)
-					// markers correct.
-					userNames := make(map[string]bool, len(userReg.All()))
-					for _, k := range userReg.All() {
-						userNames[k.Name] = true
-					}
-					m.kindsOverlay.userNames = userNames
 					refreshed = true
 				}
 			}
+		}
+
+		// Recompute the single divergence report alongside the registry
+		// rebuild above, and re-point both overlays at it — see the
+		// Model.divergence doc comment for why this must stay one shared
+		// report rather than each overlay recomputing its own.
+		if refreshed {
+			m.divergence = stage.DetectDiverged(m.kinds, m.stageGroups)
+			m.kindsOverlay.divergence = m.divergence
+			m.stagesOverlay.divergence = m.divergence
 		}
 
 		// renamedFrom empty covers both a same-name edit and a genuine
@@ -1175,13 +1356,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if renameErr == nil && msg.renamedFrom != "" && m.store != nil {
 			if kindDefaults, err := stage.DefaultKinds(); err == nil {
 				if userKindReg, err := m.store.ReadKinds(); err == nil {
+					// See the matching TD.15 note in kindFormSubmitMsg:
+					// MergeKinds' registry now tracks provenance itself.
 					m.kinds = stage.MergeKinds(kindDefaults, userKindReg.All())
 					m.kindsOverlay.kinds = m.kinds
-					kindUserNames := make(map[string]bool, len(userKindReg.All()))
-					for _, k := range userKindReg.All() {
-						kindUserNames[k.Name] = true
-					}
-					m.kindsOverlay.userNames = kindUserNames
 				}
 			}
 		}
@@ -1193,19 +1371,23 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			if defaults, err := stage.DefaultStageGroups(); err == nil {
 				if userReg, err := m.store.ReadStages(); err == nil {
+					// MergeStageGroups' registry tracks provenance itself
+					// (TD.15) — no separate userNames rebuild needed.
 					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
 					m.kindsOverlay.stageGroups = m.stageGroups
 					m.stagesOverlay.stageGroups = m.stageGroups
-					// Refresh the provenance set — see the matching comment
-					// in kindFormSubmitMsg.
-					userNames := make(map[string]bool, len(userReg.All()))
-					for _, g := range userReg.All() {
-						userNames[g.Name] = true
-					}
-					m.stagesOverlay.userNames = userNames
 					refreshed = true
 				}
 			}
+		}
+
+		// Recompute the shared divergence report now that both kinds (above,
+		// on a group rename's fan-out) and stage groups are current — see
+		// the Model.divergence doc comment.
+		if refreshed {
+			m.divergence = stage.DetectDiverged(m.kinds, m.stageGroups)
+			m.kindsOverlay.divergence = m.divergence
+			m.stagesOverlay.divergence = m.divergence
 		}
 
 		text := fmt.Sprintf("Created stage group %q", msg.name)
@@ -1352,6 +1534,17 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleStageShift(-1)
 		case msg.String() == "esc" && m.statusBar.CaptureSticky():
 			m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+			return m, nil
+		case msg.String() == "esc" && m.leftPaneNeedsRestore():
+			// Mounting a viewPane replaces the left pane wholesale (see
+			// openViewMsg), and every route back to the node list —
+			// ctrl+o/ctrl+d/[/] edit/archive/stage-shift, theme rebuilds —
+			// is gated on a nodeListPane type assertion that silently fails
+			// once it's gone. Without this, the only way back was creating
+			// a throwaway node (refreshDashboard runs as a side effect of
+			// capture) or restarting. Ordered after the CaptureSticky case
+			// above so dismissing a sticky message always takes priority.
+			m.refreshDashboard()
 			return m, nil
 		default:
 			return m.updateFocusedPane(msg)
@@ -1625,9 +1818,7 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	if label == "" {
 		label = nodeID
 	}
-	if len(label) > 40 {
-		label = label[:37] + "…"
-	}
+	label = truncateDisplay(label, 40)
 	m.statusBar.SetCaptureText("Archived " + label)
 
 	// Refresh the dashboard so the archived node disappears from the list.
@@ -1759,6 +1950,17 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 		m.leftPane = newNodeListPane(lp.result, t, lp.staleThresholdDays)
 	} else if _, ok := m.leftPane.(emptyPane); ok {
 		m.leftPane = m.sizedEmptyPane(t)
+	} else if vp, ok := m.leftPane.(viewPane); ok {
+		// viewPane retains view/result specifically so it can be rebuilt
+		// with a new theme without re-running the saved view's query —
+		// previously there was no branch for it here at all, so a viewPane
+		// kept pointing at the pre-switch *ActiveTheme (viewPane.theme is
+		// only read by its own palette builders) and rendered in the old
+		// theme's colours while the rest of the frame repainted. Set theme
+		// directly rather than going through newViewPane, which would reset
+		// width back to its 80-column default and undo the last resize.
+		vp.theme = t
+		m.leftPane = vp
 	}
 
 	// Always replace the right pane — never leave a stale viewportPane (old
@@ -1932,7 +2134,13 @@ func (m *Model) refreshDashboard() {
 			Width:  m.layout.TotalWidth(),
 			Height: m.layout.TotalHeight(),
 		})
-		m.leftPane = sized
+		// MountLeft rather than a direct assignment: it also calls
+		// syncKeyHints, which matters whenever the previous left pane was a
+		// non-nodeListPane (e.g. a viewPane restored via esc/bare :view) —
+		// those panes report no key hints of their own, and a direct
+		// assignment here would leave the status bar showing them stale
+		// until the next unrelated focus change.
+		m.MountLeft(sized)
 	}
 }
 
@@ -1966,6 +2174,16 @@ func (m Model) currentSelectedID() string {
 		return lp.SelectedNodeID()
 	}
 	return ""
+}
+
+// leftPaneNeedsRestore reports whether the left pane is currently something
+// other than the node-list dashboard and an emptyPane — i.e. a viewPane
+// mounted via :view. Only viewPane is checked explicitly, rather than
+// negating nodeListPane, so a future non-dashboard, non-view pane type
+// doesn't silently pick up an esc-restore behaviour nobody asked for.
+func (m Model) leftPaneNeedsRestore() bool {
+	_, ok := m.leftPane.(viewPane)
+	return ok
 }
 
 // renderDetail fetches a node by ID and renders it into a detailPane.

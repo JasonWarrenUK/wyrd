@@ -83,19 +83,23 @@ func overlayVPHeight(contentLines, termHeight, chromeRows int) int {
 // custom entry apart from a diverged-from-upstream one — an edited default
 // keeps its name, so it still passes that check and renders unmarked, which
 // is wrong: it IS a permanent user override now, just one that happens to
-// share a name with something built in. Checking userNames (membership in
-// the actual user file, not name-uniqueness) is the correct test in both
+// share a name with something built in. Checking isUserDefined (membership
+// in the actual user file, not name-uniqueness) is the correct test in both
 // directions, and cross-referencing defaultNames on top of that recovers the
 // custom/edited distinction.
 //
-//   - not in userNames: a baked-in default, untouched. No marker ("").
-//   - in userNames, name also in defaultNames: a shadowed/edited default.
+// isUserDefined is a registry's own IsUserDefined method (TD.15 — the
+// registry produced by MergeKinds/MergeStageGroups tracks this itself now,
+// so callers no longer thread a separately-rebuilt userNames map through).
+//
+//   - not user-defined: a baked-in default, untouched. No marker ("").
+//   - user-defined, name also in defaultNames: a shadowed/edited default.
 //     "(edited)" — this entry is diverged from upstream and won't pick up
 //     future improvements to the built-in version.
-//   - in userNames, name not in defaultNames: purely user-defined.
+//   - user-defined, name not in defaultNames: purely user-defined.
 //     "(custom)".
-func provenanceMarker(name string, userNames, defaultNames map[string]bool) string {
-	if !userNames[name] {
+func provenanceMarker(name string, isUserDefined func(string) bool, defaultNames map[string]bool) string {
+	if isUserDefined == nil || !isUserDefined(name) {
 		return ""
 	}
 	if defaultNames[name] {

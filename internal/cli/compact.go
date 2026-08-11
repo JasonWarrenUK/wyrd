@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"unicode/utf8"
 
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -79,11 +80,7 @@ func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Wr
 			if node.Title != "" {
 				label = node.Title
 			} else if node.Body != "" {
-				body := node.Body
-				if len(body) > 40 {
-					body = body[:40] + "…"
-				}
-				label = body
+				label = truncateBody(node.Body, 40)
 			}
 		}
 
@@ -141,4 +138,18 @@ func Compact(store types.StoreFS, index types.GraphIndex, dryRun bool, out io.Wr
 	}
 
 	return nil
+}
+
+// truncateBody shortens s to at most max runes, appending an ellipsis,
+// without splitting a multi-byte rune. s is a node body and so can contain
+// arbitrary multi-byte UTF-8 — byte-slicing (len/[:n]) both mismeasures
+// length and can emit mojibake mid-rune. Rune count rather than display-cell
+// width, matching internal/tui/views/list.go's padOrTruncate: this is a
+// plain stdout summary line, not a fixed-width terminal cell budget.
+func truncateBody(s string, max int) string {
+	if utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	runes := []rune(s)
+	return string(runes[:max]) + "…"
 }

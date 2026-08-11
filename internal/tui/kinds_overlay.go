@@ -20,24 +20,25 @@ type kindsOverlay struct {
 	kinds       *types.KindRegistry
 	stageGroups *types.StageGroupRegistry
 
-	// userNames is the set of kind names present in the user's kinds.jsonc
-	// (as opposed to the merged registry, which also includes baked-in
-	// defaults). Drives the (custom)/(edited) provenance marker — see
-	// provenanceMarker's doc comment. Refreshed by the app alongside kinds
-	// whenever a kind is created or edited (kindFormSubmitMsg's handler).
-	userNames map[string]bool
+	// divergence is the shared TD.5 report (see Model.divergence's doc
+	// comment) — re-pointed at every rebuild site alongside kinds/stageGroups
+	// rather than recomputed here, so this overlay always agrees with the
+	// startup advisory and stagesOverlay on the same on-disk state.
+	divergence stage.DivergenceReport
 
 	width, height int
 }
 
 // newKindsOverlay creates an inactive kinds overlay. Both registries may be
-// nil. userNames may be nil (no provenance markers render).
-func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry, userNames map[string]bool) kindsOverlay {
+// nil. The (custom)/(edited) provenance marker (see provenanceMarker's doc
+// comment) is driven directly by kinds.IsUserDefined (TD.15) rather than a
+// separately-threaded userNames map — a nil kinds registry renders no
+// markers, matching the old nil-userNames behaviour.
+func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry) kindsOverlay {
 	return kindsOverlay{
 		theme:       theme,
 		kinds:       kinds,
 		stageGroups: groups,
-		userNames:   userNames,
 	}
 }
 
@@ -81,6 +82,20 @@ func (ko *kindsOverlay) Open(width, height int) {
 			}
 		}
 
+		// TD.5: ko.divergence is the single report shared with the startup
+		// advisory and stagesOverlay (Model.divergence) — re-pointed at every
+		// rebuild site alongside ko.kinds/ko.stageGroups, rather than
+		// recomputed here. Recomputing independently used to be able to
+		// disagree with the startup advisory on identical on-disk state
+		// (stagesOverlay's equivalent call passed nil for kinds, which
+		// changed the schema-drift checked/mismatched denominator).
+		divergedNames := map[string]bool{}
+		for _, d := range ko.divergence.Diverged {
+			if d.Kind {
+				divergedNames[d.Name] = true
+			}
+		}
+
 		// Measure name column width for alignment (min 12, max longest name +
 		// 2). Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
 		// cell width, not byte length.
@@ -91,9 +106,10 @@ func (ko *kindsOverlay) Open(width, height int) {
 			}
 		}
 
-		// Fixed provenance column width — "(edited)" and "(custom)" are both
-		// 8 display cells + 2 padding.
-		const provenanceColWidth = 10
+		// Provenance column width: the widest possible marker is "(diverged)"
+		// at 10 display cells + 2 padding. "(edited)"/"(custom)" (8 cells)
+		// pad out to the same width.
+		const provenanceColWidth = 12
 
 		// Measure stage-group column width similarly.
 		groupColWidth := 12
@@ -125,8 +141,14 @@ func (ko *kindsOverlay) Open(width, height int) {
 				namePad = 1
 			}
 
-			// Provenance column.
-			marker := provenanceMarker(k.Name, ko.userNames, defaultNames)
+			// Provenance column. A diverged entry is necessarily also an
+			// edited shadow (only shadowed entries can diverge), so
+			// (diverged) takes priority over (edited) rather than the two
+			// stacking — it's the more actionable state to surface.
+			marker := provenanceMarker(k.Name, ko.kinds.IsUserDefined, defaultNames)
+			if divergedNames[k.Name] {
+				marker = "(diverged)"
+			}
 			provSeg := mutedStyle.Render(marker)
 			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {

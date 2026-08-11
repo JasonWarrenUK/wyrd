@@ -29,11 +29,13 @@ func DefaultKindHash(name string) string {
 	}
 	for _, k := range defaults {
 		if k.Name == name {
-			// ShadowOf is provenance about the fork, not content of the
-			// default — zero it before hashing so the hash is stable
-			// regardless of whether a caller passes a struct that already
-			// carries a stamp.
+			// ShadowOf and ShadowReason are provenance about the fork, not
+			// content of the default — zero both before hashing so the hash
+			// is stable regardless of whether a caller passes a struct that
+			// already carries a stamp, and so adding ShadowReason itself
+			// doesn't retroactively change every previously-stamped hash.
 			k.ShadowOf = ""
+			k.ShadowReason = ""
 			return hashEntry(k)
 		}
 	}
@@ -52,6 +54,7 @@ func DefaultStageGroupHash(name string) string {
 	for _, g := range defaults {
 		if g.Name == name {
 			g.ShadowOf = ""
+			g.ShadowReason = ""
 			return hashEntry(g)
 		}
 	}

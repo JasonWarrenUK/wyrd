@@ -363,8 +363,10 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		switch {
 		case f.editing != nil && f.editing.ShadowOf != "":
 			kind.ShadowOf = f.editing.ShadowOf
+			kind.ShadowReason = f.editing.ShadowReason
 		case f.isDefault:
 			kind.ShadowOf = stage.DefaultKindHash(f.originalName)
+			kind.ShadowReason = types.ShadowEdited
 		}
 
 		renamed := f.originalName != "" && kind.Name != f.originalName
@@ -382,14 +384,18 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		//
 		// A tombstone is by definition a verbatim shadow of a default, so it
 		// gets stamped too — leaving it unstamped would make it read as
-		// user-authored. Flag for TD.5: a stamped tombstone will surface as
-		// diverged even though the user never consciously edited it; it may
-		// warrant its own marker distinct from an ordinary edited shadow.
+		// user-authored. Stamped as ShadowTombstone (TD.5), not the
+		// ShadowEdited-equivalent empty value: a tombstone is
+		// content-identical to the default it shadows at write time, so
+		// TD.5's divergence detection distinguishes it from an ordinary
+		// edited shadow rather than surfacing it as diverged the user never
+		// consciously chose.
 		if renamed && f.isDefault {
 			if defaults, derr := stage.DefaultKinds(); derr == nil {
 				for _, d := range defaults {
 					if d.Name == f.originalName {
 						d.ShadowOf = stage.DefaultKindHash(d.Name)
+						d.ShadowReason = types.ShadowTombstone
 						existing = append(existing, d)
 						break
 					}

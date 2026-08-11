@@ -28,7 +28,7 @@ func TestStagesOverlay_RendersAllGroups(t *testing.T) {
 	reg := types.NewStageGroupRegistry(groups)
 	theme := loadStagesTestTheme(t)
 
-	so := newStagesOverlay(theme, reg, nil)
+	so := newStagesOverlay(theme, reg)
 	so.Open(120, 40)
 
 	view := so.View(120, 40)
@@ -57,11 +57,12 @@ func TestStagesOverlay_RendersAllGroups(t *testing.T) {
 
 // TestStagesOverlay_ProvenanceMarker verifies the three provenance states:
 // a purely user-defined group gets (custom), an edited (shadowed) default
-// gets (edited), and an untouched default gets no marker at all. userNames
-// (populated from the user's stages.jsonc, not the merged registry) is what
-// distinguishes these — see provenanceMarker's doc comment for why "name is
-// absent from the defaults list" stopped being a sufficient test once SL.17
-// edit mode could write a same-named shadow copy of a default.
+// gets (edited), and an untouched default gets no marker at all. Provenance
+// (TD.15) comes from MergeStageGroups' registry itself — via
+// types.NewStageGroupRegistryFromMerge — which is what distinguishes these;
+// see provenanceMarker's doc comment for why "name is absent from the
+// defaults list" stopped being a sufficient test once SL.17 edit mode could
+// write a same-named shadow copy of a default.
 func TestStagesOverlay_ProvenanceMarker(t *testing.T) {
 	defaults, err := stage.DefaultStageGroups()
 	if err != nil {
@@ -83,9 +84,8 @@ func TestStagesOverlay_ProvenanceMarker(t *testing.T) {
 
 	reg := stage.MergeStageGroups(defaults, []types.StageGroup{customGroup, editedDefault})
 	theme := loadStagesTestTheme(t)
-	userNames := map[string]bool{"my-custom-flow": true, "task-flow": true}
 
-	so := newStagesOverlay(theme, reg, userNames)
+	so := newStagesOverlay(theme, reg)
 	so.Open(160, 50)
 
 	view := so.View(160, 50)
@@ -106,8 +106,63 @@ func TestStagesOverlay_ProvenanceMarker(t *testing.T) {
 	}
 }
 
+// TestStagesOverlay_DivergedMarker covers TD.5, mirroring
+// TestKindsOverlay_DivergedMarker for stage groups.
+func TestStagesOverlay_DivergedMarker(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+
+	diverged := types.StageGroup{
+		Name: "task-flow", Stages: []string{"Open", "Doing", "Done", "Archived"}, Cycle: types.CycleTerminate,
+		ShadowOf: "sha256:0000000000000000",
+	}
+	faithful := types.StageGroup{
+		Name: "habit-flow", Stages: []string{"Todo", "Done"}, Cycle: types.CycleLoop,
+		ShadowOf: stage.DefaultStageGroupHash("habit-flow"),
+	}
+
+	reg := stage.MergeStageGroups(defaults, []types.StageGroup{diverged, faithful})
+	theme := loadStagesTestTheme(t)
+
+	so := newStagesOverlay(theme, reg)
+	// TD.5: divergence is computed once and threaded in, mirroring how
+	// app.go now populates it, rather than the overlay recomputing its own
+	// report on every Open. nil for kinds matches stagesOverlay's real
+	// shape — it never holds a kinds registry — and is exactly the
+	// previously-untested case that used to disagree with kindsOverlay's
+	// equivalent (both-registries) call on the same on-disk state.
+	so.divergence = stage.DetectDiverged(nil, reg)
+	so.Open(160, 50)
+
+	view := so.View(160, 50)
+
+	if !strings.Contains(view, "(diverged)") {
+		t.Error("expected (diverged) marker for the stage group whose default changed")
+	}
+
+	lines := strings.Split(view, "\n")
+	var habitLine string
+	for _, l := range lines {
+		if strings.Contains(l, "habit-flow") {
+			habitLine = l
+			break
+		}
+	}
+	if habitLine == "" {
+		t.Fatal("expected a habit-flow row in the overlay")
+	}
+	if strings.Contains(habitLine, "(diverged)") {
+		t.Error("habit-flow's ShadowOf matches its current default — must not show (diverged)")
+	}
+	if !strings.Contains(habitLine, "(edited)") {
+		t.Error("expected habit-flow's row to show (edited)")
+	}
+}
+
 // TestStagesOverlay_UntouchedDefaultHasNoMarker isolates the "no marker"
-// case against a registry with only defaults and an empty userNames set —
+// case against a registry with only defaults and no user groups merged in —
 // TestStagesOverlay_ProvenanceMarker's view contains both markers elsewhere,
 // so it can't by itself prove content-flow's row lacks one.
 func TestStagesOverlay_UntouchedDefaultHasNoMarker(t *testing.T) {
@@ -118,18 +173,18 @@ func TestStagesOverlay_UntouchedDefaultHasNoMarker(t *testing.T) {
 	reg := stage.MergeStageGroups(defaults, nil)
 	theme := loadStagesTestTheme(t)
 
-	so := newStagesOverlay(theme, reg, map[string]bool{})
+	so := newStagesOverlay(theme, reg)
 	so.Open(160, 50)
 
 	view := so.View(160, 50)
 	if strings.Contains(view, "(custom)") || strings.Contains(view, "(edited)") {
-		t.Error("expected no provenance marker anywhere when userNames is empty")
+		t.Error("expected no provenance marker anywhere when no user groups were merged in")
 	}
 }
 
 func TestStagesOverlay_EmptyState(t *testing.T) {
 	theme := loadStagesTestTheme(t)
-	so := newStagesOverlay(theme, nil, nil)
+	so := newStagesOverlay(theme, nil)
 	so.Open(120, 40)
 
 	view := so.View(120, 40)
@@ -144,7 +199,7 @@ func TestStagesOverlay_EscCloses(t *testing.T) {
 		{Name: "test", Stages: []string{"A"}, Cycle: types.CycleTerminate},
 	})
 
-	so := newStagesOverlay(theme, reg, nil)
+	so := newStagesOverlay(theme, reg)
 	so.Open(120, 40)
 
 	if !so.IsActive() {
@@ -162,7 +217,7 @@ func TestStagesOverlay_EscCloses(t *testing.T) {
 
 func TestStagesOverlay_InactiveViewReturnsEmpty(t *testing.T) {
 	theme := loadStagesTestTheme(t)
-	so := newStagesOverlay(theme, nil, nil)
+	so := newStagesOverlay(theme, nil)
 
 	view := so.View(120, 40)
 	if view != "" {

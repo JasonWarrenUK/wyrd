@@ -155,6 +155,64 @@ func TestMergeKindsUserShadowsDefault(t *testing.T) {
 	}
 }
 
+// TestMergeKindsTracksUserProvenance covers TD.15: MergeKinds' returned
+// registry must itself know which names came from the user slice, so
+// callers (the kinds/stages TUI overlays) no longer need to rebuild a
+// separate userNames set from a second read of the same data.
+func TestMergeKindsTracksUserProvenance(t *testing.T) {
+	defaults := []types.Kind{
+		{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"},
+		{Name: "Goblin", StageGroup: "task-flow", Glyph: "◈", Colour: "#d57300"},
+	}
+	user := []types.Kind{
+		// Shadows the default Task.
+		{Name: "Task", StageGroup: "event-flow", Glyph: "X", Colour: "#ffffff"},
+		// Wholly new.
+		{Name: "Ritual", StageGroup: "habit-flow", Glyph: "✦", Colour: "#009e8c"},
+	}
+
+	reg := stage.MergeKinds(defaults, user)
+
+	if !reg.IsUserDefined("Task") {
+		t.Error(`IsUserDefined("Task") = false, want true (shadows a default)`)
+	}
+	if !reg.IsUserDefined("Ritual") {
+		t.Error(`IsUserDefined("Ritual") = false, want true (purely user-defined)`)
+	}
+	if reg.IsUserDefined("Goblin") {
+		t.Error(`IsUserDefined("Goblin") = true, want false (untouched default)`)
+	}
+	if reg.IsUserDefined("NoSuchKind") {
+		t.Error(`IsUserDefined("NoSuchKind") = true, want false (unknown name)`)
+	}
+}
+
+// TestNewKindRegistryHasNoProvenance covers the plain (non-merge)
+// constructor path: outside a defaults+user merge, "user-defined" isn't a
+// meaningful question, so IsUserDefined must report false unconditionally —
+// including for a registry built entirely from what would, in a ReadKinds
+// context, be "the user's own" entries. This is deliberate: the provenance
+// question only makes sense on a merged registry.
+func TestNewKindRegistryHasNoProvenance(t *testing.T) {
+	reg := types.NewKindRegistry([]types.Kind{
+		{Name: "Task", StageGroup: "task-flow"},
+	})
+	if reg.IsUserDefined("Task") {
+		t.Error(`IsUserDefined("Task") = true, want false for a plain (non-merge) registry`)
+	}
+}
+
+// TestNilKindRegistryIsUserDefinedFalse covers the nil-receiver guard: the
+// kinds/stages overlays hold a possibly-nil *types.KindRegistry (e.g. no
+// store configured in tests), and provenanceMarker calls IsUserDefined
+// directly on it without a separate nil check.
+func TestNilKindRegistryIsUserDefinedFalse(t *testing.T) {
+	var reg *types.KindRegistry
+	if reg.IsUserDefined("anything") {
+		t.Error("IsUserDefined on a nil *KindRegistry should return false, not panic")
+	}
+}
+
 func TestMergeKindsInputsUnmutated(t *testing.T) {
 	defaults := []types.Kind{
 		{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"},

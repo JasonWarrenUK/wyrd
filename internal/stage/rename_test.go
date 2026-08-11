@@ -286,6 +286,14 @@ func TestRenameStageGroupStampsTransitiveShadows(t *testing.T) {
 		if k.ShadowOf != want {
 			t.Errorf("shadow %q ShadowOf = %q, want %q (pre-rename default's hash)", k.Name, k.ShadowOf, want)
 		}
+		// TD.5: these shadows are permanently divergent by construction
+		// (their StageGroup was just changed to the rename target), so they
+		// must be tagged ShadowRenameFanOut — not the ShadowEdited-implying
+		// zero value — or DetectDiverged would report every default kind
+		// referencing a renamed group as ordinary user-edited drift.
+		if k.ShadowReason != types.ShadowRenameFanOut {
+			t.Errorf("shadow %q ShadowReason = %q, want %q", k.Name, k.ShadowReason, types.ShadowRenameFanOut)
+		}
 	}
 }
 
@@ -316,6 +324,60 @@ func TestRenameStageGroupPreservesExistingShadowOf(t *testing.T) {
 	}
 	if taskEntries != 1 {
 		t.Errorf("expected exactly 1 Task entry, got %d", taskEntries)
+	}
+}
+
+// TestRenameStageGroupStampsEditedAndRenamedOnAlreadyShadowedKind covers the
+// provenance gap the in-place rewrite branch used to leave: an
+// already-shadowed user kind (ShadowOf set, ordinary hand-edit) whose
+// StageGroup gets rewritten in place must be marked ShadowEditedAndRenamed —
+// not left with no ShadowReason at all — so DetectDiverged can tell "the
+// rename touched this field" apart from "the user hand-edited StageGroup"
+// and exclude it from the divergence report, the same way it already
+// excludes ShadowRenameFanOut for the fresh-shadow branch just below.
+func TestRenameStageGroupStampsEditedAndRenamedOnAlreadyShadowedKind(t *testing.T) {
+	store := newFakeStore()
+	store.kindsSeed = []types.Kind{
+		{
+			Name: "Task", StageGroup: "task-flow", Glyph: "★", Colour: "#9b70ff",
+			ShadowOf: stage.DefaultKindHash("Task"), ShadowReason: types.ShadowEdited,
+		},
+	}
+
+	_, err := stage.RenameStageGroup(store, "task-flow", "todo-flow")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var task types.Kind
+	var found bool
+	for _, k := range store.lastWrittenKinds {
+		if k.Name == "Task" {
+			task = k
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected a Task entry in lastWrittenKinds")
+	}
+	if task.ShadowReason != types.ShadowEditedAndRenamed {
+		t.Errorf("Task.ShadowReason = %q, want %q", task.ShadowReason, types.ShadowEditedAndRenamed)
+	}
+	if task.ShadowOf != stage.DefaultKindHash("Task") {
+		t.Errorf("Task.ShadowOf = %q, want unchanged (still the original hand-edit's hash)", task.ShadowOf)
+	}
+
+	// The whole point of the new reason: DetectDiverged must not report this
+	// entry, even though its live StageGroup ("todo-flow") no longer matches
+	// what the stored ShadowOf hash was computed against (a Task default
+	// with StageGroup "task-flow") — that mismatch is a side effect of the
+	// rename, not drift to ask the user about.
+	kinds := types.NewKindRegistry(store.lastWrittenKinds)
+	report := stage.DetectDiverged(kinds, nil)
+	for _, d := range report.Diverged {
+		if d.Name == "Task" {
+			t.Errorf("expected Task to be excluded from DetectDiverged's report, got %+v", report.Diverged)
+		}
 	}
 }
 

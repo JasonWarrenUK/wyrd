@@ -19,24 +19,28 @@ type stagesOverlay struct {
 	theme       *ActiveTheme
 	stageGroups *types.StageGroupRegistry
 
-	// userNames is the set of stage-group names present in the user's
-	// stages.jsonc (as opposed to the merged registry, which also includes
-	// baked-in defaults). Drives the (custom)/(edited) provenance marker —
-	// see provenanceMarker's doc comment. Refreshed by the app alongside
-	// stageGroups whenever a group is created or edited
-	// (stageFormSubmitMsg's handler).
-	userNames map[string]bool
+	// divergence is the shared TD.5 report (see Model.divergence's doc
+	// comment) — re-pointed at every rebuild site alongside stageGroups
+	// rather than recomputed here. This overlay previously recomputed its
+	// own report with DetectDiverged(nil, stageGroups); because
+	// DetectDiverged pools its checked/mismatched counts across both
+	// registries, passing nil for kinds changed the schema-drift ratio and
+	// could disagree with kindsOverlay/the startup advisory on identical
+	// on-disk state.
+	divergence stage.DivergenceReport
 
 	width, height int
 }
 
 // newStagesOverlay creates an inactive stages overlay. groups may be nil.
-// userNames may be nil (no provenance markers render).
-func newStagesOverlay(theme *ActiveTheme, groups *types.StageGroupRegistry, userNames map[string]bool) stagesOverlay {
+// The (custom)/(edited) provenance marker (see provenanceMarker's doc
+// comment) is driven directly by stageGroups.IsUserDefined (TD.15) rather
+// than a separately-threaded userNames map — a nil groups registry renders
+// no markers, matching the old nil-userNames behaviour.
+func newStagesOverlay(theme *ActiveTheme, groups *types.StageGroupRegistry) stagesOverlay {
 	return stagesOverlay{
 		theme:       theme,
 		stageGroups: groups,
-		userNames:   userNames,
 	}
 }
 
@@ -79,6 +83,19 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
+		// TD.5: so.divergence is the single report shared with the startup
+		// advisory and kindsOverlay (Model.divergence) — re-pointed at every
+		// rebuild site alongside so.stageGroups, rather than recomputed
+		// here. Only the StageGroup half of the report (!d.Kind) is used;
+		// stagesOverlay has no kinds registry of its own, but the report
+		// itself is always computed over both.
+		divergedNames := map[string]bool{}
+		for _, d := range so.divergence.Diverged {
+			if !d.Kind {
+				divergedNames[d.Name] = true
+			}
+		}
+
 		// Measure name column width (min 12, longest display width + 2).
 		// Use lipgloss.Width so multi-byte runes (e.g. CJK) are counted by
 		// cell width, not byte length.
@@ -89,9 +106,9 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
-		// Fixed provenance column width — "(custom)" and "(edited)" are both
-		// 8 display cells + 2 padding.
-		const provenanceColWidth = 10
+		// Provenance column width: the widest possible marker is "(diverged)"
+		// at 10 display cells + 2 padding.
+		const provenanceColWidth = 12
 
 		// Measure cycle column width from the possible rendered strings.
 		// cycleString may contain "→" and "↺" (multi-byte but single-cell), so
@@ -112,8 +129,12 @@ func (so *stagesOverlay) Open(width, height int) {
 				namePad = 1
 			}
 
-			// Provenance column.
-			marker := provenanceMarker(g.Name, so.userNames, defaultNames)
+			// Provenance column. (diverged) takes priority over (edited) —
+			// see kindsOverlay's matching comment.
+			marker := provenanceMarker(g.Name, so.stageGroups.IsUserDefined, defaultNames)
+			if divergedNames[g.Name] {
+				marker = "(diverged)"
+			}
 			provSeg := mutedStyle.Render(marker)
 			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {

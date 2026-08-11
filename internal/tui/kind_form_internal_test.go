@@ -702,6 +702,39 @@ func TestKindEditFormReEditPreservesOriginalShadowOf(t *testing.T) {
 	}
 }
 
+// TestKindEditFormReEditPreservesShadowReason covers TD.5's addition
+// alongside the ShadowOf invariant above: a re-edit must also carry the
+// existing entry's ShadowReason forward unchanged, not reset it to the
+// ShadowEdited-equivalent zero value. Losing ShadowReason on re-edit would
+// make a tombstone or rename-fan-out shadow start reading as an ordinary
+// hand-edit the moment the user touches any unrelated field, defeating
+// DetectDiverged's exclusion of those two cases.
+func TestKindEditFormReEditPreservesShadowReason(t *testing.T) {
+	sentinel := "sha256:deadbeefdeadbeef"
+	existing := types.Kind{
+		Name: "Talk", StageGroup: "task-flow", Glyph: "◆",
+		ShadowOf:     sentinel,
+		ShadowReason: types.ShadowRenameFanOut,
+	}
+	store := &errKindsStoreFS{seed: []types.Kind{existing}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	_, cmd := driveKindFormToCompletedWith(f, "Talk", "★", "#9b70ff", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowReason
+	if got != types.ShadowRenameFanOut {
+		t.Errorf("ShadowReason = %q, want preserved %q (not reset to ShadowEdited)", got, types.ShadowRenameFanOut)
+	}
+}
+
 // TestKindEditFormRenameDefaultStampsBothShadowAndTombstone verifies that
 // renaming a baked-in default stamps ShadowOf on both the renamed entry and
 // the tombstone left under the old name.
@@ -731,11 +764,22 @@ func TestKindEditFormRenameDefaultStampsBothShadowAndTombstone(t *testing.T) {
 			if k.ShadowOf != wantHash {
 				t.Errorf("renamed entry ShadowOf = %q, want %q", k.ShadowOf, wantHash)
 			}
+			// TD.5: a fresh fork of a default gets ShadowEdited, not
+			// ShadowTombstone — it's the entry the user is actively editing.
+			if k.ShadowReason != types.ShadowEdited {
+				t.Errorf("renamed entry ShadowReason = %q, want %q", k.ShadowReason, types.ShadowEdited)
+			}
 		}
 		if k.Name == "Task" {
 			sawTombstone = true
 			if k.ShadowOf != wantHash {
 				t.Errorf("tombstone ShadowOf = %q, want %q", k.ShadowOf, wantHash)
+			}
+			// TD.5: the tombstone is content-identical to the default it
+			// shadows, so DetectDiverged must be able to tell it apart from
+			// an ordinary hand-edited shadow via ShadowReason.
+			if k.ShadowReason != types.ShadowTombstone {
+				t.Errorf("tombstone ShadowReason = %q, want %q", k.ShadowReason, types.ShadowTombstone)
 			}
 		}
 	}

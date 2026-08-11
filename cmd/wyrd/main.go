@@ -89,10 +89,18 @@ func openStore(storePath string) (*store.Store, error) {
 // identically (DL.6). A parse failure in the baked-in defaults is a build
 // bug and returned as fatal; a missing/invalid user file is logged and
 // skipped, falling back to defaults only.
-func buildRegistries(s *store.Store) (*types.KindRegistry, *types.StageGroupRegistry, error) {
+//
+// Also returns a stage.DivergenceReport (TD.5): this is the only place both
+// the user's shadowed entries and the current embedded defaults are
+// simultaneously in scope, so it's the natural seam for upstream-drift
+// detection to fall out of the same merge rather than a second read. Only
+// the TUI branch surfaces it (via tui.Config.Divergence); the CLI query
+// paths (queryCmd, viewCmd) have no UI for an advisory and discard it —
+// they still get the correctly-merged registries either way.
+func buildRegistries(s *store.Store) (*types.KindRegistry, *types.StageGroupRegistry, stage.DivergenceReport, error) {
 	kindDefaults, err := stage.DefaultKinds()
 	if err != nil {
-		return nil, nil, fmt.Errorf("loading built-in kind defaults: %w", err)
+		return nil, nil, stage.DivergenceReport{}, fmt.Errorf("loading built-in kind defaults: %w", err)
 	}
 	userKindReg, err := s.ReadKinds()
 	if err != nil {
@@ -105,7 +113,7 @@ func buildRegistries(s *store.Store) (*types.KindRegistry, *types.StageGroupRegi
 
 	groupDefaults, err := stage.DefaultStageGroups()
 	if err != nil {
-		return nil, nil, fmt.Errorf("loading built-in stage-group defaults: %w", err)
+		return nil, nil, stage.DivergenceReport{}, fmt.Errorf("loading built-in stage-group defaults: %w", err)
 	}
 	userGroupReg, err := s.ReadStages()
 	if err != nil {
@@ -116,7 +124,9 @@ func buildRegistries(s *store.Store) (*types.KindRegistry, *types.StageGroupRegi
 	}
 	stageGroups := stage.MergeStageGroups(groupDefaults, userGroupReg.All())
 
-	return kinds, stageGroups, nil
+	divergence := stage.DetectDiverged(kinds, stageGroups)
+
+	return kinds, stageGroups, divergence, nil
 }
 
 func rootCmd() *cobra.Command {
@@ -164,8 +174,9 @@ property graph. Run without arguments to launch the TUI.`,
 			defer func() { _ = s.Close() }()
 
 			// Build the merged kind + stage-group registries (baked-in
-			// defaults shadowed by kinds.jsonc / stages.jsonc, SL.13).
-			kinds, stageGroups, err := buildRegistries(s)
+			// defaults shadowed by kinds.jsonc / stages.jsonc, SL.13), plus
+			// a TD.5 upstream-divergence report the TUI surfaces on launch.
+			kinds, stageGroups, divergence, err := buildRegistries(s)
 			if err != nil {
 				return err
 			}
@@ -183,6 +194,7 @@ property graph. Run without arguments to launch the TUI.`,
 				Clock:       types.RealClock{},
 				Kinds:       kinds,
 				StageGroups: stageGroups,
+				Divergence:  divergence,
 				Logger:      appLogger,
 			})
 		},
@@ -618,7 +630,9 @@ func queryCmd(storePath *string) *cobra.Command {
 				return err
 			}
 			defer func() { _ = s.Close() }()
-			kinds, stageGroups, err := buildRegistries(s)
+			// The TD.5 divergence report is TUI-only (no advisory surface
+			// here); discard it.
+			kinds, stageGroups, _, err := buildRegistries(s)
 			if err != nil {
 				return err
 			}
@@ -645,7 +659,8 @@ func viewCmd(storePath *string) *cobra.Command {
 				return err
 			}
 			defer func() { _ = s.Close() }()
-			kinds, stageGroups, err := buildRegistries(s)
+			// The TD.5 divergence report is TUI-only; discard it here too.
+			kinds, stageGroups, _, err := buildRegistries(s)
 			if err != nil {
 				return err
 			}

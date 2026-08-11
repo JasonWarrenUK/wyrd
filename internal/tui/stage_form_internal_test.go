@@ -701,6 +701,36 @@ func TestStageEditFormReEditPreservesOriginalShadowOf(t *testing.T) {
 	}
 }
 
+// TestStageEditFormReEditPreservesShadowReason mirrors
+// TestKindEditFormReEditPreservesShadowReason: a re-edit must carry the
+// existing entry's ShadowReason forward unchanged, not reset it to the
+// ShadowEdited-equivalent zero value.
+func TestStageEditFormReEditPreservesShadowReason(t *testing.T) {
+	sentinel := "sha256:deadbeefdeadbeef"
+	existing := types.StageGroup{
+		Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate,
+		ShadowOf:     sentinel,
+		ShadowReason: types.ShadowTombstone,
+	}
+	store := &errStoreFS{seed: []types.StageGroup{existing}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "task-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowReason
+	if got != types.ShadowTombstone {
+		t.Errorf("ShadowReason = %q, want preserved %q (not reset to ShadowEdited)", got, types.ShadowTombstone)
+	}
+}
+
 // TestStageEditFormRenameDefaultStampsBothShadowAndTombstone verifies that
 // renaming a baked-in default stamps ShadowOf on both the renamed entry and
 // the tombstone left under the old name.
@@ -743,11 +773,17 @@ func TestStageEditFormRenameDefaultStampsBothShadowAndTombstone(t *testing.T) {
 			if g.ShadowOf != wantHash {
 				t.Errorf("renamed entry ShadowOf = %q, want %q", g.ShadowOf, wantHash)
 			}
+			if g.ShadowReason != types.ShadowEdited {
+				t.Errorf("renamed entry ShadowReason = %q, want %q", g.ShadowReason, types.ShadowEdited)
+			}
 		}
 		if g.Name == "task-flow" {
 			sawTombstone = true
 			if g.ShadowOf != wantHash {
 				t.Errorf("tombstone ShadowOf = %q, want %q", g.ShadowOf, wantHash)
+			}
+			if g.ShadowReason != types.ShadowTombstone {
+				t.Errorf("tombstone ShadowReason = %q, want %q", g.ShadowReason, types.ShadowTombstone)
 			}
 		}
 	}

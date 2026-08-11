@@ -114,10 +114,24 @@ func (r *TimelineRenderer) View(result types.QueryResult, width int) string {
 
 // Render produces a styled timeline string from result.
 // Entries are sorted newest-first. width is the available terminal width.
+//
+// TD.6: every style below carries both Background and Foreground (rule 1).
+// Unlike RenderBlocks, Render does not pad its own lines to width on bg —
+// the newlines separating entries and following the date header are bare
+// "\n" (see the loop below), and the full-width separator rule is the only
+// line here that happens to cover its own row edge-to-edge. This is safe in
+// practice because the sole caller, viewPane.View, wraps the whole returned
+// string in PadLines before it reaches the screen, but treat that as an
+// external guarantee rather than something this function itself provides —
+// a future caller that renders Render's output directly would reintroduce
+// background bleed.
 func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
+	bg := r.Palette.Background
+
 	if len(result.Rows) == 0 {
 		return lipgloss.NewStyle().
 			Foreground(r.Palette.Muted).
+			Background(bg).
 			Render("No entries.")
 	}
 
@@ -141,14 +155,17 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 	separatorStr := strings.Repeat(timelineSeparator, width)
 	separatorStyled := lipgloss.NewStyle().
 		Foreground(r.Palette.Separator).
+		Background(bg).
 		Render(separatorStr)
 
 	dateStyle := lipgloss.NewStyle().
 		Foreground(r.Palette.DateHeader).
+		Background(bg).
 		Bold(true)
 
 	bodyStyle := lipgloss.NewStyle().
-		Foreground(r.Palette.Body)
+		Foreground(r.Palette.Body).
+		Background(bg)
 
 	var sb strings.Builder
 	for i, entry := range entries {
@@ -169,13 +186,13 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 		dateRendered := dateStyle.Render(dateStr)
 		if r.TypeColour != nil && len(entry.types) > 0 {
 			typeName := entry.types[0]
-			bg, fg := r.TypeColour(typeName)
+			badgeBg, badgeFg := r.TypeColour(typeName)
 			badge := lipgloss.NewStyle().
-				Background(lipgloss.Color(bg)).
-				Foreground(lipgloss.Color(fg)).
+				Background(lipgloss.Color(badgeBg)).
+				Foreground(lipgloss.Color(badgeFg)).
 				Padding(0, 1).
 				Render(typeName)
-			dateRendered = dateRendered + "  " + badge
+			dateRendered = dateRendered + spacer(2, bg) + badge
 		}
 
 		sb.WriteString(dateRendered)
@@ -186,7 +203,8 @@ func (r *TimelineRenderer) Render(result types.QueryResult, width int) string {
 		if r.TypeColour != nil && len(entry.types) > 0 {
 			_, fg := r.TypeColour(entry.types[0])
 			entryBodyStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(fg))
+				Foreground(lipgloss.Color(fg)).
+				Background(bg)
 		}
 		sb.WriteString(entryBodyStyle.Render(entry.body))
 	}

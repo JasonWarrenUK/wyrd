@@ -343,8 +343,10 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		switch {
 		case f.editing != nil && f.editing.ShadowOf != "":
 			group.ShadowOf = f.editing.ShadowOf
+			group.ShadowReason = f.editing.ShadowReason
 		case f.isDefault:
 			group.ShadowOf = stage.DefaultStageGroupHash(f.originalName)
+			group.ShadowReason = types.ShadowEdited
 		}
 
 		renamed := f.originalName != "" && group.Name != f.originalName
@@ -358,12 +360,15 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		// that cascade lands — it exists purely to keep the group registry
 		// from resurrecting the default. The tombstone is stamped for the
 		// same reason kindFormPane's is: it's a verbatim shadow, and leaving
-		// it unstamped would make it read as user-authored.
+		// it unstamped would make it read as user-authored. ShadowReason is
+		// ShadowTombstone (TD.5), matching kindFormPane's identical
+		// reasoning.
 		if renamed && f.isDefault {
 			if defaults, derr := stage.DefaultStageGroups(); derr == nil {
 				for _, d := range defaults {
 					if d.Name == f.originalName {
 						d.ShadowOf = stage.DefaultStageGroupHash(d.Name)
+						d.ShadowReason = types.ShadowTombstone
 						existing = append(existing, d)
 						break
 					}
