@@ -2,8 +2,10 @@ package tui
 
 import (
 	"image/color"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
@@ -582,5 +584,56 @@ func TestShortNodeLabelMissingNodeDoesNotPanic(t *testing.T) {
 	got := shortNodeLabel(idx, "xy")
 	if got != "xy" {
 		t.Errorf("shortNodeLabel(idx, %q) = %q, want %q", "xy", got, "xy")
+	}
+}
+
+// TestTruncateDisplay covers TD.17: title[:27] byte-sliced arbitrary node
+// titles, which can contain multi-byte UTF-8. Byte-slicing both mismeasures
+// length (len counts bytes, not display cells) and can split a rune mid
+// sequence, emitting mojibake. truncateDisplay measures via runewidth
+// instead, matching listPadOrTruncate's convention.
+func TestTruncateDisplay(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		max  int
+		want string
+	}{
+		{"under max returned as-is", "short", 30, "short"},
+		{"exactly max returned as-is", "0123456789", 10, "0123456789"},
+		{"ASCII over max truncates with ellipsis", "0123456789ABCDEF", 10, "012345678…"},
+		{"CJK title truncates on rune boundaries", "日本語のタイトルがとても長い場合のテスト", 10, "日本語の…"},
+		{"emoji title does not split a rune", "🎉🎉🎉🎉🎉🎉🎉🎉", 10, "🎉🎉🎉🎉…"},
+		{"accented runes truncate cleanly", "Café Résumé Naïve Façade", 10, "Café Résu…"},
+		{"empty string returned as-is", "", 10, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncateDisplay(tt.s, tt.max)
+			if got != tt.want {
+				t.Errorf("truncateDisplay(%q, %d) = %q, want %q", tt.s, tt.max, got, tt.want)
+			}
+			if !utf8.ValidString(got) {
+				t.Errorf("truncateDisplay(%q, %d) = %q is not valid UTF-8", tt.s, tt.max, got)
+			}
+		})
+	}
+}
+
+// TestShortNodeLabelMultiByteTitle covers TD.17 at the shortNodeLabel call
+// site directly: a node title containing multi-byte UTF-8 past the 30-cell
+// threshold must not be split mid-rune.
+func TestShortNodeLabelMultiByteTitle(t *testing.T) {
+	idx := &stubIndex{nodes: []*types.Node{
+		{ID: "n1", Title: "日本語のタイトルがとても長い場合のテスト"},
+	}}
+
+	got := shortNodeLabel(idx, "n1")
+	if !utf8.ValidString(got) {
+		t.Errorf("shortNodeLabel returned invalid UTF-8: %q", got)
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("shortNodeLabel(%q) = %q, want ellipsis suffix", "n1", got)
 	}
 }

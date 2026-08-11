@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jasonwarrenuk/wyrd/internal/budget"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
+	"github.com/mattn/go-runewidth"
 )
 
 // formActivePane is implemented by any pane that represents an active form.
@@ -912,6 +913,24 @@ func truncateID(nodeID string) string {
 	return nodeID
 }
 
+// truncateDisplay shortens s to at most max display cells, appending an
+// ellipsis, without splitting a multi-byte rune. Unlike truncateID, s here
+// is arbitrary user text (titles, bodies) that can contain multi-byte UTF-8,
+// so byte-slicing (len/[:n]) both mismeasures length and can emit mojibake
+// mid-rune. Measured via runewidth, matching listPadOrTruncate's convention
+// in node_list_pane.go.
+func truncateDisplay(s string, max int) string {
+	if runewidth.StringWidth(s) <= max {
+		return s
+	}
+	ellipsisWidth := runewidth.StringWidth("…")
+	cut := max - ellipsisWidth
+	if cut < 0 {
+		cut = 0
+	}
+	return runewidth.Truncate(s, cut, "") + "…"
+}
+
 // shortNodeLabel returns a truncated title for the given node ID, falling back
 // to the raw ID when the node is missing or untitled.
 func shortNodeLabel(index types.GraphIndex, nodeID string) string {
@@ -922,11 +941,7 @@ func shortNodeLabel(index types.GraphIndex, nodeID string) string {
 	if err != nil || n.Title == "" {
 		return truncateID(nodeID)
 	}
-	title := n.Title
-	if len(title) > 30 {
-		title = title[:27] + "…"
-	}
-	return title
+	return truncateDisplay(n.Title, 30)
 }
 
 // appendEdgeFields builds the edge management form fields (multi-select for
@@ -1068,9 +1083,7 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		if node.Title == "" {
 			label = node.Types[0] + ": " + node.Body
 		}
-		if len(label) > 40 {
-			label = label[:37] + "…"
-		}
+		label = truncateDisplay(label, 40)
 		if f.originalNode != nil {
 			return f, tea.Batch(cmd, func() tea.Msg {
 				return editSubmitMsg{nodeID: node.ID, label: label}

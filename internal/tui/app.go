@@ -1625,9 +1625,7 @@ func (m Model) handleArchiveNode() (tea.Model, tea.Cmd) {
 	if label == "" {
 		label = nodeID
 	}
-	if len(label) > 40 {
-		label = label[:37] + "…"
-	}
+	label = truncateDisplay(label, 40)
 	m.statusBar.SetCaptureText("Archived " + label)
 
 	// Refresh the dashboard so the archived node disappears from the list.

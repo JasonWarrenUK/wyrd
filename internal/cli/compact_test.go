@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
 	"github.com/jasonwarrenuk/wyrd/internal/store"
@@ -259,5 +260,35 @@ func TestCompact_DryRunShowsPreviewForMultipleNodes(t *testing.T) {
 	}
 	if !strings.Contains(output, "would move node") {
 		t.Errorf("expected 'would move node' lines, got: %s", output)
+	}
+}
+
+// TestCompact_TruncatesMultiByteBodyWithoutMojibake covers TD.17: the
+// dry-run label fallback used to byte-slice node.Body (body[:40]), which
+// mismeasures multi-byte UTF-8 length and can split a rune mid-sequence.
+// A body of CJK characters past the 40-rune threshold must truncate cleanly.
+func TestCompact_TruncatesMultiByteBodyWithoutMojibake(t *testing.T) {
+	s := newCompactTestStore(t)
+
+	longBody := strings.Repeat("日本語のテスト文字列です。", 5) // well past 40 runes, untitled
+	node, err := s.CreateNode(longBody, []string{"note"})
+	if err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	if err := s.ArchiveNode(node.ID); err != nil {
+		t.Fatalf("ArchiveNode: %v", err)
+	}
+
+	var out bytes.Buffer
+	if err := cli.Compact(s, s.Index(), true, &out); err != nil {
+		t.Fatalf("Compact dry-run: %v", err)
+	}
+
+	output := out.String()
+	if !utf8.ValidString(output) {
+		t.Fatalf("dry-run output is not valid UTF-8: %q", output)
+	}
+	if !strings.Contains(output, "…") {
+		t.Errorf("expected an ellipsis-truncated label in output, got: %s", output)
 	}
 }
