@@ -19,24 +19,18 @@ type stagesOverlay struct {
 	theme       *ActiveTheme
 	stageGroups *types.StageGroupRegistry
 
-	// userNames is the set of stage-group names present in the user's
-	// stages.jsonc (as opposed to the merged registry, which also includes
-	// baked-in defaults). Drives the (custom)/(edited) provenance marker —
-	// see provenanceMarker's doc comment. Refreshed by the app alongside
-	// stageGroups whenever a group is created or edited
-	// (stageFormSubmitMsg's handler).
-	userNames map[string]bool
-
 	width, height int
 }
 
 // newStagesOverlay creates an inactive stages overlay. groups may be nil.
-// userNames may be nil (no provenance markers render).
-func newStagesOverlay(theme *ActiveTheme, groups *types.StageGroupRegistry, userNames map[string]bool) stagesOverlay {
+// The (custom)/(edited) provenance marker (see provenanceMarker's doc
+// comment) is driven directly by stageGroups.IsUserDefined (TD.15) rather
+// than a separately-threaded userNames map — a nil groups registry renders
+// no markers, matching the old nil-userNames behaviour.
+func newStagesOverlay(theme *ActiveTheme, groups *types.StageGroupRegistry) stagesOverlay {
 	return stagesOverlay{
 		theme:       theme,
 		stageGroups: groups,
-		userNames:   userNames,
 	}
 }
 
@@ -113,7 +107,7 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 
 			// Provenance column.
-			marker := provenanceMarker(g.Name, so.userNames, defaultNames)
+			marker := provenanceMarker(g.Name, so.stageGroups.IsUserDefined, defaultNames)
 			provSeg := mutedStyle.Render(marker)
 			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {

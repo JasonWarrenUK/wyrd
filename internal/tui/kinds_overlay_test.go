@@ -22,7 +22,7 @@ func TestKindsOverlay_RendersAllKinds(t *testing.T) {
 	groupsReg := types.NewStageGroupRegistry(groups)
 	theme := loadStagesTestTheme(t)
 
-	ko := newKindsOverlay(theme, kindsReg, groupsReg, nil)
+	ko := newKindsOverlay(theme, kindsReg, groupsReg)
 	ko.Open(120, 40)
 
 	view := ko.View(120, 40)
@@ -42,7 +42,7 @@ func TestKindsOverlay_RendersAllKinds(t *testing.T) {
 
 func TestKindsOverlay_EmptyState(t *testing.T) {
 	theme := loadStagesTestTheme(t)
-	ko := newKindsOverlay(theme, nil, nil, nil)
+	ko := newKindsOverlay(theme, nil, nil)
 	ko.Open(120, 40)
 
 	view := ko.View(120, 40)
@@ -55,6 +55,10 @@ func TestKindsOverlay_EmptyState(t *testing.T) {
 // TestStagesOverlay_ProvenanceMarker's three-state check: a purely
 // user-defined kind gets (custom), an edited (shadowed) default gets
 // (edited), and an untouched default gets no marker.
+//
+// Provenance (TD.15) comes from MergeKinds' registry itself — via
+// types.NewKindRegistryFromMerge — rather than a separately-constructed
+// userNames map threaded through the overlay constructor.
 func TestKindsOverlay_ProvenanceMarker(t *testing.T) {
 	defaults, err := stage.DefaultKinds()
 	if err != nil {
@@ -70,9 +74,8 @@ func TestKindsOverlay_ProvenanceMarker(t *testing.T) {
 		{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate},
 	})
 	theme := loadStagesTestTheme(t)
-	userNames := map[string]bool{"Errand": true, "Task": true}
 
-	ko := newKindsOverlay(theme, kindsReg, groupsReg, userNames)
+	ko := newKindsOverlay(theme, kindsReg, groupsReg)
 	ko.Open(160, 50)
 
 	view := ko.View(160, 50)
@@ -103,12 +106,12 @@ func TestKindsOverlay_UntouchedDefaultHasNoMarker(t *testing.T) {
 	kindsReg := stage.MergeKinds(defaults, nil)
 	theme := loadStagesTestTheme(t)
 
-	ko := newKindsOverlay(theme, kindsReg, nil, map[string]bool{})
+	ko := newKindsOverlay(theme, kindsReg, nil)
 	ko.Open(160, 50)
 
 	view := ko.View(160, 50)
 	if strings.Contains(view, "(custom)") || strings.Contains(view, "(edited)") {
-		t.Error("expected no provenance marker anywhere when userNames is empty")
+		t.Error("expected no provenance marker anywhere when no user kinds were merged in")
 	}
 }
 

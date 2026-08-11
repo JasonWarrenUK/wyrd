@@ -20,24 +20,19 @@ type kindsOverlay struct {
 	kinds       *types.KindRegistry
 	stageGroups *types.StageGroupRegistry
 
-	// userNames is the set of kind names present in the user's kinds.jsonc
-	// (as opposed to the merged registry, which also includes baked-in
-	// defaults). Drives the (custom)/(edited) provenance marker — see
-	// provenanceMarker's doc comment. Refreshed by the app alongside kinds
-	// whenever a kind is created or edited (kindFormSubmitMsg's handler).
-	userNames map[string]bool
-
 	width, height int
 }
 
 // newKindsOverlay creates an inactive kinds overlay. Both registries may be
-// nil. userNames may be nil (no provenance markers render).
-func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry, userNames map[string]bool) kindsOverlay {
+// nil. The (custom)/(edited) provenance marker (see provenanceMarker's doc
+// comment) is driven directly by kinds.IsUserDefined (TD.15) rather than a
+// separately-threaded userNames map — a nil kinds registry renders no
+// markers, matching the old nil-userNames behaviour.
+func newKindsOverlay(theme *ActiveTheme, kinds *types.KindRegistry, groups *types.StageGroupRegistry) kindsOverlay {
 	return kindsOverlay{
 		theme:       theme,
 		kinds:       kinds,
 		stageGroups: groups,
-		userNames:   userNames,
 	}
 }
 
@@ -126,7 +121,7 @@ func (ko *kindsOverlay) Open(width, height int) {
 			}
 
 			// Provenance column.
-			marker := provenanceMarker(k.Name, ko.userNames, defaultNames)
+			marker := provenanceMarker(k.Name, ko.kinds.IsUserDefined, defaultNames)
 			provSeg := mutedStyle.Render(marker)
 			provPad := provenanceColWidth - lipgloss.Width(marker)
 			if provPad < 1 {

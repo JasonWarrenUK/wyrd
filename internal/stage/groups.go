@@ -9,9 +9,9 @@ import "github.com/jasonwarrenuk/wyrd/internal/types"
 //
 // Pass nil for user when no stages.jsonc exists yet; SL.13 will supply user
 // groups as the second argument once the reader is implemented.
+//
+// The returned registry also records which names came from user (TD.15),
+// via types.NewStageGroupRegistryFromMerge — see MergeKinds' matching note.
 func MergeStageGroups(defaults, user []types.StageGroup) *types.StageGroupRegistry {
-	merged := make([]types.StageGroup, 0, len(defaults)+len(user))
-	merged = append(merged, defaults...)
-	merged = append(merged, user...)
-	return types.NewStageGroupRegistry(merged)
+	return types.NewStageGroupRegistryFromMerge(defaults, user)
 }

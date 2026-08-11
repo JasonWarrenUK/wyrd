@@ -48,6 +48,16 @@ func (k Kind) Validate() error {
 type KindRegistry struct {
 	byName map[string]Kind
 	order  []string // insertion order for stable iteration and display
+
+	// userNames records which names originated from the user-supplied slice
+	// passed to NewKindRegistryFromMerge, so the registry can answer
+	// IsUserDefined itself instead of callers rebuilding the same set from a
+	// second read of the user's file (TD.15). Plain NewKindRegistry leaves
+	// this nil: outside a defaults+user merge, "user-defined" isn't a
+	// meaningful question — every entry in a bare ReadKinds() registry is
+	// the user's own by construction, and nothing asks that registry
+	// IsUserDefined today.
+	userNames map[string]bool
 }
 
 // NewKindRegistry builds a registry in load order. Later entries with a
@@ -57,8 +67,32 @@ type KindRegistry struct {
 //	types.NewKindRegistry(append(defaults, userKinds...))
 //
 // Passing nil or an empty slice is valid and produces an empty registry.
+// The result's IsUserDefined always reports false; use
+// NewKindRegistryFromMerge when provenance tracking is needed.
 func NewKindRegistry(kinds []Kind) *KindRegistry {
-	r := &KindRegistry{byName: make(map[string]Kind, len(kinds))}
+	return newKindRegistry(kinds, nil)
+}
+
+// NewKindRegistryFromMerge builds a registry from baked-in defaults and
+// user-supplied kinds, exactly as NewKindRegistry(append(defaults, user...))
+// would, but additionally records which names came from user so the
+// registry can answer IsUserDefined without the caller keeping a separate
+// side channel (TD.15 — this replaces the userNames map that app.go used to
+// rebuild by hand at every call site that also called MergeKinds).
+func NewKindRegistryFromMerge(defaults, user []Kind) *KindRegistry {
+	merged := make([]Kind, 0, len(defaults)+len(user))
+	merged = append(merged, defaults...)
+	merged = append(merged, user...)
+
+	userNames := make(map[string]bool, len(user))
+	for _, k := range user {
+		userNames[k.Name] = true
+	}
+	return newKindRegistry(merged, userNames)
+}
+
+func newKindRegistry(kinds []Kind, userNames map[string]bool) *KindRegistry {
+	r := &KindRegistry{byName: make(map[string]Kind, len(kinds)), userNames: userNames}
 	for _, k := range kinds {
 		if _, seen := r.byName[k.Name]; !seen {
 			r.order = append(r.order, k.Name)
@@ -66,6 +100,17 @@ func NewKindRegistry(kinds []Kind) *KindRegistry {
 		r.byName[k.Name] = k
 	}
 	return r
+}
+
+// IsUserDefined reports whether name was present in the user-supplied slice
+// at merge time — i.e. whether it is a purely custom entry or shadows a
+// baked-in default, as opposed to being an untouched default. Always false
+// for a registry built via plain NewKindRegistry (no merge context).
+func (r *KindRegistry) IsUserDefined(name string) bool {
+	if r == nil {
+		return false
+	}
+	return r.userNames[name]
 }
 
 // Lookup returns the kind registered under name. The bool is false when no

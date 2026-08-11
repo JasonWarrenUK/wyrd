@@ -75,6 +75,55 @@ func TestMergeStageGroupsWithDefaultStageGroups(t *testing.T) {
 	}
 }
 
+// TestMergeStageGroupsTracksUserProvenance covers TD.15 — see the matching
+// TestMergeKindsTracksUserProvenance in kinds_test.go for the full
+// rationale.
+func TestMergeStageGroupsTracksUserProvenance(t *testing.T) {
+	defaults := []types.StageGroup{
+		{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate},
+		{Name: "habit-flow", Stages: []string{"Todo", "Done"}, Cycle: types.CycleLoop},
+	}
+	user := []types.StageGroup{
+		// Shadows the default task-flow.
+		{Name: "task-flow", Stages: []string{"Backlog", "In Progress", "Done"}, Cycle: types.CycleTerminate},
+		// Wholly new.
+		{Name: "my-flow", Stages: []string{"A", "B"}, Cycle: types.CycleTerminate},
+	}
+
+	reg := stage.MergeStageGroups(defaults, user)
+
+	if !reg.IsUserDefined("task-flow") {
+		t.Error(`IsUserDefined("task-flow") = false, want true (shadows a default)`)
+	}
+	if !reg.IsUserDefined("my-flow") {
+		t.Error(`IsUserDefined("my-flow") = false, want true (purely user-defined)`)
+	}
+	if reg.IsUserDefined("habit-flow") {
+		t.Error(`IsUserDefined("habit-flow") = true, want false (untouched default)`)
+	}
+}
+
+// TestNewStageGroupRegistryHasNoProvenance mirrors
+// TestNewKindRegistryHasNoProvenance: outside a defaults+user merge,
+// IsUserDefined must report false unconditionally.
+func TestNewStageGroupRegistryHasNoProvenance(t *testing.T) {
+	reg := types.NewStageGroupRegistry([]types.StageGroup{
+		{Name: "task-flow", Stages: []string{"A"}, Cycle: types.CycleTerminate},
+	})
+	if reg.IsUserDefined("task-flow") {
+		t.Error(`IsUserDefined("task-flow") = true, want false for a plain (non-merge) registry`)
+	}
+}
+
+// TestNilStageGroupRegistryIsUserDefinedFalse mirrors
+// TestNilKindRegistryIsUserDefinedFalse.
+func TestNilStageGroupRegistryIsUserDefinedFalse(t *testing.T) {
+	var reg *types.StageGroupRegistry
+	if reg.IsUserDefined("anything") {
+		t.Error("IsUserDefined on a nil *StageGroupRegistry should return false, not panic")
+	}
+}
+
 func TestMergeStageGroupsInputsUnmutated(t *testing.T) {
 	defaults := []types.StageGroup{
 		{Name: "task-flow", Stages: []string{"A"}, Cycle: types.CycleTerminate},

@@ -532,29 +532,6 @@ func New(cfg Config) (Model, error) {
 		},
 	})
 
-	// userKindNames/userStageGroupNames drive the (custom)/(edited)
-	// provenance markers in the kinds/stages overlays — see
-	// provenanceMarker's doc comment. cfg.Kinds/cfg.StageGroups are already
-	// merged with baked-in defaults by the time they reach here, so the only
-	// way to know which entries are user-owned is a direct read of the user
-	// files. A read failure yields an empty set (no markers), matching the
-	// lenient error handling buildRegistries already applies to the same
-	// read at bootstrap — never blocks startup.
-	userKindNames := map[string]bool{}
-	userStageGroupNames := map[string]bool{}
-	if cfg.Store != nil {
-		if userKinds, err := cfg.Store.ReadKinds(); err == nil {
-			for _, k := range userKinds.All() {
-				userKindNames[k.Name] = true
-			}
-		}
-		if userGroups, err := cfg.Store.ReadStages(); err == nil {
-			for _, g := range userGroups.All() {
-				userStageGroupNames[g.Name] = true
-			}
-		}
-	}
-
 	m := Model{
 		theme:              theme,
 		storePath:          storePath,
@@ -582,8 +559,8 @@ func New(cfg Config) (Model, error) {
 		logger:             cfg.Logger,
 		logOverlay:         newLogOverlay(theme),
 		helpOverlay:        newHelpOverlay(theme),
-		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups, userKindNames),
-		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups, userStageGroupNames),
+		kindsOverlay:       newKindsOverlay(theme, cfg.Kinds, cfg.StageGroups),
+		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups),
 		ready:              false,
 	}
 
@@ -1124,18 +1101,13 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			if defaults, err := stage.DefaultKinds(); err == nil {
 				if userReg, err := m.store.ReadKinds(); err == nil {
+					// MergeKinds' returned registry tracks which names came
+					// from userReg itself (TD.15), so re-pointing the
+					// overlay at the freshly-merged registry is enough to
+					// keep its (custom)/(edited) markers correct post-write
+					// — no separate userNames rebuild needed here anymore.
 					m.kinds = stage.MergeKinds(defaults, userReg.All())
 					m.kindsOverlay.kinds = m.kinds
-					// Refresh the provenance set from the same read — this is
-					// the only place that knows which names are actually in
-					// the user's file post-write, so it's also the only place
-					// that can keep the kinds overlay's (custom)/(edited)
-					// markers correct.
-					userNames := make(map[string]bool, len(userReg.All()))
-					for _, k := range userReg.All() {
-						userNames[k.Name] = true
-					}
-					m.kindsOverlay.userNames = userNames
 					refreshed = true
 				}
 			}
@@ -1220,13 +1192,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if renameErr == nil && msg.renamedFrom != "" && m.store != nil {
 			if kindDefaults, err := stage.DefaultKinds(); err == nil {
 				if userKindReg, err := m.store.ReadKinds(); err == nil {
+					// See the matching TD.15 note in kindFormSubmitMsg:
+					// MergeKinds' registry now tracks provenance itself.
 					m.kinds = stage.MergeKinds(kindDefaults, userKindReg.All())
 					m.kindsOverlay.kinds = m.kinds
-					kindUserNames := make(map[string]bool, len(userKindReg.All()))
-					for _, k := range userKindReg.All() {
-						kindUserNames[k.Name] = true
-					}
-					m.kindsOverlay.userNames = kindUserNames
 				}
 			}
 		}
@@ -1238,16 +1207,11 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.store != nil {
 			if defaults, err := stage.DefaultStageGroups(); err == nil {
 				if userReg, err := m.store.ReadStages(); err == nil {
+					// MergeStageGroups' registry tracks provenance itself
+					// (TD.15) — no separate userNames rebuild needed.
 					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
 					m.kindsOverlay.stageGroups = m.stageGroups
 					m.stagesOverlay.stageGroups = m.stageGroups
-					// Refresh the provenance set — see the matching comment
-					// in kindFormSubmitMsg.
-					userNames := make(map[string]bool, len(userReg.All()))
-					for _, g := range userReg.All() {
-						userNames[g.Name] = true
-					}
-					m.stagesOverlay.userNames = userNames
 					refreshed = true
 				}
 			}

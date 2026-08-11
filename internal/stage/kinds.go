@@ -44,11 +44,13 @@ func DefaultKinds() ([]types.Kind, error) {
 // kinds. User kinds are appended after defaults so that a user kind with the
 // same Name shadows the default — the last-wins-by-name seam documented in
 // types.NewKindRegistry. Neither input slice is mutated.
+//
+// The returned registry also records which names came from user (TD.15),
+// via types.NewKindRegistryFromMerge, so callers no longer need to rebuild a
+// parallel userNames set from a second read of the same user slice just to
+// drive the (custom)/(edited) provenance markers.
 func MergeKinds(defaults, user []types.Kind) *types.KindRegistry {
-	merged := make([]types.Kind, 0, len(defaults)+len(user))
-	merged = append(merged, defaults...)
-	merged = append(merged, user...)
-	return types.NewKindRegistry(merged)
+	return types.NewKindRegistryFromMerge(defaults, user)
 }
 
 // loadKindDefaults reads and parses all JSONC files from the embedded kinds/
