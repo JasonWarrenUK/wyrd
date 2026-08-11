@@ -133,7 +133,7 @@ func (s *errStoreFS) WriteStages(groups []types.StageGroup) error {
 	s.lastWritten = groups
 	return s.writeErr
 }
-func (s *errStoreFS) StorePath() string                      { return "/tmp/err-store" }
+func (s *errStoreFS) StorePath() string { return "/tmp/err-store" }
 
 // driveToCompleted pre-populates the form fields on f with the standard test
 // values and forces form.State to StateCompleted, then calls f.Update with a
@@ -580,6 +580,182 @@ func TestStageEditFormRenameCustomGroupNoTombstone(t *testing.T) {
 	}
 	if store.lastWritten[0].Name != "pr-flow" {
 		t.Errorf("lastWritten[0].Name = %q, want %q", store.lastWritten[0].Name, "pr-flow")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TD.14 — ShadowOf provenance stamping.
+// ---------------------------------------------------------------------------
+
+// TestStageFormCreateLeavesShadowOfEmpty verifies a brand-new, purely
+// user-authored stage group is never stamped.
+func TestStageFormCreateLeavesShadowOfEmpty(t *testing.T) {
+	store := &errStoreFS{}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newStageFormPane(theme, store, nil, nil)
+	_, cmd := driveToCompleted(f)
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	if store.lastWritten[0].ShadowOf != "" {
+		t.Errorf("ShadowOf = %q, want empty for a create-mode group", store.lastWritten[0].ShadowOf)
+	}
+}
+
+// TestStageEditFormStampsShadowOfOnDefault verifies editing a still-unshadowed
+// baked-in default stamps ShadowOf with that default's content hash.
+func TestStageEditFormStampsShadowOfOnDefault(t *testing.T) {
+	store := &errStoreFS{} // "task-flow" not yet shadowed
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	var taskFlowDefault types.StageGroup
+	for _, d := range defaults {
+		if d.Name == "task-flow" {
+			taskFlowDefault = d
+			break
+		}
+	}
+	if taskFlowDefault.Name == "" {
+		t.Fatal("precondition failed: no baked-in task-flow default found")
+	}
+
+	f := newStageFormPane(theme, store, nil, &taskFlowDefault)
+	if !f.isDefault {
+		t.Fatal("precondition failed: task-flow should be recognised as a default")
+	}
+	_, cmd := driveToCompletedWith(f, "task-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	want := stage.DefaultStageGroupHash("task-flow")
+	if want == "" {
+		t.Fatal("precondition failed: DefaultStageGroupHash(task-flow) should be non-empty")
+	}
+	if got := store.lastWritten[0].ShadowOf; got != want {
+		t.Errorf("ShadowOf = %q, want %q", got, want)
+	}
+}
+
+// TestStageEditFormNoShadowOfOnCustomGroup verifies editing a purely
+// user-authored (non-default) group never stamps ShadowOf.
+func TestStageEditFormNoShadowOfOnCustomGroup(t *testing.T) {
+	store := &errStoreFS{seed: []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Merged"}},
+	}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	existing := types.StageGroup{Name: "review-flow", Stages: []string{"Draft", "Merged"}}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "review-flow", "Draft\nMerged", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	if store.lastWritten[0].ShadowOf != "" {
+		t.Errorf("ShadowOf = %q, want empty for a custom group", store.lastWritten[0].ShadowOf)
+	}
+}
+
+// TestStageEditFormReEditPreservesOriginalShadowOf is the critical regression
+// test: re-editing an entry that is already a shadow must carry its existing
+// ShadowOf forward unchanged, never recomputing against the current default.
+func TestStageEditFormReEditPreservesOriginalShadowOf(t *testing.T) {
+	sentinel := "sha256:deadbeefdeadbeef"
+	existing := types.StageGroup{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate, ShadowOf: sentinel}
+	store := &errStoreFS{seed: []types.StageGroup{existing}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	// Edit an unrelated field (add a stage) — the shadow's ShadowOf must not move.
+	_, cmd := driveToCompletedWith(f, "task-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowOf
+	if got != sentinel {
+		t.Errorf("ShadowOf = %q, want preserved sentinel %q (not recomputed against the current default %q)",
+			got, sentinel, stage.DefaultStageGroupHash("task-flow"))
+	}
+}
+
+// TestStageEditFormRenameDefaultStampsBothShadowAndTombstone verifies that
+// renaming a baked-in default stamps ShadowOf on both the renamed entry and
+// the tombstone left under the old name.
+func TestStageEditFormRenameDefaultStampsBothShadowAndTombstone(t *testing.T) {
+	store := &errStoreFS{} // "task-flow" not yet shadowed
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	var taskFlowDefault types.StageGroup
+	for _, d := range defaults {
+		if d.Name == "task-flow" {
+			taskFlowDefault = d
+			break
+		}
+	}
+	if taskFlowDefault.Name == "" {
+		t.Fatal("precondition failed: no baked-in task-flow default found")
+	}
+
+	f := newStageFormPane(theme, store, nil, &taskFlowDefault)
+	_, cmd := driveToCompletedWith(f, "todo-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 2 {
+		t.Fatalf("lastWritten len = %d, want 2 (renamed entry + tombstone)", len(store.lastWritten))
+	}
+	wantHash := stage.DefaultStageGroupHash("task-flow")
+	if wantHash == "" {
+		t.Fatal("precondition failed: DefaultStageGroupHash(task-flow) should be non-empty")
+	}
+	var sawRenamed, sawTombstone bool
+	for _, g := range store.lastWritten {
+		if g.Name == "todo-flow" {
+			sawRenamed = true
+			if g.ShadowOf != wantHash {
+				t.Errorf("renamed entry ShadowOf = %q, want %q", g.ShadowOf, wantHash)
+			}
+		}
+		if g.Name == "task-flow" {
+			sawTombstone = true
+			if g.ShadowOf != wantHash {
+				t.Errorf("tombstone ShadowOf = %q, want %q", g.ShadowOf, wantHash)
+			}
+		}
+	}
+	if !sawRenamed {
+		t.Error("expected the renamed todo-flow entry in lastWritten")
+	}
+	if !sawTombstone {
+		t.Error("expected a task-flow tombstone entry in lastWritten")
 	}
 }
 

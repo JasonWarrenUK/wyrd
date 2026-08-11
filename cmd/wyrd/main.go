@@ -161,7 +161,7 @@ property graph. Run without arguments to launch the TUI.`,
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			// Build the merged kind + stage-group registries (baked-in
 			// defaults shadowed by kinds.jsonc / stages.jsonc, SL.13).
@@ -219,7 +219,7 @@ run git init, and write .gitattributes for the merge driver.`,
 			if err := cli.Init(*storePath); err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Wyrd store initialised at %s\n", *storePath)
+			_, _ = fmt.Fprintf(os.Stdout, "Wyrd store initialised at %s\n", *storePath)
 			return nil
 		},
 	}
@@ -256,16 +256,18 @@ Defaults to type 'task' with status 'inbox'.`,
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.Add(s, cli.AddOptions{
 				Body:     args[0],
 				Title:    title,
 				NodeType: nodeType,
 				LinkID:   linkID,
+				Index:    s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created node %s\n", id)
 			return nil
 		},
 	}
@@ -308,7 +310,7 @@ func journalCmd(storePath *string) *cobra.Command {
 
 			if err := form.Run(); err != nil {
 				if errors.Is(err, huh.ErrUserAborted) {
-					fmt.Fprintln(os.Stdout, "Cancelled.")
+					_, _ = fmt.Fprintln(os.Stdout, "Cancelled.")
 					return nil
 				}
 				return err
@@ -318,15 +320,17 @@ func journalCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.Journal(s, cli.JournalOptions{
 				Title:  title,
 				Body:   body,
 				LinkID: linkID,
+				Index:  s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created journal node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created journal node %s\n", id)
 			return nil
 		},
 	}
@@ -365,7 +369,7 @@ func noteCmd(storePath *string) *cobra.Command {
 
 			if err := form.Run(); err != nil {
 				if errors.Is(err, huh.ErrUserAborted) {
-					fmt.Fprintln(os.Stdout, "Cancelled.")
+					_, _ = fmt.Fprintln(os.Stdout, "Cancelled.")
 					return nil
 				}
 				return err
@@ -375,15 +379,17 @@ func noteCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.Note(s, cli.NoteOptions{
 				Title:  title,
 				Body:   body,
 				LinkID: linkID,
+				Index:  s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created note node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created note node %s\n", id)
 			return nil
 		},
 	}
@@ -497,7 +503,7 @@ When required values are omitted, an interactive form prompts for them.`,
 
 				if err := form.Run(); err != nil {
 					if errors.Is(err, huh.ErrUserAborted) {
-						fmt.Fprintln(os.Stdout, "Cancelled.")
+						_, _ = fmt.Fprintln(os.Stdout, "Cancelled.")
 						return nil
 					}
 					return err
@@ -517,17 +523,19 @@ When required values are omitted, an interactive form prompts for them.`,
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			id, err := cli.BudgetCreate(s, cli.BudgetCreateOptions{
 				Category:  category,
 				Allocated: allocated,
 				Period:    period,
 				WarnAt:    warnAt,
 				LinkID:    linkID,
+				Index:     s.Index(),
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Created budget node %s\n", id)
+			_, _ = fmt.Fprintf(os.Stdout, "Created budget node %s\n", id)
 			return nil
 		},
 	}
@@ -559,6 +567,7 @@ Use --date YYYY-MM-DD to back-date or future-date the entry; defaults to today.`
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			warning, err := cli.Spend(s, s.Index(), cli.SpendOptions{
 				Category: args[0],
 				Amount:   amount,
@@ -571,7 +580,7 @@ Use --date YYYY-MM-DD to back-date or future-date the entry; defaults to today.`
 			if warning != "" {
 				fmt.Fprintln(os.Stderr, "warning: "+warning)
 			}
-			fmt.Fprintln(os.Stdout, "Spend recorded.")
+			_, _ = fmt.Fprintln(os.Stdout, "Spend recorded.")
 			return nil
 		},
 	}
@@ -589,6 +598,7 @@ func syncCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.Sync(s, cli.SyncOptions{Logger: appLogger}, os.Stdout)
 		},
 	}
@@ -607,6 +617,7 @@ func queryCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			kinds, stageGroups, err := buildRegistries(s)
 			if err != nil {
 				return err
@@ -633,6 +644,7 @@ func viewCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			kinds, stageGroups, err := buildRegistries(s)
 			if err != nil {
 				return err
@@ -659,6 +671,7 @@ func pushCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.Push(s, cli.PushOptions{NodeID: args[0]}, os.Stdout)
 		},
 	}
@@ -682,6 +695,7 @@ func pullCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PullObsidian(s, cli.PullObsidianOptions{
 				VaultPath: args[0],
 				DryRun:    dryRun,
@@ -710,6 +724,7 @@ func pluginCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PluginInstall(s, args[0], os.Stdout)
 		},
 	}
@@ -723,6 +738,7 @@ func pluginCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PluginExport(s, args[0], os.Stdout)
 		},
 	}
@@ -735,6 +751,7 @@ func pluginCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer func() { _ = s.Close() }()
 			return cli.PluginList(s, os.Stdout)
 		},
 	}
@@ -756,7 +773,7 @@ func compactCmd(storePath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			return cli.Compact(s, s.Index(), dryRun, os.Stdout)
 		},

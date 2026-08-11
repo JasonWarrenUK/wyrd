@@ -8,6 +8,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // StatusBar holds the state for the full-width status bar rendered at the
@@ -55,6 +57,12 @@ type StatusBar struct {
 	// keyHints are the keybindings shown in the status bar hint area.
 	// Updated by the root model when the focused pane changes.
 	keyHints []KeyBinding
+
+	// clock supplies the current time for the status-bar clock display.
+	// Set by the root model after construction; nil-safe (falls back to
+	// time.Now()) because tests construct StatusBar directly via
+	// NewStatusBar without a clock.
+	clock types.Clock
 }
 
 // NewStatusBar creates a StatusBar with the given theme and a default width.
@@ -69,6 +77,12 @@ func NewStatusBar(theme *ActiveTheme) StatusBar {
 // SetWidth updates the terminal width so the bar can fill the full line.
 func (sb *StatusBar) SetWidth(w int) {
 	sb.width = w
+}
+
+// SetClock injects the time source used for the status-bar clock display.
+// Left unset (nil), the clock falls back to time.Now().
+func (sb *StatusBar) SetClock(clock types.Clock) {
+	sb.clock = clock
 }
 
 // SetCaptureText updates the left-hand capture bar placeholder. Every call
@@ -216,7 +230,11 @@ func (sb *StatusBar) View() string {
 	}
 
 	// Right section: clock + tracker.
-	clockStr := time.Now().Format("15:04")
+	now := time.Now()
+	if sb.clock != nil {
+		now = sb.clock.Now()
+	}
+	clockStr := now.Format("15:04")
 	trackerStyle := lipgloss.NewStyle().
 		Foreground(sb.theme.FgMuted()).
 		Background(bg)
@@ -262,14 +280,4 @@ func (sb *StatusBar) View() string {
 	separator := sepStyle.Render(strings.Repeat("─", sb.width))
 
 	return separator + "\n" + baseStyle.Render(bar)
-}
-
-// SectionHeader returns a formatted section header string using the
-// section header style from the theme. Headers are uppercase throughout
-// the TUI with a muted, bold appearance.
-func SectionHeader(theme *ActiveTheme, title string) string {
-	if theme == nil {
-		return strings.ToUpper(title)
-	}
-	return theme.StyleSectionHeader().Render(strings.ToUpper(title))
 }

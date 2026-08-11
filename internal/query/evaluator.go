@@ -682,7 +682,7 @@ func (ev *evaluator) evalBlockers(node *types.Node) (blocked bool, unresolved bo
 // threshold-free: staleness is a presentation-boundary judgement (see
 // types.IsStale), so the engine only ever reports the raw day-count.
 func (ev *evaluator) daysSinceModified(node *types.Node) int {
-	return types.DaysSince(node.Modified, ev.clock.Now())
+	return types.DaysSince(node.Date.Modified, ev.clock.Now())
 }
 
 // nodePropertyChain resolves a property path of one or more segments on a node.
@@ -752,9 +752,9 @@ func nodeProperty(node *types.Node, name string) interface{} {
 	case "stage":
 		return node.Stage
 	case "created":
-		return node.Created
+		return node.Date.Created
 	case "modified":
-		return node.Modified
+		return node.Date.Modified
 	case "types":
 		out := make([]interface{}, len(node.Types))
 		for i, t := range node.Types {
@@ -780,7 +780,9 @@ func edgeProperty(edge *types.Edge, name string) interface{} {
 	case "to":
 		return edge.To
 	case "created":
-		return edge.Created
+		return edge.Date.Created
+	case "modified":
+		return edge.Date.Modified
 	}
 	if edge.Properties != nil {
 		return edge.Properties[name]
@@ -1091,10 +1093,6 @@ func (ev *evaluator) evalReturn(rows []binding, rc *ReturnClause) (*types.QueryR
 	}
 
 	// Aggregation path: group rows by the non-aggregate key expressions.
-	type groupKey struct {
-		key   string // serialised group key
-		order int
-	}
 
 	// Identify which items are group-by keys and which are aggregates.
 	type itemRole struct {

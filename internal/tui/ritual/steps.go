@@ -3,7 +3,6 @@ package ritual
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -113,7 +112,6 @@ func CommitListEdits(items []*ListItem, store types.StoreFS, clock types.Clock) 
 				item.Node.Properties = make(map[string]interface{})
 			}
 			item.Node.Properties["status"] = item.PendingStatus
-			item.Node.Modified = clock.Now()
 
 			if err := store.WriteNode(item.Node); err != nil {
 				errs = append(errs, fmt.Errorf("writing node %s: %w", item.Node.ID, err))
@@ -123,12 +121,12 @@ func CommitListEdits(items []*ListItem, store types.StoreFS, clock types.Clock) 
 		// Apply pending edge.
 		if item.PendingEdge != nil && item.PendingEdge.TargetID != "" {
 			edge := &types.Edge{
-				ID:      uuid.New().String(),
-				Type:    item.PendingEdge.EdgeType,
-				From:    item.Node.ID,
-				To:      item.PendingEdge.TargetID,
-				Created: clock.Now(),
+				ID:   uuid.New().String(),
+				Type: item.PendingEdge.EdgeType,
+				From: item.Node.ID,
+				To:   item.PendingEdge.TargetID,
 			}
+			edge.Date.Created = clock.Now()
 			if err := store.WriteEdge(edge); err != nil {
 				errs = append(errs, fmt.Errorf("writing edge from %s: %w", item.Node.ID, err))
 			}
@@ -225,15 +223,4 @@ func FormatListRow(item *ListItem, columns []string) string {
 		}
 	}
 	return strings.Join(parts, "  ")
-}
-
-// nowDate returns today's date as a "YYYY-MM-DD" string for use in node
-// properties that require a creation date.
-func nowDate(clock types.Clock) string {
-	return clock.Now().Format("2006-01-02")
-}
-
-// nowTime returns the current time.Time from clock.
-func nowTime(clock types.Clock) time.Time {
-	return clock.Now()
 }

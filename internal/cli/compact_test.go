@@ -167,6 +167,71 @@ func TestCompact_MovesOrphanEdges(t *testing.T) {
 	}
 }
 
+// TestCompact_EvictsGhostNodesFromLiveIndex verifies that Compact evicts
+// archived nodes (and their orphan edges) from the live in-memory index via
+// types.Compactor, not just from disk. Before TD.8 this was store.Compact's
+// job only, and store.Compact was dead code outside its own tests — a
+// running TUI backed by the same *store.Store as cli.Compact would keep
+// serving nodes that had just been moved out of nodes/ on disk.
+func TestCompact_EvictsGhostNodesFromLiveIndex(t *testing.T) {
+	s := newCompactTestStore(t)
+
+	nodeA, err := s.CreateNode("node a", []string{"task"})
+	if err != nil {
+		t.Fatalf("CreateNode a: %v", err)
+	}
+	nodeB, err := s.CreateNode("node b", []string{"task"})
+	if err != nil {
+		t.Fatalf("CreateNode b: %v", err)
+	}
+	edge, err := s.CreateEdge("blocks", nodeA.ID, nodeB.ID, nil)
+	if err != nil {
+		t.Fatalf("CreateEdge: %v", err)
+	}
+	if err := s.ArchiveNode(nodeA.ID); err != nil {
+		t.Fatalf("ArchiveNode: %v", err)
+	}
+
+	var out bytes.Buffer
+	if err := cli.Compact(s, s.Index(), false, &out); err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+
+	if _, err := s.Index().GetNode(nodeA.ID); err == nil {
+		t.Errorf("GetNode(nodeA) should error after compaction — index should no longer serve the ghost node")
+	}
+	if _, err := s.Index().GetEdge(edge.ID); err == nil {
+		t.Errorf("GetEdge should error after compaction — orphan edge should be evicted")
+	}
+	// nodeB was never archived and must remain findable.
+	if _, err := s.Index().GetNode(nodeB.ID); err != nil {
+		t.Errorf("GetNode(nodeB) should still succeed: %v", err)
+	}
+}
+
+// TestCompact_DryRunDoesNotEvictFromIndex verifies that a dry run leaves the
+// live index untouched, matching the on-disk no-op.
+func TestCompact_DryRunDoesNotEvictFromIndex(t *testing.T) {
+	s := newCompactTestStore(t)
+
+	node, err := s.CreateNode("archived node", []string{"task"})
+	if err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	if err := s.ArchiveNode(node.ID); err != nil {
+		t.Fatalf("ArchiveNode: %v", err)
+	}
+
+	var out bytes.Buffer
+	if err := cli.Compact(s, s.Index(), true, &out); err != nil {
+		t.Fatalf("Compact dry-run: %v", err)
+	}
+
+	if _, err := s.Index().GetNode(node.ID); err != nil {
+		t.Errorf("GetNode should still succeed after dry-run compaction: %v", err)
+	}
+}
+
 // TestCompact_DryRunShowsPreviewForMultipleNodes verifies the "would move"
 // lines appear for each archived node in dry-run mode.
 func TestCompact_DryRunShowsPreviewForMultipleNodes(t *testing.T) {

@@ -19,11 +19,13 @@ func TestProseRenderer_NilNode(t *testing.T) {
 func TestProseRenderer_RendersBody(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{
-		ID:       "abc-123",
-		Body:     "# My Node\n\nThis is the body content.",
-		Types:    []string{"note"},
-		Created:  time.Now(),
-		Modified: time.Now(),
+		ID:    "abc-123",
+		Body:  "# My Node\n\nThis is the body content.",
+		Types: []string{"note"},
+		Date: types.DateFields{
+			Created:  time.Now(),
+			Modified: time.Now(),
+		},
 	}
 
 	output := r.Render(node, nil, 80)
@@ -38,11 +40,13 @@ func TestProseRenderer_RendersBody(t *testing.T) {
 func TestProseRenderer_RendersMetadata(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{
-		ID:       "abc-123",
-		Body:     "Test",
-		Types:    []string{"task", "project"},
-		Created:  time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC),
-		Modified: time.Date(2024, 3, 16, 12, 0, 0, 0, time.UTC),
+		ID:    "abc-123",
+		Body:  "Test",
+		Types: []string{"task", "project"},
+		Date: types.DateFields{
+			Created:  time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC),
+			Modified: time.Date(2024, 3, 16, 12, 0, 0, 0, time.UTC),
+		},
 	}
 
 	output := r.Render(node, nil, 80)
@@ -61,11 +65,13 @@ func TestProseRenderer_RendersMetadata(t *testing.T) {
 func TestProseRenderer_RendersEdges(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{
-		ID:       "node-1",
-		Body:     "Source node",
-		Types:    []string{"task"},
-		Created:  time.Now(),
-		Modified: time.Now(),
+		ID:    "node-1",
+		Body:  "Source node",
+		Types: []string{"task"},
+		Date: types.DateFields{
+			Created:  time.Now(),
+			Modified: time.Now(),
+		},
 	}
 	edges := []*types.Edge{
 		{
@@ -98,11 +104,13 @@ func TestProseRenderer_RendersEdges(t *testing.T) {
 func TestProseRenderer_OutgoingEdgeGlyph(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{
-		ID:       "node-1",
-		Body:     "Source",
-		Types:    []string{"task"},
-		Created:  time.Now(),
-		Modified: time.Now(),
+		ID:    "node-1",
+		Body:  "Source",
+		Types: []string{"task"},
+		Date: types.DateFields{
+			Created:  time.Now(),
+			Modified: time.Now(),
+		},
 	}
 	edges := []*types.Edge{
 		{
@@ -122,11 +130,13 @@ func TestProseRenderer_OutgoingEdgeGlyph(t *testing.T) {
 func TestProseRenderer_IncomingEdgeGlyph(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{
-		ID:       "node-1",
-		Body:     "Target",
-		Types:    []string{"task"},
-		Created:  time.Now(),
-		Modified: time.Now(),
+		ID:    "node-1",
+		Body:  "Target",
+		Types: []string{"task"},
+		Date: types.DateFields{
+			Created:  time.Now(),
+			Modified: time.Now(),
+		},
 	}
 	edges := []*types.Edge{
 		{
@@ -146,11 +156,13 @@ func TestProseRenderer_IncomingEdgeGlyph(t *testing.T) {
 func TestProseRenderer_NoEdges(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{
-		ID:       "node-1",
-		Body:     "Isolated node",
-		Types:    []string{"note"},
-		Created:  time.Now(),
-		Modified: time.Now(),
+		ID:    "node-1",
+		Body:  "Isolated node",
+		Types: []string{"note"},
+		Date: types.DateFields{
+			Created:  time.Now(),
+			Modified: time.Now(),
+		},
 	}
 
 	output := r.Render(node, nil, 80)
@@ -170,8 +182,10 @@ func TestProseRenderer_NodeWithSource(t *testing.T) {
 			Type: "github",
 			URL:  "https://github.com/owner/repo/issues/42",
 		},
-		Created:  time.Now(),
-		Modified: time.Now(),
+		Date: types.DateFields{
+			Created:  time.Now(),
+			Modified: time.Now(),
+		},
 	}
 
 	output := r.Render(node, nil, 80)

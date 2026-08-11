@@ -23,6 +23,18 @@ type formActivePane interface {
 	isFormActive() // marker method
 }
 
+// formMountable is implemented by the form panes app.go mounts via
+// mountForm — kindFormPane, stageFormPane and remapFormPane. Deliberately not
+// implemented by formPane (task/journal/note/budget/spend) or spendFormPane:
+// those five construction sites don't share mountForm's exact shape (spend
+// has an error return; the task/journal/note/budget dispatch picks its
+// constructor from a switch keyed on capture-bar prefix) and folding them in
+// is out of scope for this pass — see mountForm's doc comment.
+type formMountable interface {
+	PaneModel
+	initForm() tea.Cmd
+}
+
 // formKind identifies which node type a form creates.
 type formKind int
 
@@ -891,18 +903,24 @@ func buildEdgeEntries(index types.GraphIndex, nodeID string) []edgeEntry {
 	return entries
 }
 
+// truncateID shortens a node ID (UUID) to its first 8 characters, appending
+// an ellipsis. Byte-slicing is safe here because UUIDs are ASCII-only.
+func truncateID(nodeID string) string {
+	if len(nodeID) > 8 {
+		return nodeID[:8] + "…"
+	}
+	return nodeID
+}
+
 // shortNodeLabel returns a truncated title for the given node ID, falling back
 // to the raw ID when the node is missing or untitled.
 func shortNodeLabel(index types.GraphIndex, nodeID string) string {
 	if index == nil {
-		return nodeID[:8]
+		return truncateID(nodeID)
 	}
 	n, err := index.GetNode(nodeID)
 	if err != nil || n.Title == "" {
-		if len(nodeID) > 8 {
-			return nodeID[:8] + "…"
-		}
-		return nodeID
+		return truncateID(nodeID)
 	}
 	title := n.Title
 	if len(title) > 30 {
@@ -1033,12 +1051,12 @@ func (f formPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		if f.originalNode == nil && f.selectedNodeID != "" && f.linkToSelected {
 			now := f.clock.Now()
 			edge := &types.Edge{
-				ID:      uuid.New().String(),
-				Type:    string(types.EdgeRelated),
-				From:    node.ID,
-				To:      f.selectedNodeID,
-				Created: now,
+				ID:   uuid.New().String(),
+				Type: string(types.EdgeRelated),
+				From: node.ID,
+				To:   f.selectedNodeID,
 			}
+			edge.Date.Created = now
 			_ = f.store.WriteEdge(edge) // non-fatal
 		}
 		// Edge management: diff kept vs existing to delete unchecked edges,
@@ -1109,12 +1127,12 @@ func (f formPane) applyEdgeChanges() {
 
 	now := f.clock.Now()
 	edge := &types.Edge{
-		ID:      uuid.New().String(),
-		Type:    f.newEdgeType,
-		From:    f.editingID(),
-		To:      target,
-		Created: now,
+		ID:   uuid.New().String(),
+		Type: f.newEdgeType,
+		From: f.editingID(),
+		To:   target,
 	}
+	edge.Date.Created = now
 	_ = f.store.WriteEdge(edge) // non-fatal
 }
 
@@ -1197,15 +1215,12 @@ func (f formPane) buildNode() *types.Node {
 	node := f.originalNode.Clone() // nil in create mode (Clone is nil-safe)
 	if node == nil {
 		node = &types.Node{
-			ID:      uuid.New().String(),
-			Created: now,
+			ID: uuid.New().String(),
 		}
+		node.Date.Created = now
 	}
 	node.Title = f.title
 	node.Body = f.body
-	node.Modified = now
-	node.Date.Created = node.Created
-	node.Date.Modified = now
 	if node.Properties == nil {
 		node.Properties = make(map[string]interface{})
 	}

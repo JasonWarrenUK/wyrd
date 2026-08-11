@@ -3,9 +3,11 @@ package tui_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // loadBuiltinTheme is a test helper that loads the builtin theme.
@@ -161,18 +163,6 @@ func TestSmallTerminalDoesNotCrash(t *testing.T) {
 	_ = l.Render("l", "r", "", "s", tui.FocusLeft, nil)
 }
 
-// TestSectionHeaderReturnsUppercase verifies that SectionHeader uppercases
-// the supplied title.
-func TestSectionHeaderReturnsUppercase(t *testing.T) {
-	theme := loadBuiltinTheme(t)
-	result := tui.SectionHeader(theme, "schedule")
-	// Rendered string should contain the uppercased text.
-	// Lipgloss may wrap it in ANSI codes, so we check for the text substring.
-	if result == "" {
-		t.Error("SectionHeader returned empty string")
-	}
-}
-
 // TestStatusBarRendersWithoutPanic checks that the status bar renders
 // without panicking at a standard width.
 func TestStatusBarRendersWithoutPanic(t *testing.T) {
@@ -189,6 +179,45 @@ func TestStatusBarRendersWithoutPanic(t *testing.T) {
 	v := sb.View()
 	if v == "" {
 		t.Error("StatusBar.View returned empty string")
+	}
+}
+
+// TestStatusBarUsesInjectedClock covers TD.10(c): the status bar must render
+// the time from an injected types.Clock rather than calling time.Now()
+// directly, so tests (and any future idle-staleness feature) get a
+// deterministic clock.
+func TestStatusBarUsesInjectedClock(t *testing.T) {
+	theme := loadBuiltinTheme(t)
+	sb := tui.NewStatusBar(theme)
+	sb.SetWidth(80)
+
+	fixed := time.Date(2026, 8, 7, 14, 32, 0, 0, time.UTC)
+	sb.SetClock(types.StubClock{Fixed: fixed})
+
+	v := sb.View()
+	if !strings.Contains(v, "14:32") {
+		t.Errorf("StatusBar.View() with injected clock = %q, want it to contain %q", v, "14:32")
+	}
+}
+
+// TestStatusBarNilClockFallsBackToRealTime covers the nil-safe fallback
+// mandated by TD.10(c): StatusBar is constructed without a clock in several
+// existing tests (see TestStatusBarRendersWithoutPanic), so View must not
+// panic or otherwise misbehave when no clock has been injected.
+func TestStatusBarNilClockFallsBackToRealTime(t *testing.T) {
+	theme := loadBuiltinTheme(t)
+	sb := tui.NewStatusBar(theme)
+	sb.SetWidth(80)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("StatusBar.View panicked with no clock injected: %v", r)
+		}
+	}()
+
+	v := sb.View()
+	if v == "" {
+		t.Error("StatusBar.View returned empty string with no clock injected")
 	}
 }
 

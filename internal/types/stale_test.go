@@ -36,7 +36,7 @@ func TestDaysSince_FutureTimestampClampsToZero(t *testing.T) {
 
 func TestIsStale_BelowThreshold(t *testing.T) {
 	now := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
-	node := &types.Node{Modified: now.AddDate(0, 0, -5)}
+	node := &types.Node{Date: types.DateFields{Modified: now.AddDate(0, 0, -5)}}
 
 	if types.IsStale(node, now, 14) {
 		t.Error("expected node modified 5 days ago not to be stale at a 14d threshold")
@@ -46,7 +46,7 @@ func TestIsStale_BelowThreshold(t *testing.T) {
 func TestIsStale_AtThresholdIsNotStale(t *testing.T) {
 	// IsStale is a strict ">" comparison — exactly at the threshold is not stale.
 	now := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
-	node := &types.Node{Modified: now.AddDate(0, 0, -14)}
+	node := &types.Node{Date: types.DateFields{Modified: now.AddDate(0, 0, -14)}}
 
 	if types.IsStale(node, now, 14) {
 		t.Error("expected a node exactly at the threshold not to be stale")
@@ -55,7 +55,7 @@ func TestIsStale_AtThresholdIsNotStale(t *testing.T) {
 
 func TestIsStale_AboveThreshold(t *testing.T) {
 	now := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
-	node := &types.Node{Modified: now.AddDate(0, 0, -15)}
+	node := &types.Node{Date: types.DateFields{Modified: now.AddDate(0, 0, -15)}}
 
 	if !types.IsStale(node, now, 14) {
 		t.Error("expected a node modified 15 days ago to be stale at a 14d threshold")
@@ -67,13 +67,13 @@ func TestIsStale_ZeroThresholdResolvesToDefault(t *testing.T) {
 	// 10 days idle: stale at the implicit default (14) only if > 14, so this
 	// should NOT be stale — proving thresholdDays=0 resolved to 14, not 0
 	// (which would make every idle node stale).
-	node := &types.Node{Modified: now.AddDate(0, 0, -10)}
+	node := &types.Node{Date: types.DateFields{Modified: now.AddDate(0, 0, -10)}}
 
 	if types.IsStale(node, now, 0) {
 		t.Error("expected thresholdDays<=0 to resolve to DefaultStalenessThresholdDays (14), not 0")
 	}
 
-	staleNode := &types.Node{Modified: now.AddDate(0, 0, -15)}
+	staleNode := &types.Node{Date: types.DateFields{Modified: now.AddDate(0, 0, -15)}}
 	if !types.IsStale(staleNode, now, 0) {
 		t.Error("expected a node idle 15 days to be stale under the resolved default of 14")
 	}
@@ -81,7 +81,7 @@ func TestIsStale_ZeroThresholdResolvesToDefault(t *testing.T) {
 
 func TestIsStale_NegativeThresholdResolvesToDefault(t *testing.T) {
 	now := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
-	node := &types.Node{Modified: now.AddDate(0, 0, -10)}
+	node := &types.Node{Date: types.DateFields{Modified: now.AddDate(0, 0, -10)}}
 
 	if types.IsStale(node, now, -1) {
 		t.Error("expected a negative thresholdDays to resolve to the default, not disable staleness entirely")

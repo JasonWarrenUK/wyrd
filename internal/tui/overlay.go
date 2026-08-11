@@ -1,6 +1,29 @@
 package tui
 
-import "charm.land/lipgloss/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+)
+
+// keyOverlay is implemented by any modal overlay that intercepts key input
+// while active. The root Update loop dispatches to each active keyOverlay in
+// turn before falling through to the main switch (see the ranged dispatch in
+// update).
+//
+// Update MUST return (nil, false) for messages it doesn't handle, so timers,
+// resizes and spinner ticks reach the root switch. Overlays that swallow
+// everything (the historical bug this interface exists to prevent) silently
+// kill anything driven by a message the overlay doesn't recognise — most
+// visibly the ritual scheduler's re-arm tick, which has no other trigger.
+type keyOverlay interface {
+	// IsActive reports whether the overlay is currently visible.
+	IsActive() bool
+
+	// Update handles msg while the overlay is active. Returns a command to
+	// run and whether msg was consumed (true = consumed, caller stops
+	// routing further).
+	Update(msg tea.Msg) (tea.Cmd, bool)
+}
 
 // compositeOverlay places overlay horizontally and vertically centred over
 // frame using lipgloss.Place, compositing the result at Z(1) over the base

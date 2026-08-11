@@ -10,17 +10,23 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
-// nodeFile is the on-disk representation of a node, with Properties inlined.
-type nodeFile struct {
-	ID         string                 `json:"id"`
-	Body       string                 `json:"body"`
-	Types      []string               `json:"types"`
-	Created    time.Time              `json:"created"`
-	Modified   time.Time              `json:"modified"`
-	Source     *types.Source          `json:"source,omitempty"`
-	Properties map[string]interface{} `json:"-"`
-	// raw holds all fields including Properties for round-trip serialisation
-	raw map[string]interface{}
+// nodeCoreFields lists the JSONC keys that belong to Node's struct fields
+// rather than its Properties map. Used both to split raw JSON on read
+// (parseNode) and to guard against a user-defined property silently
+// shadowing a core field on write (WriteNode). Includes the legacy flat
+// date keys (due, about, schedule, start, snooze_until) alongside "date",
+// and the legacy flat "created"/"modified" keys the on-disk format no
+// longer writes but may still encounter reading a file from an older
+// binary — this looks like over-reach for a struct that now only reads the
+// nested "date" object, but it is deliberate: it stops a property literally
+// named "due" (etc.) from shadowing the date block, and stops a stale flat
+// "created"/"modified" key surviving as a user property on the next write.
+var nodeCoreFields = map[string]bool{
+	"id": true, "body": true, "title": true, "types": true,
+	"kind": true, "stage": true,
+	"created": true, "modified": true, "source": true,
+	"date": true, "due": true, "about": true,
+	"schedule": true, "start": true, "snooze_until": true,
 }
 
 // nodePath returns the file path for a given node ID.
@@ -42,11 +48,9 @@ func (s *Store) CreateNode(body string, nodeTypes []string) (*types.Node, error)
 
 	nowStr := now.UTC().Format(time.RFC3339)
 	raw := map[string]interface{}{
-		"id":       id,
-		"body":     body,
-		"types":    nodeTypes,
-		"created":  nowStr,
-		"modified": nowStr,
+		"id":    id,
+		"body":  body,
+		"types": nodeTypes,
 		"date": map[string]interface{}{
 			"created":  nowStr,
 			"modified": nowStr,
@@ -85,12 +89,17 @@ func (s *Store) CreateNode(body string, nodeTypes []string) (*types.Node, error)
 	return node, nil
 }
 
-// ReadNode reads a node from disk by its UUID string.
+// ReadNode reads a node from disk by its UUID string. A missing file yields
+// a NotFoundError; any other read failure (e.g. a permissions error) is
+// returned wrapped, matching ReadEdge's shape — see edge.go's ReadEdge.
 func (s *Store) ReadNode(id string) (*types.Node, error) {
 	path := s.nodePath(id)
 	data, err := readJSONC(path)
 	if err != nil {
-		return nil, &types.NotFoundError{Kind: "node", ID: id}
+		if isNotExist(err) {
+			return nil, &types.NotFoundError{Kind: "node", ID: id}
+		}
+		return nil, fmt.Errorf("reading node %s: %w", id, err)
 	}
 	return parseNode(id, data)
 }
@@ -103,17 +112,9 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	}
 
 	node := &types.Node{Properties: make(map[string]interface{})}
-	coreFields := map[string]bool{
-		"id": true, "body": true, "title": true, "types": true,
-		"kind": true, "stage": true,
-		"created": true, "modified": true, "source": true,
-		// date object and its flat legacy equivalents
-		"date": true, "due": true, "about": true,
-		"schedule": true, "start": true, "snooze_until": true,
-	}
 
 	for k, v := range raw {
-		if !coreFields[k] {
+		if !nodeCoreFields[k] {
 			node.Properties[k] = v
 		}
 	}
@@ -121,15 +122,13 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	// Re-marshal just the core fields into a struct.
 	coreData, _ := json.Marshal(raw)
 	type coreNode struct {
-		ID       string        `json:"id"`
-		Body     string        `json:"body"`
-		Title    string        `json:"title,omitempty"`
-		Types    []string      `json:"types"`
-		Kind     string        `json:"kind,omitempty"`
-		Stage    string        `json:"stage,omitempty"`
-		Created  time.Time     `json:"created"`
-		Modified time.Time     `json:"modified"`
-		Source   *types.Source `json:"source,omitempty"`
+		ID     string        `json:"id"`
+		Body   string        `json:"body"`
+		Title  string        `json:"title,omitempty"`
+		Types  []string      `json:"types"`
+		Kind   string        `json:"kind,omitempty"`
+		Stage  string        `json:"stage,omitempty"`
+		Source *types.Source `json:"source,omitempty"`
 	}
 	var core coreNode
 	if err := json.Unmarshal(coreData, &core); err != nil {
@@ -142,25 +141,14 @@ func parseNode(id string, data []byte) (*types.Node, error) {
 	node.Types = core.Types
 	node.Kind = core.Kind
 	node.Stage = core.Stage
-	node.Created = core.Created
-	node.Modified = core.Modified
 	node.Source = core.Source
 
-	// Populate DateFields. Prefer the nested "date" object when present;
-	// fall back to flat top-level fields for backward compatibility with
-	// nodes written before WL.8.
+	// On-disk format is nested-only (TD.3): the date block is the sole
+	// source of Created/Modified. A file from a binary that predates this
+	// restructure (flat top-level created/modified, no "date" object) will
+	// parse with a zero Date — there is no migration path pre-production.
 	if dateRaw, ok := raw["date"].(map[string]interface{}); ok {
 		node.Date = parseDateFields(dateRaw)
-	} else {
-		// Old format: created/modified are already on the node; parse any
-		// flat date fields that may exist.
-		node.Date.Created = core.Created
-		node.Date.Modified = core.Modified
-		node.Date.Due = parseDateField(raw["due"])
-		node.Date.About = parseDateField(raw["about"])
-		node.Date.Schedule = parseDateField(raw["schedule"])
-		node.Date.Start = parseDateField(raw["start"])
-		node.Date.SnoozeUntil = parseDateField(raw["snooze_until"])
 	}
 
 	return node, nil
@@ -204,6 +192,20 @@ func parseDateField(v interface{}) *time.Time {
 	return nil
 }
 
+// stampModified sets date.modified on a raw node map to now, formatted as
+// RFC3339. The nested date block is the sole source of truth for
+// created/modified on disk (TD.3); this builds the block if the raw map
+// somehow predates it (e.g. a map assembled by a code path that hasn't
+// gone through parseNode).
+func stampModified(raw map[string]interface{}, now time.Time) {
+	dateObj, ok := raw["date"].(map[string]interface{})
+	if !ok {
+		dateObj = map[string]interface{}{}
+		raw["date"] = dateObj
+	}
+	dateObj["modified"] = now.UTC().Format(time.RFC3339)
+}
+
 // UpdateNode applies a map of updates to a node and persists it.
 func (s *Store) UpdateNode(id string, updates map[string]interface{}) (*types.Node, error) {
 	path := s.nodePath(id)
@@ -226,12 +228,7 @@ func (s *Store) UpdateNode(id string, updates map[string]interface{}) (*types.No
 		}
 		raw[k] = v
 	}
-	nowStr := s.clock.Now().UTC().Format(time.RFC3339)
-	raw["modified"] = nowStr
-	// Keep date.modified in sync when the date object exists.
-	if dateObj, ok := raw["date"].(map[string]interface{}); ok {
-		dateObj["modified"] = nowStr
-	}
+	stampModified(raw, s.clock.Now())
 
 	if err := writeJSONC(path, raw); err != nil {
 		return nil, fmt.Errorf("updating node %s: %w", id, err)
@@ -290,7 +287,7 @@ func (s *Store) AddType(id string, typeName string) error {
 		}
 	}
 
-	raw["modified"] = s.clock.Now().UTC().Format(time.RFC3339)
+	stampModified(raw, s.clock.Now())
 	if err := writeJSONC(path, raw); err != nil {
 		return fmt.Errorf("adding type to node %s: %w", id, err)
 	}
@@ -331,7 +328,7 @@ func (s *Store) RemoveType(id string, typeName string) error {
 		return &types.ValidationError{Field: "types", Message: "cannot remove the last type — a node must have at least one type"}
 	}
 	raw["types"] = filtered
-	raw["modified"] = s.clock.Now().UTC().Format(time.RFC3339)
+	stampModified(raw, s.clock.Now())
 
 	if err := writeJSONC(path, raw); err != nil {
 		return fmt.Errorf("removing type from node %s: %w", id, err)

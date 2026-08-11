@@ -179,7 +179,10 @@ func (so *stagesOverlay) Close() { so.active = false }
 // IsActive reports whether the overlay is visible.
 func (so *stagesOverlay) IsActive() bool { return so.active }
 
-// Update handles keyboard input while the overlay is active.
+// Update handles keyboard and mouse input while the overlay is active. Any
+// other message type (ritual ticks, window resizes, spinner ticks, …) is
+// declined with (nil, false) so it falls through to the root switch — see
+// keyOverlay's doc comment for why that matters.
 func (so *stagesOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
 	if !so.active {
 		return nil, false
@@ -193,10 +196,20 @@ func (so *stagesOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
 		}
 	}
 
-	var cmd tea.Cmd
-	so.vp, cmd = so.vp.Update(msg)
-	return cmd, true
+	// Mouse messages fall through to the viewport too, so wheel scroll keeps
+	// working; everything else (ticks, resize, …) is declined below.
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.MouseMsg:
+		var cmd tea.Cmd
+		so.vp, cmd = so.vp.Update(msg)
+		return cmd, true
+	default:
+		return nil, false
+	}
 }
+
+// Compile-time check: stagesOverlay must satisfy keyOverlay.
+var _ keyOverlay = (*stagesOverlay)(nil)
 
 // View renders the overlay as a bordered box centred on the screen.
 func (so *stagesOverlay) View(width, height int) string {

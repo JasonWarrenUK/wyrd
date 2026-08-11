@@ -52,8 +52,8 @@ func TestFromNodeAfterJSONRoundTrip(t *testing.T) {
 	node := mv.ApplyTo(nil)
 	node.ID = uuid.New().String()
 	node.Types = []string{"movement"}
-	node.Created = date
-	node.Modified = date
+	node.Date.Created = date
+	node.Date.Modified = date
 
 	if err := s.WriteNode(node); err != nil {
 		t.Fatalf("WriteNode: %v", err)

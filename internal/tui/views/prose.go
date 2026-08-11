@@ -141,8 +141,8 @@ func (r *ProseRenderer) buildMetaLines(node *types.Node) []string {
 	lines = append(lines,
 		fmt.Sprintf("%s  %s", keyStyle.Render("id"), valStyle.Render(node.ID)),
 		fmt.Sprintf("%s  %s", keyStyle.Render("types"), valStyle.Render(strings.Join(node.Types, ", "))),
-		fmt.Sprintf("%s  %s", keyStyle.Render("created"), valStyle.Render(node.Created.Format("2006-01-02 15:04"))),
-		fmt.Sprintf("%s  %s", keyStyle.Render("modified"), valStyle.Render(node.Modified.Format("2006-01-02 15:04"))),
+		fmt.Sprintf("%s  %s", keyStyle.Render("created"), valStyle.Render(node.Date.Created.Format("2006-01-02 15:04"))),
+		fmt.Sprintf("%s  %s", keyStyle.Render("modified"), valStyle.Render(node.Date.Modified.Format("2006-01-02 15:04"))),
 	)
 
 	// Show source if present.

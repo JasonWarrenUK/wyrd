@@ -137,10 +137,35 @@ func (idx *memIndex) upsertEdge(e *types.Edge) {
 	idx.to[e.To] = append(idx.to[e.To], e.ID)
 }
 
-// removeNode removes a node from the index by ID, including its edge references.
+// removeNode removes a node from the index by ID, along with every edge
+// incident to it (in either direction). Without this, edges pointing at the
+// removed node would dangle: their From/To would reference a node the index
+// no longer has, which is exactly the shape internal/types/blocked.go trips
+// over when it walks EdgesTo. Idempotent: removing an already-absent node is
+// a no-op, which matters because compaction removes synchronously and the
+// watcher fires again for the same removal shortly after.
 func (idx *memIndex) removeNode(id string) {
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
+
+	// Gather incident edge IDs into a copy first: removeEdgeRefsLocked
+	// rewrites idx.from[id]/idx.to[id] in place, so iterating the map's own
+	// slice while mutating it would skip entries.
+	incident := make(map[string]struct{}, len(idx.from[id])+len(idx.to[id]))
+	for _, edgeID := range idx.from[id] {
+		incident[edgeID] = struct{}{}
+	}
+	for _, edgeID := range idx.to[id] {
+		incident[edgeID] = struct{}{}
+	}
+
+	for edgeID := range incident {
+		if e, ok := idx.edges[edgeID]; ok {
+			idx.removeEdgeRefs(e)
+			delete(idx.edges, edgeID)
+		}
+	}
+
 	delete(idx.nodes, id)
 	delete(idx.from, id)
 	delete(idx.to, id)

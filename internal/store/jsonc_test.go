@@ -44,6 +44,40 @@ func TestStripComments(t *testing.T) {
 	}
 }
 
+// TestReadJSONCSurvivesCommentMarkerInStringAndTrailingComma is the TD.1
+// consolidation regression test for this consumer: a node body containing
+// "//" (comment-marker lookalike) alongside a trailing comma must both be
+// handled correctly — this is the SY.2 case, exercised here through the
+// store's own readJSONC/writeJSONC wrappers rather than internal/jsonc
+// directly.
+func TestReadJSONCSurvivesCommentMarkerInStringAndTrailingComma(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "node.jsonc")
+
+	raw := `{
+	"id": "abc",
+	"body": "see https://example.com/x, then read on",
+	"status": "active",
+}`
+	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+		t.Fatalf("WriteFile fixture: %v", err)
+	}
+
+	stripped, err := readJSONC(path)
+	if err != nil {
+		t.Fatalf("readJSONC: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := unmarshalJSON(stripped, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	want := "see https://example.com/x, then read on"
+	if result["body"] != want {
+		t.Errorf("body = %v, want %q", result["body"], want)
+	}
+}
+
 func TestWriteJSONCRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.jsonc")

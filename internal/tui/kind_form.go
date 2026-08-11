@@ -85,9 +85,17 @@ type kindFormPane struct {
 // Compile-time checks: kindFormPane must satisfy PaneModel and formActivePane.
 var _ PaneModel = kindFormPane{}
 var _ formActivePane = kindFormPane{}
+var _ formMountable = kindFormPane{}
 
 // isFormActive satisfies the formActivePane marker interface.
 func (kindFormPane) isFormActive() {}
+
+// initForm satisfies the formMountable interface, returning the huh.Form's
+// own init command so app.go's mountForm helper can start it uniformly
+// across the five form panes that use that helper.
+func (f kindFormPane) initForm() tea.Cmd {
+	return f.form.Init()
+}
 
 // NewKindFormPane builds a kindFormPane in create mode. Exported for use in
 // tests.
@@ -334,6 +342,31 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 			return f, tea.Batch(cmd, func() tea.Msg { return kindFormErrorMsg{err: e} })
 		}
 
+		// Stamp ShadowOf before upsertKind, which has no special cases and
+		// stays that way.
+		//
+		// Re-editing an existing shadow must carry its ShadowOf forward
+		// unchanged rather than recomputing against the current default:
+		// recomputing would silently resolve any drift the user never
+		// reviewed, resetting the TD.5 baseline and making drift detection
+		// permanently blind to edits made between the original fork and now.
+		//
+		// Only a fresh fork of a still-unshadowed default gets a newly
+		// computed hash, taken from the pre-edit default under its
+		// originalName (not the post-edit kind) — hashing the post-edit
+		// values would just record what's already on disk verbatim, which
+		// tells TD.5 nothing.
+		//
+		// On rename, the shadow's new name matches no default and the stored
+		// hash becomes uncomparable by name. That's accepted: a rename is a
+		// deliberate detachment from the default it forked from.
+		switch {
+		case f.editing != nil && f.editing.ShadowOf != "":
+			kind.ShadowOf = f.editing.ShadowOf
+		case f.isDefault:
+			kind.ShadowOf = stage.DefaultKindHash(f.originalName)
+		}
+
 		renamed := f.originalName != "" && kind.Name != f.originalName
 		existing := upsertKind(reg.All(), kind, f.originalName)
 
@@ -346,10 +379,17 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		// after this write succeeds) then moves every node off the old name,
 		// so the tombstone is inert — it exists purely to keep the registry
 		// from resurrecting the default, not for anything to reference.
+		//
+		// A tombstone is by definition a verbatim shadow of a default, so it
+		// gets stamped too — leaving it unstamped would make it read as
+		// user-authored. Flag for TD.5: a stamped tombstone will surface as
+		// diverged even though the user never consciously edited it; it may
+		// warrant its own marker distinct from an ordinary edited shadow.
 		if renamed && f.isDefault {
 			if defaults, derr := stage.DefaultKinds(); derr == nil {
 				for _, d := range defaults {
 					if d.Name == f.originalName {
+						d.ShadowOf = stage.DefaultKindHash(d.Name)
 						existing = append(existing, d)
 						break
 					}

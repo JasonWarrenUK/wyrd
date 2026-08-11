@@ -41,6 +41,10 @@ type StageGroup struct {
 	// Only consulted when Cycle is CycleLoopToStage; ignored otherwise. Must
 	// name a stage present in Stages.
 	LoopTarget string `json:"loop_target,omitempty"`
+
+	// ShadowOf records the content hash of the embedded default this entry was
+	// forked from; empty for purely user-authored entries.
+	ShadowOf string `json:"shadow_of,omitempty"`
 }
 
 // Validate checks the minimal structural invariants for a usable stage group:

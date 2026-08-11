@@ -197,6 +197,63 @@ func TestMergeObjects_LWWTiesFavourOurs(t *testing.T) {
 	}
 }
 
+// TestMergeObjects_LWWUsesNestedDateModified proves the LWW winner is
+// determined from the nested "date.modified" field (TD.3's on-disk format),
+// not the legacy flat top-level "modified" — both sides here carry a nested
+// date block only, with no flat "modified" key at all.
+func TestMergeObjects_LWWUsesNestedDateModified(t *testing.T) {
+	now := time.Now().UTC()
+	base := map[string]interface{}{
+		"title": "original",
+		"date":  map[string]interface{}{"created": iso(now, -3*time.Hour), "modified": iso(now, -2*time.Hour)},
+	}
+	ours := map[string]interface{}{
+		"title": "our change",
+		"date":  map[string]interface{}{"created": iso(now, -3*time.Hour), "modified": iso(now, -1*time.Hour)}, // older
+	}
+	theirs := map[string]interface{}{
+		"title": "their change",
+		"date":  map[string]interface{}{"created": iso(now, -3*time.Hour), "modified": iso(now, 0)}, // newer
+	}
+
+	result, err := mergeObjects(base, ours, theirs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result["title"] != "their change" {
+		t.Errorf("LWW should favour theirs (newer date.modified); got %v", result["title"])
+	}
+}
+
+// TestMergeObjects_LWWFallsBackToFlatModifiedOnMixedFormat proves the
+// mixed-format case: base is a file written by an older binary (flat
+// "modified" only, no nested date block), while ours/theirs are the
+// nested-only TD.3 format. extractModified must fall back correctly on the
+// side that lacks a nested block.
+func TestMergeObjects_LWWFallsBackToFlatModifiedOnMixedFormat(t *testing.T) {
+	now := time.Now().UTC()
+	base := map[string]interface{}{
+		"title":    "original",
+		"modified": iso(now, -3*time.Hour), // legacy flat format only
+	}
+	ours := map[string]interface{}{
+		"title": "our change",
+		"date":  map[string]interface{}{"created": iso(now, -3*time.Hour), "modified": iso(now, -1*time.Hour)}, // older
+	}
+	theirs := map[string]interface{}{
+		"title": "their change",
+		"date":  map[string]interface{}{"created": iso(now, -3*time.Hour), "modified": iso(now, 0)}, // newer
+	}
+
+	result, err := mergeObjects(base, ours, theirs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result["title"] != "their change" {
+		t.Errorf("LWW should favour theirs (newer date.modified) despite base's flat-only format; got %v", result["title"])
+	}
+}
+
 func TestMergeObjects_DeletedOnOursSide_TheirsChanged(t *testing.T) {
 	// Theirs changed a field we deleted → change wins.
 	base := map[string]interface{}{"tag": "old-tag"}
@@ -428,6 +485,48 @@ func TestMergeFiles_JSONCWithComments(t *testing.T) {
 	result := readResultJSONC(t, ours)
 	if result["body"] != "our update" {
 		t.Errorf("expected 'our update', got %v", result["body"])
+	}
+}
+
+// TestMergeFiles_BodyContainingURL is the SY.2 acceptance test. Before TD.1,
+// the merge driver's regex-based comment stripper mistook the "//" in a URL
+// for a line comment marker and truncated the rest of the line, corrupting
+// the node body. SY.2 is unblocked by this test passing.
+func TestMergeFiles_BodyContainingURL(t *testing.T) {
+	dir := t.TempDir()
+
+	writeRaw := func(name, content string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		return path
+	}
+
+	base := writeRaw("base.jsonc", `{
+	"id": "abc",
+	"body": "see https://example.com//path for details",
+	"status": "active"
+}`)
+	ours := writeRaw("ours.jsonc", `{
+	"id": "abc",
+	"body": "see https://example.com//path for details, updated by us",
+	"status": "active"
+}`)
+	theirs := writeRaw("theirs.jsonc", `{
+	"id": "abc",
+	"body": "see https://example.com//path for details",
+	"status": "active"
+}`)
+
+	if err := MergeFiles(base, ours, theirs); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := readResultJSONC(t, ours)
+	want := "see https://example.com//path for details, updated by us"
+	if result["body"] != want {
+		t.Errorf("body = %q, want %q (URL corrupted by comment stripper)", result["body"], want)
 	}
 }
 

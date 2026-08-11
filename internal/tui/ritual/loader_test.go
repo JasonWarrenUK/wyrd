@@ -117,6 +117,56 @@ func TestLoadRituals_WithJSONCComment(t *testing.T) {
 	}
 }
 
+// TestLoadRituals_SurvivesCommentMarkerInStringAndTrailingComma is the TD.1
+// consolidation regression test for this consumer: a step template
+// containing "//" (comment-marker lookalike) and a trailing comma in the
+// JSONC must both be handled correctly by the shared internal/jsonc.Strip
+// pass, rather than the previous local switch-based stripper.
+func TestLoadRituals_SurvivesCommentMarkerInStringAndTrailingComma(t *testing.T) {
+	dir := t.TempDir()
+
+	ritualsDir := filepath.Join(dir, "rituals")
+	if err := os.MkdirAll(ritualsDir, 0o755); err != nil {
+		t.Fatalf("creating rituals dir: %v", err)
+	}
+
+	jsoncContent := `{
+		"name": "morning",
+		"friction": "nudge",
+		"schedule": {
+			"days": ["mon"],
+			"time": "08:00",
+		},
+		"steps": [
+			{
+				"type": "query_summary",
+				"label": "Overview",
+				"query": "MATCH (n) RETURN count(n) AS total",
+				"template": "See https://example.com/x for details, {{total}} nodes.",
+			},
+		],
+	}`
+
+	if err := os.WriteFile(filepath.Join(ritualsDir, "morning.jsonc"), []byte(jsoncContent), 0o644); err != nil {
+		t.Fatalf("writing file: %v", err)
+	}
+
+	loaded, err := ritual.LoadRituals(dir)
+	if err != nil {
+		t.Fatalf("LoadRituals: %v", err)
+	}
+	if len(loaded) != 1 {
+		t.Fatalf("expected 1 ritual, got %d", len(loaded))
+	}
+	if len(loaded[0].Steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(loaded[0].Steps))
+	}
+	want := "See https://example.com/x for details, {{total}} nodes."
+	if loaded[0].Steps[0].Template != want {
+		t.Errorf("Template = %q, want %q", loaded[0].Steps[0].Template, want)
+	}
+}
+
 // ---- Schedule matching tests ------------------------------------------------
 
 // monday09h is a convenient fixed weekday Monday at 09:00.

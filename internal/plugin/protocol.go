@@ -110,7 +110,7 @@ func (r *ProtocolRunner) RunSync(config map[string]interface{}, handler UpsertHa
 	if err := writeMessage(stdin, msg); err != nil {
 		return &types.PluginError{Plugin: r.entry.Manifest.Name, Message: fmt.Sprintf("write sync message: %v", err)}
 	}
-	stdin.Close()
+	_ = stdin.Close()
 
 	return r.readResponses(ctx, stdout, cmd, handler)
 }
@@ -135,7 +135,7 @@ func (r *ProtocolRunner) RunAction(node *types.Node, config map[string]interface
 	if err := writeMessage(stdin, msg); err != nil {
 		return &types.PluginError{Plugin: r.entry.Manifest.Name, Message: fmt.Sprintf("write action message: %v", err)}
 	}
-	stdin.Close()
+	_ = stdin.Close()
 
 	return r.readResponses(ctx, stdout, cmd, handler)
 }
@@ -292,9 +292,8 @@ func wireToNode(wn *wireNode) *types.Node {
 		Body:       wn.Body,
 		Types:      wn.Types,
 		Properties: wn.Properties,
-		Created:    time.Now(),
-		Modified:   time.Now(),
 	}
+	node.Date.Created = time.Now()
 
 	if wn.Source != nil {
 		node.Source = &types.Source{
@@ -322,8 +321,8 @@ func wireToEdge(we *wireEdge) *types.Edge {
 		From:       we.From,
 		To:         we.To,
 		Properties: we.Properties,
-		Created:    time.Now(),
 	}
+	edge.Date.Created = time.Now()
 	if we.ID != "" {
 		edge.ID = we.ID
 	} else {

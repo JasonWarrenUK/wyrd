@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,11 @@ func newKindsTestStore(t *testing.T) (*Store, string) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
 	return s, parent
 }
 
@@ -232,6 +237,55 @@ func TestWriteKindsRoundTrip(t *testing.T) {
 	_, ok = reg.Lookup("Chore")
 	if !ok {
 		t.Error("Lookup(Chore) ok = false after write+read round-trip")
+	}
+}
+
+// TestWriteKindsOmitsEmptyShadowOf verifies that a kind with an empty
+// ShadowOf produces no "shadow_of" key in the raw JSONC bytes — omitempty
+// keeps a hand-written kinds.jsonc clean, which is the reason it's required
+// rather than optional on the field (TD.14).
+func TestWriteKindsOmitsEmptyShadowOf(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	kinds := []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#9b70ff"},
+	}
+	if err := s.WriteKinds(kinds); err != nil {
+		t.Fatalf("WriteKinds() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(parent, "kinds.jsonc"))
+	if err != nil {
+		t.Fatalf("reading kinds.jsonc: %v", err)
+	}
+	if strings.Contains(string(raw), "shadow_of") {
+		t.Errorf("raw kinds.jsonc contains \"shadow_of\" for a kind with an empty ShadowOf:\n%s", raw)
+	}
+}
+
+// TestWriteKindsRoundTripsShadowOf verifies a non-empty ShadowOf survives a
+// write/read round trip (TD.14).
+func TestWriteKindsRoundTripsShadowOf(t *testing.T) {
+	s, _ := newKindsTestStore(t)
+
+	want := "sha256:deadbeefdeadbeef"
+	kinds := []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#9b70ff", ShadowOf: want},
+	}
+	if err := s.WriteKinds(kinds); err != nil {
+		t.Fatalf("WriteKinds() error = %v", err)
+	}
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() error = %v", err)
+	}
+	errand, ok := reg.Lookup("Errand")
+	if !ok {
+		t.Fatal("Lookup(Errand) ok = false after write+read round-trip")
+	}
+	if errand.ShadowOf != want {
+		t.Errorf("ShadowOf = %q, want %q", errand.ShadowOf, want)
 	}
 }
 

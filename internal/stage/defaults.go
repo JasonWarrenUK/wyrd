@@ -5,13 +5,13 @@
 package stage
 
 import (
-	"bytes"
 	"embed"
 	"encoding/json"
 	"io/fs"
 	"strings"
 	"sync"
 
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -64,7 +64,7 @@ func loadDefaults() ([]types.StageGroup, error) {
 			return nil, &types.ParseError{Source: path, Message: err.Error()}
 		}
 
-		cleaned := stripComments(data)
+		cleaned := jsonc.Strip(data)
 		var g types.StageGroup
 		if err := json.Unmarshal(cleaned, &g); err != nil {
 			return nil, &types.ParseError{Source: path, Message: err.Error()}
@@ -72,75 +72,4 @@ func loadDefaults() ([]types.StageGroup, error) {
 		groups = append(groups, g)
 	}
 	return groups, nil
-}
-
-// stripComments removes // line comments and /* */ block comments from JSONC,
-// correctly skipping over string literals. Also removes trailing commas before
-// closing braces and brackets, which are common in hand-authored JSONC.
-func stripComments(src []byte) []byte {
-	var out bytes.Buffer
-	s := string(src)
-	i := 0
-	inString := false
-	for i < len(s) {
-		ch := s[i]
-		if inString {
-			out.WriteByte(ch)
-			if ch == '\\' && i+1 < len(s) {
-				i++
-				out.WriteByte(s[i])
-			} else if ch == '"' {
-				inString = false
-			}
-			i++
-			continue
-		}
-		if ch == '"' {
-			inString = true
-			out.WriteByte(ch)
-			i++
-			continue
-		}
-		if ch == '/' && i+1 < len(s) && s[i+1] == '/' {
-			for i < len(s) && s[i] != '\n' {
-				i++
-			}
-			continue
-		}
-		if ch == '/' && i+1 < len(s) && s[i+1] == '*' {
-			i += 2
-			for i+1 < len(s) {
-				if s[i] == '*' && s[i+1] == '/' {
-					i += 2
-					break
-				}
-				i++
-			}
-			continue
-		}
-		out.WriteByte(ch)
-		i++
-	}
-	return []byte(strings.TrimSpace(removeTrailingCommas(out.String())))
-}
-
-// removeTrailingCommas removes trailing commas before closing braces/brackets.
-func removeTrailingCommas(s string) string {
-	var out bytes.Buffer
-	i := 0
-	for i < len(s) {
-		if s[i] == ',' {
-			j := i + 1
-			for j < len(s) && (s[j] == ' ' || s[j] == '\t' || s[j] == '\n' || s[j] == '\r') {
-				j++
-			}
-			if j < len(s) && (s[j] == '}' || s[j] == ']') {
-				i++
-				continue
-			}
-		}
-		out.WriteByte(s[i])
-		i++
-	}
-	return out.String()
 }

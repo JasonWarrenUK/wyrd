@@ -9,6 +9,18 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
+// edgeCoreFields lists the JSONC keys that belong to Edge's struct fields
+// rather than its Properties map. Used both to split raw JSON on read
+// (parseEdge) and to guard against a user-defined property silently
+// shadowing a core field on write (CreateEdge, WriteEdge). Includes the
+// legacy flat "created" key the on-disk format no longer writes but may
+// still encounter reading a file from an older binary, alongside "date"
+// and "modified" for the nested date block (TD.3).
+var edgeCoreFields = map[string]bool{
+	"id": true, "type": true, "from": true, "to": true,
+	"created": true, "modified": true, "date": true,
+}
+
 // edgePath returns the file path for a given edge ID.
 func (s *Store) edgePath(id string) string {
 	return filepath.Join(s.path, "edges", id+".jsonc")
@@ -28,18 +40,24 @@ func (s *Store) CreateEdge(edgeType string, from string, to string, properties m
 
 	id := uuid.New().String()
 	now := s.clock.Now()
+	nowStr := now.UTC().Format(time.RFC3339)
 
 	raw := map[string]interface{}{
-		"id":      id,
-		"type":    edgeType,
-		"from":    from,
-		"to":      to,
-		"created": now.UTC().Format(time.RFC3339),
+		"id":   id,
+		"type": edgeType,
+		"from": from,
+		"to":   to,
+		"date": map[string]interface{}{
+			"created":  nowStr,
+			"modified": nowStr,
+		},
 	}
 	for k, v := range properties {
-		if k != "id" && k != "type" && k != "from" && k != "to" && k != "created" {
-			raw[k] = v
+		if edgeCoreFields[k] {
+			s.logWarn("dropping property that collides with a core edge field", "key", k)
+			continue
 		}
+		raw[k] = v
 	}
 
 	path := s.edgePath(id)
@@ -76,12 +94,9 @@ func parseEdge(id string, data []byte) (*types.Edge, error) {
 	}
 
 	edge := &types.Edge{Properties: make(map[string]interface{})}
-	coreFields := map[string]bool{
-		"id": true, "type": true, "from": true, "to": true, "created": true,
-	}
 
 	for k, v := range raw {
-		if !coreFields[k] {
+		if !edgeCoreFields[k] {
 			edge.Properties[k] = v
 		}
 	}
@@ -91,10 +106,20 @@ func parseEdge(id string, data []byte) (*types.Edge, error) {
 	edge.From = stringField(raw, "from")
 	edge.To = stringField(raw, "to")
 
-	if createdStr := stringField(raw, "created"); createdStr != "" {
-		t, err := time.Parse(time.RFC3339, createdStr)
-		if err == nil {
-			edge.Created = t
+	// On-disk format is nested-only (TD.3): the date block is the sole
+	// source of Created/Modified. A file from a binary that predates this
+	// restructure (flat top-level "created", no "date" object) will parse
+	// with a zero Date — there is no migration path pre-production.
+	if dateRaw, ok := raw["date"].(map[string]interface{}); ok {
+		if createdStr, ok := dateRaw["created"].(string); ok {
+			if t, err := time.Parse(time.RFC3339, createdStr); err == nil {
+				edge.Date.Created = t
+			}
+		}
+		if modifiedStr, ok := dateRaw["modified"].(string); ok {
+			if t, err := time.Parse(time.RFC3339, modifiedStr); err == nil {
+				edge.Date.Modified = t
+			}
 		}
 	}
 

@@ -79,21 +79,24 @@ func makeNode(id, body string, nodeTypes []string, props map[string]interface{})
 		ID:         id,
 		Body:       body,
 		Types:      nodeTypes,
-		Created:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-		Modified:   time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
 		Properties: props,
+		Date: types.DateFields{
+			Created:  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			Modified: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+		},
 	}
 	return n
 }
 
 func makeEdge(id, edgeType, from, to string) *types.Edge {
-	return &types.Edge{
-		ID:      id,
-		Type:    edgeType,
-		From:    from,
-		To:      to,
-		Created: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+	e := &types.Edge{
+		ID:   id,
+		Type: edgeType,
+		From: from,
+		To:   to,
 	}
+	e.Date.Created = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	return e
 }
 
 func buildTestGraph() *mockGraph {
@@ -784,7 +787,7 @@ func TestEngine_DaysSinceModified(t *testing.T) {
 
 func TestEngine_DaysSinceModified_JustModified(t *testing.T) {
 	n := makeNode("n1", "Fresh note", []string{"note"}, nil)
-	n.Modified = refTime
+	n.Date.Modified = refTime
 	g := &mockGraph{nodes: []*types.Node{n}}
 	e := NewEngine(g, 5)
 	clock := fixedClock(refTime)
@@ -806,9 +809,9 @@ func TestEngine_DaysSinceModified_OrderByRanksByStaleness(t *testing.T) {
 	// in RETURN — same requirement as ORDER BY n.date.due in the existing
 	// dashboard queries.
 	fresh := makeNode("n1", "Fresh", []string{"note"}, nil)
-	fresh.Modified = refTime.AddDate(0, 0, -1)
+	fresh.Date.Modified = refTime.AddDate(0, 0, -1)
 	stale := makeNode("n2", "Stale", []string{"note"}, nil)
-	stale.Modified = refTime.AddDate(0, 0, -30)
+	stale.Date.Modified = refTime.AddDate(0, 0, -30)
 	g := &mockGraph{nodes: []*types.Node{fresh, stale}}
 	e := NewEngine(g, 5)
 	clock := fixedClock(refTime)

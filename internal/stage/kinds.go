@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jasonwarrenuk/wyrd/internal/jsonc"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -74,7 +75,7 @@ func loadKindDefaults() ([]types.Kind, error) {
 			return nil, &types.ParseError{Source: path, Message: err.Error()}
 		}
 
-		cleaned := stripComments(data)
+		cleaned := jsonc.Strip(data)
 		var k types.Kind
 		if err := json.Unmarshal(cleaned, &k); err != nil {
 			return nil, &types.ParseError{Source: path, Message: err.Error()}

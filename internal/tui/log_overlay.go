@@ -73,7 +73,10 @@ func (lo *logOverlay) IsActive() bool {
 	return lo.active
 }
 
-// Update handles keyboard input while the overlay is active.
+// Update handles keyboard and mouse input while the overlay is active. Any
+// other message type (ritual ticks, window resizes, spinner ticks, …) is
+// declined with (nil, false) so it falls through to the root switch — see
+// keyOverlay's doc comment for why that matters.
 // Returns the updated overlay, an optional tea.Cmd, and whether the event
 // was consumed (true = consumed, caller should not route further).
 func (lo *logOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
@@ -89,10 +92,20 @@ func (lo *logOverlay) Update(msg tea.Msg) (tea.Cmd, bool) {
 		}
 	}
 
-	var cmd tea.Cmd
-	lo.vp, cmd = lo.vp.Update(msg)
-	return cmd, true
+	// Mouse messages fall through to the viewport too, so wheel scroll keeps
+	// working; everything else (ticks, resize, …) is declined below.
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.MouseMsg:
+		var cmd tea.Cmd
+		lo.vp, cmd = lo.vp.Update(msg)
+		return cmd, true
+	default:
+		return nil, false
+	}
 }
+
+// Compile-time check: logOverlay must satisfy keyOverlay.
+var _ keyOverlay = (*logOverlay)(nil)
 
 // View renders the overlay as a bordered box centred on the screen.
 func (lo *logOverlay) View(width, height int) string {

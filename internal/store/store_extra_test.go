@@ -16,19 +16,18 @@ import (
 
 func TestWriteNode_RoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node := &types.Node{
-		ID:       "aaaaaaaa-0000-0000-0000-000000000001",
-		Body:     "Full round-trip node",
-		Types:    []string{"task", "note"},
-		Created:  s.clock.Now(),
-		Modified: s.clock.Now(),
+		ID:    "aaaaaaaa-0000-0000-0000-000000000001",
+		Body:  "Full round-trip node",
+		Types: []string{"task", "note"},
 		Properties: map[string]interface{}{
 			"status":   "inbox",
 			"priority": float64(2),
 		},
 	}
+	node.Date.Created = s.clock.Now()
 
 	if err := s.WriteNode(node); err != nil {
 		t.Fatalf("WriteNode: %v", err)
@@ -55,17 +54,16 @@ func TestWriteNode_RoundTrip(t *testing.T) {
 
 func TestWriteNode_KindStageRoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node := &types.Node{
-		ID:       "aaaaaaaa-0000-0000-0000-000000000002",
-		Body:     "Node with kind and stage",
-		Types:    []string{"task"},
-		Kind:     "task",
-		Stage:    "open",
-		Created:  s.clock.Now(),
-		Modified: s.clock.Now(),
+		ID:    "aaaaaaaa-0000-0000-0000-000000000002",
+		Body:  "Node with kind and stage",
+		Types: []string{"task"},
+		Kind:  "task",
+		Stage: "open",
 	}
+	node.Date.Created = s.clock.Now()
 
 	if err := s.WriteNode(node); err != nil {
 		t.Fatalf("WriteNode: %v", err)
@@ -93,7 +91,7 @@ func TestWriteNode_KindStageRoundTrip(t *testing.T) {
 
 func TestReadNode_PreLatticeDefaults(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	// A node written before SL.1 has no kind or stage on disk.
 	id := "aaaaaaaa-0000-0000-0000-000000000003"
@@ -142,21 +140,21 @@ func TestReadNode_PreLatticeDefaults(t *testing.T) {
 
 func TestWriteEdge_RoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	n1, _ := s.CreateNode("Source", []string{"task"})
 	n2, _ := s.CreateNode("Target", []string{"task"})
 
 	edge := &types.Edge{
-		ID:      "bbbbbbbb-0000-0000-0000-000000000001",
-		Type:    "blocks",
-		From:    n1.ID,
-		To:      n2.ID,
-		Created: s.clock.Now(),
+		ID:   "bbbbbbbb-0000-0000-0000-000000000001",
+		Type: "blocks",
+		From: n1.ID,
+		To:   n2.ID,
 		Properties: map[string]interface{}{
 			"reason": "dependency",
 		},
 	}
+	edge.Date.Created = s.clock.Now()
 
 	if err := s.WriteEdge(edge); err != nil {
 		t.Fatalf("WriteEdge: %v", err)
@@ -180,7 +178,7 @@ func TestWriteEdge_RoundTrip(t *testing.T) {
 
 func TestWriteNode_AtomicFile(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node, err := s.CreateNode("Atomic write test", []string{"task"})
 	if err != nil {
@@ -210,7 +208,7 @@ func TestWriteNode_AtomicFile(t *testing.T) {
 
 func TestReadView_Found(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	viewData := map[string]interface{}{
 		"name":    "inbox",
@@ -237,7 +235,7 @@ func TestReadView_Found(t *testing.T) {
 
 func TestReadView_NotFound(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	_, err := s.ReadView("nonexistent")
 	if err == nil {
@@ -251,7 +249,7 @@ func TestReadView_NotFound(t *testing.T) {
 
 func TestAllViews(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	for _, name := range []string{"inbox", "focus"} {
 		data := map[string]interface{}{
@@ -278,7 +276,7 @@ func TestAllViews(t *testing.T) {
 
 func TestReadRitual_Found(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	ritualData := map[string]interface{}{
 		"name":     "morning",
@@ -305,7 +303,7 @@ func TestReadRitual_Found(t *testing.T) {
 
 func TestAllRituals(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	for _, name := range []string{"morning", "evening"} {
 		data := map[string]interface{}{
@@ -334,7 +332,7 @@ func TestAllRituals(t *testing.T) {
 
 func TestReadTheme_Found(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	themeData := map[string]interface{}{
 		"name":   "cairn",
@@ -358,7 +356,7 @@ func TestReadTheme_Found(t *testing.T) {
 
 func TestReadTheme_NotFound(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	_, err := s.ReadTheme("nonexistent")
 	if err == nil {
@@ -375,18 +373,10 @@ func TestReadTheme_NotFound(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReadConfig_Missing(t *testing.T) {
-	// ReadConfig traverses one level up from s.path using filepath.Join(s.path, "..", "config.jsonc").
-	// We create a dedicated parent+store hierarchy to control the layout.
-	parent := t.TempDir()
-	storePath := filepath.Join(parent, "store")
-	clock := &fixedClock{t: time.Date(2026, 3, 17, 10, 30, 0, 0, time.UTC)}
-	s, err := New(storePath, clock)
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	defer s.Close()
+	s := newTestStore(t)
+	defer func() { _ = s.Close() }()
 
-	// No config.jsonc in parent — should return defaults.
+	// No config.jsonc at the store root — should return defaults.
 	cfg, err := s.ReadConfig()
 	if err != nil {
 		t.Fatalf("ReadConfig: %v", err)
@@ -398,10 +388,10 @@ func TestReadConfig_Missing(t *testing.T) {
 
 func TestWriteConfig_RoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
-	// WriteConfig goes one level up from s.path, so we must ensure the parent
-	// directory exists (it does — it's the TempDir root).
+	// WriteConfig writes to the store root (s.path), which newTestStore
+	// already ensures exists.
 	cfg := &types.Config{
 		MaxTraversalDepth: 10,
 		Theme:             "cairn",
@@ -432,7 +422,7 @@ func TestWriteConfig_RoundTrip(t *testing.T) {
 // rather than erroring or defaulting true.
 func TestReduceMotionConfig_RoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	if err := s.WriteConfig(&types.Config{ReduceMotion: true}); err != nil {
 		t.Fatalf("WriteConfig: %v", err)
@@ -448,7 +438,7 @@ func TestReduceMotionConfig_RoundTrip(t *testing.T) {
 
 func TestReduceMotionConfig_AbsentDefaultsFalse(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	// omitempty drops a false ReduceMotion entirely, so the field is simply
 	// absent from the written JSONC — this is the config.jsonc shipped by
@@ -466,13 +456,36 @@ func TestReduceMotionConfig_AbsentDefaultsFalse(t *testing.T) {
 	}
 }
 
+// TestReadConfig_IgnoresParentDirectoryFile is the mirror guard for the
+// config.jsonc path fix: a config.jsonc sitting one level up from the store
+// root (where ReadConfig/WriteConfig incorrectly looked before the fix) must
+// not be picked up. Pins the fix against regressing back to the old path.
+func TestReadConfig_IgnoresParentDirectoryFile(t *testing.T) {
+	s := newTestStore(t)
+	defer func() { _ = s.Close() }()
+
+	parentConfig := filepath.Join(s.path, "..", "config.jsonc")
+	decoy := []byte(`{"theme": "decoy"}`)
+	if err := os.WriteFile(parentConfig, decoy, 0o644); err != nil {
+		t.Fatalf("writing decoy parent config: %v", err)
+	}
+
+	got, err := s.ReadConfig()
+	if err != nil {
+		t.Fatalf("ReadConfig: %v", err)
+	}
+	if got.Theme == "decoy" {
+		t.Errorf("ReadConfig picked up parent-directory config.jsonc, want it ignored")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Plugin manifests
 // ---------------------------------------------------------------------------
 
 func TestReadPluginManifest_Found(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	pluginDir := filepath.Join(s.path, "plugins", "myplugin")
 	if err := os.MkdirAll(pluginDir, 0o755); err != nil {
@@ -506,7 +519,7 @@ func TestReadPluginManifest_Found(t *testing.T) {
 
 func TestAllPluginManifests(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	for _, name := range []string{"plugin-a", "plugin-b"} {
 		pluginDir := filepath.Join(s.path, "plugins", name)
@@ -540,7 +553,7 @@ func TestAllPluginManifests(t *testing.T) {
 
 func TestAddType(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node, err := s.CreateNode("Multi-type node", []string{"task"})
 	if err != nil {
@@ -575,7 +588,7 @@ func TestAddType(t *testing.T) {
 
 func TestRemoveType(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node, err := s.CreateNode("Two-type node", []string{"task", "note"})
 	if err != nil {
@@ -603,7 +616,7 @@ func TestRemoveType(t *testing.T) {
 
 func TestRemoveType_LastType(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node, err := s.CreateNode("Single-type node", []string{"task"})
 	if err != nil {
@@ -632,7 +645,7 @@ func TestRemoveType_LastType(t *testing.T) {
 
 func TestEdgesTo(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	n1, _ := s.CreateNode("Source", []string{"task"})
 	n2, _ := s.CreateNode("Target", []string{"task"})
@@ -654,11 +667,17 @@ func TestEdgesTo(t *testing.T) {
 
 func TestAllNodes_Count(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
-	s.CreateNode("Node 1", []string{"task"})
-	s.CreateNode("Node 2", []string{"task"})
-	s.CreateNode("Node 3", []string{"note"})
+	if _, err := s.CreateNode("Node 1", []string{"task"}); err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	if _, err := s.CreateNode("Node 2", []string{"task"}); err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	if _, err := s.CreateNode("Node 3", []string{"note"}); err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
 
 	idx := s.Index()
 	nodes := idx.AllNodes()
@@ -669,14 +688,18 @@ func TestAllNodes_Count(t *testing.T) {
 
 func TestAllEdges_Count(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	n1, _ := s.CreateNode("A", []string{"task"})
 	n2, _ := s.CreateNode("B", []string{"task"})
 	n3, _ := s.CreateNode("C", []string{"task"})
 
-	s.CreateEdge("blocks", n1.ID, n2.ID, nil)
-	s.CreateEdge("related", n2.ID, n3.ID, nil)
+	if _, err := s.CreateEdge("blocks", n1.ID, n2.ID, nil); err != nil {
+		t.Fatalf("CreateEdge: %v", err)
+	}
+	if _, err := s.CreateEdge("related", n2.ID, n3.ID, nil); err != nil {
+		t.Fatalf("CreateEdge: %v", err)
+	}
 
 	idx := s.Index()
 	edges := idx.AllEdges()
@@ -687,7 +710,7 @@ func TestAllEdges_Count(t *testing.T) {
 
 func TestGetEdge_NotFound(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	idx := s.Index()
 	_, err := idx.GetEdge("00000000-0000-0000-0000-000000000099")
@@ -714,14 +737,20 @@ func TestBuildIndex_WithEdges(t *testing.T) {
 	n1, _ := s1.CreateNode("Alpha", []string{"task"})
 	n2, _ := s1.CreateNode("Beta", []string{"task"})
 	edge, _ := s1.CreateEdge("blocks", n1.ID, n2.ID, nil)
-	s1.Close()
+	if err := s1.Close(); err != nil {
+		t.Fatalf("Close (first): %v", err)
+	}
 
 	// Open a second store from the same directory.
 	s2, err := New(dir, clock)
 	if err != nil {
 		t.Fatalf("New (second): %v", err)
 	}
-	defer s2.Close()
+	defer func() {
+		if err := s2.Close(); err != nil {
+			t.Errorf("Close (second): %v", err)
+		}
+	}()
 
 	idx := s2.Index()
 	if _, err := idx.GetNode(n1.ID); err != nil {
@@ -743,16 +772,15 @@ func TestBuildIndex_WithEdges(t *testing.T) {
 // write-then-reread-then-upsert pattern.
 func TestWriteNode_UpdatesIndex(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	node := &types.Node{
-		ID:       "cccccccc-0000-0000-0000-000000000001",
-		Body:     "Index-update test",
-		Types:    []string{"task"},
-		Title:    "Buy milk",
-		Created:  s.clock.Now(),
-		Modified: s.clock.Now(),
+		ID:    "cccccccc-0000-0000-0000-000000000001",
+		Body:  "Index-update test",
+		Types: []string{"task"},
+		Title: "Buy milk",
 	}
+	node.Date.Created = s.clock.Now()
 
 	if err := s.WriteNode(node); err != nil {
 		t.Fatalf("WriteNode: %v", err)
@@ -772,18 +800,18 @@ func TestWriteNode_UpdatesIndex(t *testing.T) {
 // synchronously, matching the invariant above for nodes.
 func TestWriteEdge_UpdatesIndex(t *testing.T) {
 	s := newTestStore(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	n1, _ := s.CreateNode("Source", []string{"task"})
 	n2, _ := s.CreateNode("Target", []string{"task"})
 
 	edge := &types.Edge{
-		ID:      "dddddddd-0000-0000-0000-000000000001",
-		Type:    "blocks",
-		From:    n1.ID,
-		To:      n2.ID,
-		Created: s.clock.Now(),
+		ID:   "dddddddd-0000-0000-0000-000000000001",
+		Type: "blocks",
+		From: n1.ID,
+		To:   n2.ID,
 	}
+	edge.Date.Created = s.clock.Now()
 
 	if err := s.WriteEdge(edge); err != nil {
 		t.Fatalf("WriteEdge: %v", err)

@@ -42,11 +42,13 @@ func stripANSI(s string) string {
 
 func simpleNode(id, body string, types_ []string) *types.Node {
 	return &types.Node{
-		ID:       id,
-		Body:     body,
-		Types:    types_,
-		Created:  testNow.Add(-7 * 24 * time.Hour),
-		Modified: testNow,
+		ID:    id,
+		Body:  body,
+		Types: types_,
+		Date: types.DateFields{
+			Created:  testNow.Add(-7 * 24 * time.Hour),
+			Modified: testNow,
+		},
 	}
 }
 
@@ -110,12 +112,12 @@ func TestRender_EdgesSection_Blocks_Outgoing(t *testing.T) {
 	targetNode := simpleNode("target", "Blocked node", []string{"task"})
 
 	edge := &types.Edge{
-		ID:      "e1",
-		Type:    "blocks",
-		From:    "focal",
-		To:      "target",
-		Created: testNow,
+		ID:   "e1",
+		Type: "blocks",
+		From: "focal",
+		To:   "target",
 	}
+	edge.Date.Created = testNow
 
 	nodesByID := map[string]*types.Node{"focal": focalNode, "target": targetNode}
 	r := newRenderer()
@@ -137,12 +139,12 @@ func TestRender_EdgesSection_Blocks_Incoming(t *testing.T) {
 	sourceNode := simpleNode("source", "Blocking node", []string{"task"})
 
 	edge := &types.Edge{
-		ID:      "e2",
-		Type:    "blocks",
-		From:    "source",
-		To:      "focal",
-		Created: testNow,
+		ID:   "e2",
+		Type: "blocks",
+		From: "source",
+		To:   "focal",
 	}
+	edge.Date.Created = testNow
 
 	nodesByID := map[string]*types.Node{"focal": focalNode, "source": sourceNode}
 	r := newRenderer()
@@ -158,12 +160,12 @@ func TestRender_EdgesSection_Parent(t *testing.T) {
 	parentNode := simpleNode("parent", "Parent node", []string{"task"})
 
 	edge := &types.Edge{
-		ID:      "e3",
-		Type:    "parent",
-		From:    "focal",
-		To:      "parent",
-		Created: testNow,
+		ID:   "e3",
+		Type: "parent",
+		From: "focal",
+		To:   "parent",
 	}
+	edge.Date.Created = testNow
 
 	nodesByID := map[string]*types.Node{"focal": focalNode, "parent": parentNode}
 	r := newRenderer()
@@ -182,12 +184,12 @@ func TestRender_EdgesSection_WaitingOn(t *testing.T) {
 	targetNode := simpleNode("target", "Dan (feedback)", []string{"person"})
 
 	edge := &types.Edge{
-		ID:      "e4",
-		Type:    "waiting_on",
-		From:    "focal",
-		To:      "target",
-		Created: testNow.Add(-12 * 24 * time.Hour),
+		ID:   "e4",
+		Type: "waiting_on",
+		From: "focal",
+		To:   "target",
 	}
+	edge.Date.Created = testNow.Add(-12 * 24 * time.Hour)
 
 	nodesByID := map[string]*types.Node{"focal": focalNode, "target": targetNode}
 	r := newRenderer()
@@ -206,12 +208,12 @@ func TestRender_EdgesSection_Related(t *testing.T) {
 	relatedNode := simpleNode("related", "Cypher syntax notes", []string{"note"})
 
 	edge := &types.Edge{
-		ID:      "e5",
-		Type:    "related",
-		From:    "focal",
-		To:      "related",
-		Created: testNow,
+		ID:   "e5",
+		Type: "related",
+		From: "focal",
+		To:   "related",
 	}
+	edge.Date.Created = testNow
 
 	nodesByID := map[string]*types.Node{"focal": focalNode, "related": relatedNode}
 	r := newRenderer()
@@ -230,12 +232,12 @@ func TestRender_EdgesSection_DependsOn(t *testing.T) {
 	depNode := simpleNode("dep", "Auth service", []string{"task"})
 
 	edge := &types.Edge{
-		ID:      "e6",
-		Type:    "depends_on",
-		From:    "focal",
-		To:      "dep",
-		Created: testNow,
+		ID:   "e6",
+		Type: "depends_on",
+		From: "focal",
+		To:   "dep",
 	}
+	edge.Date.Created = testNow
 
 	nodesByID := map[string]*types.Node{"focal": focalNode, "dep": depNode}
 	r := newRenderer()
@@ -460,7 +462,7 @@ func TestRender_NonArchivedNode_NoBanner(t *testing.T) {
 
 func TestRender_StaleNode_ShowsSuffix(t *testing.T) {
 	node := simpleNode("n-stale", "Quiet task", []string{"task"})
-	node.Modified = testNow.AddDate(0, 0, -21) // 21 days idle
+	node.Date.Modified = testNow.AddDate(0, 0, -21) // 21 days idle
 
 	r := newRenderer()
 	r.StaleThresholdDays = 14
@@ -476,7 +478,7 @@ func TestRender_StaleNode_ShowsSuffix(t *testing.T) {
 
 func TestRender_FreshNode_NoSuffix(t *testing.T) {
 	node := simpleNode("n-fresh", "Recent task", []string{"task"})
-	node.Modified = testNow.AddDate(0, 0, -3) // 3 days idle
+	node.Date.Modified = testNow.AddDate(0, 0, -3) // 3 days idle
 
 	r := newRenderer()
 	r.StaleThresholdDays = 14
@@ -496,7 +498,7 @@ func TestRender_StaleNode_NotCompetingWithBlockedBanner(t *testing.T) {
 	blocker.Stage = "Now" // non-terminal
 
 	node := simpleNode("n-both", "Blocked and stale", []string{"task"})
-	node.Modified = testNow.AddDate(0, 0, -30)
+	node.Date.Modified = testNow.AddDate(0, 0, -30)
 	edges := []*types.Edge{
 		{ID: "e3", Type: "blocks", From: blocker.ID, To: node.ID},
 	}
@@ -646,8 +648,10 @@ func newBudgetNodeWithSpend(id string, entries []types.SpendEntry) *types.Node {
 		Body:       "Groceries budget",
 		Types:      []string{"budget"},
 		Properties: props,
-		Created:    testNow,
-		Modified:   testNow,
+		Date: types.DateFields{
+			Created:  testNow,
+			Modified: testNow,
+		},
 	}
 }
 
@@ -707,7 +711,7 @@ func TestRender_SpendLog_SortedByDate(t *testing.T) {
 	if firstIdx < 0 || middleIdx < 0 || lastIdx < 0 {
 		t.Fatalf("one or more date entries missing from output:\n%s", output)
 	}
-	if !(firstIdx < middleIdx && middleIdx < lastIdx) {
+	if firstIdx >= middleIdx || middleIdx >= lastIdx {
 		t.Errorf("entries not in ascending date order: first=%d middle=%d last=%d\noutput:\n%s",
 			firstIdx, middleIdx, lastIdx, output)
 	}

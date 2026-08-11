@@ -51,8 +51,10 @@ func newBudgetNode(category string) *types.Node {
 			"category":  category,
 			"allocated": float64(500),
 		},
-		Created:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		Modified: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Date: types.DateFields{
+			Created:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			Modified: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
 	}
 }
 

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
@@ -26,6 +25,13 @@ type BudgetCreateOptions struct {
 
 	// LinkID is an optional node ID to create a "related" edge to.
 	LinkID string
+
+	// Index resolves LinkID against the graph before the node is written.
+	// Nil skips existence checking (malformed UUIDs are still rejected).
+	Index types.GraphIndex
+
+	// Clock supplies the current time. Defaults to types.RealClock{} when nil.
+	Clock types.Clock
 }
 
 // validPeriods lists the accepted budget period values.
@@ -68,14 +74,23 @@ func BudgetCreate(store types.StoreFS, opts BudgetCreateOptions) (string, error)
 		}
 	}
 
-	now := time.Now()
+	clock := opts.Clock
+	if clock == nil {
+		clock = types.RealClock{}
+	}
+
+	if opts.LinkID != "" {
+		if err := validateLinkTarget(opts.Index, opts.LinkID); err != nil {
+			return "", err
+		}
+	}
+
+	now := clock.Now()
 
 	node := &types.Node{
-		ID:       uuid.New().String(),
-		Title:    opts.Category,
-		Types:    []string{"budget"},
-		Created:  now,
-		Modified: now,
+		ID:    uuid.New().String(),
+		Title: opts.Category,
+		Types: []string{"budget"},
 		Properties: map[string]interface{}{
 			"category":  opts.Category,
 			"allocated": opts.Allocated,
@@ -83,6 +98,7 @@ func BudgetCreate(store types.StoreFS, opts BudgetCreateOptions) (string, error)
 			"warn_at":   opts.WarnAt,
 		},
 	}
+	node.Date.Created = now
 
 	if err := store.WriteNode(node); err != nil {
 		return "", fmt.Errorf("writing budget node: %w", err)
@@ -90,12 +106,12 @@ func BudgetCreate(store types.StoreFS, opts BudgetCreateOptions) (string, error)
 
 	if opts.LinkID != "" {
 		edge := &types.Edge{
-			ID:      uuid.New().String(),
-			Type:    string(types.EdgeRelated),
-			From:    node.ID,
-			To:      opts.LinkID,
-			Created: now,
+			ID:   uuid.New().String(),
+			Type: string(types.EdgeRelated),
+			From: node.ID,
+			To:   opts.LinkID,
 		}
+		edge.Date.Created = now
 		if err := store.WriteEdge(edge); err != nil {
 			return node.ID, fmt.Errorf("creating link edge: %w", err)
 		}
