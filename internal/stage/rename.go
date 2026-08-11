@@ -116,13 +116,20 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 	// Left unstamped, this fan-out would be a permanent blind spot for
 	// TD.5's drift detection: these entries are indistinguishable from
 	// purely user-authored kinds despite never having been hand-edited.
+	//
+	// Hashes d directly via hashEntry rather than calling DefaultKindHash(d.Name):
+	// d is already the matching default from the defaults slice loaded above, so
+	// re-fetching DefaultKinds() and re-scanning it by name for every shadowed
+	// kind would repeat work this loop has already done.
 	for _, d := range defaults {
 		if shadowed[d.Name] || d.StageGroup != oldName {
 			continue
 		}
 		shadow := d
 		shadow.StageGroup = newName
-		shadow.ShadowOf = DefaultKindHash(d.Name)
+		unhashed := d
+		unhashed.ShadowOf = ""
+		shadow.ShadowOf = hashEntry(unhashed)
 		out = append(out, shadow)
 		rewritten++
 	}
