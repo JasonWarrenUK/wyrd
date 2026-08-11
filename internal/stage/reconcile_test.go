@@ -331,3 +331,66 @@ func TestDetectDivergedDeterministicOrder(t *testing.T) {
 		}
 	}
 }
+
+// TestDetectDivergedNilKindsChangesSchemaDriftOutcome pins the exact hazard
+// that used to make stagesOverlay and kindsOverlay disagree on identical
+// on-disk state: checked/mismatched are pooled ACROSS both registries, so
+// passing nil for kinds does not just omit kinds from the result — it
+// changes the denominator the schema-drift guard divides by, and can flip
+// SchemaDrift on or off relative to a call that passes both registries.
+//
+// This is why the fix (TD.5 follow-up) is at the CALL SITES — both TUI
+// overlays now read a single stage.DivergenceReport computed once with both
+// registries (see Model.divergence) rather than each recomputing its own —
+// not in DetectDiverged itself, whose behaviour here is working as
+// documented (see its "pooled across kinds and groups" framing) but is easy
+// to call unsafely.
+func TestDetectDivergedNilKindsChangesSchemaDriftOutcome(t *testing.T) {
+	groupDefaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+
+	// Two independently shadowed stage groups, both mismatching — 100% of
+	// the groups-only comparable set.
+	group1 := types.StageGroup{
+		Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate,
+		ShadowOf: "sha256:0000000000000000",
+	}
+	group2 := types.StageGroup{
+		Name: "habit-flow", Stages: []string{"Todo", "Done"}, Cycle: types.CycleLoop,
+		ShadowOf: "sha256:0000000000000000",
+	}
+	groups := stage.MergeStageGroups(groupDefaults, []types.StageGroup{group1, group2})
+
+	// A faithfully-shadowed kind, included only when kinds is non-nil. It
+	// matches its default exactly, so it contributes to `checked` without
+	// contributing to `mismatched` — enough on its own to pull the combined
+	// mismatch rate under 100%.
+	faithfulKind := types.Kind{
+		Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff",
+		ShadowOf: stage.DefaultKindHash("Task"),
+	}
+	kinds := stage.MergeKinds(defaults, []types.Kind{faithfulKind})
+
+	groupsOnly := stage.DetectDiverged(nil, groups)
+	both := stage.DetectDiverged(kinds, groups)
+
+	if !groupsOnly.SchemaDrift {
+		t.Error("expected SchemaDrift = true when kinds is nil (2 checked, 2 mismatched, 100%)")
+	}
+	if len(groupsOnly.Diverged) != 0 {
+		t.Errorf("expected Diverged empty under SchemaDrift (nil kinds), got %+v", groupsOnly.Diverged)
+	}
+
+	if both.SchemaDrift {
+		t.Error("expected SchemaDrift = false once the faithful kind is included (3 checked, 2 mismatched)")
+	}
+	if len(both.Diverged) != 2 {
+		t.Errorf("expected both diverged stage groups reported once kinds is included, got %+v", both.Diverged)
+	}
+}

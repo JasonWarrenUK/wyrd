@@ -295,6 +295,16 @@ type Model struct {
 	// stages.jsonc once SL.13 lands). May be nil; always check before use.
 	stageGroups *types.StageGroupRegistry
 
+	// divergence is the TD.5 report of shadowed kinds/stage groups that have
+	// drifted from the upstream default they were forked from. Computed once
+	// by buildRegistries and carried on the Model so the startup advisory and
+	// both overlays agree — previously each overlay recomputed its own
+	// partial report (stagesOverlay passing nil for kinds), which pooled
+	// checked/mismatched counts differently and could disagree with the
+	// startup advisory on the very same on-disk state. Re-pointed alongside
+	// kinds/stageGroups at every rebuild site.
+	divergence stage.DivergenceReport
+
 	// logger is the structured logger. May be nil.
 	logger *clog.Logger
 
@@ -576,15 +586,17 @@ func New(cfg Config) (Model, error) {
 
 	// Wire up the "view" command (TD.13): ":view <name>" loads a saved view
 	// from the store, runs its query, and mounts the left pane using the
-	// renderer matching its Display mode. Requires an argument — unlike
-	// :kinds/:stages, there is no bare-command "list saved views" mode yet.
+	// renderer matching its Display mode. A bare ":view" (no argument)
+	// restores the node-list dashboard instead of doing nothing — msg.name
+	// stays "" and the openViewMsg handler branches on that, mirroring the
+	// esc key's restore path below. Returning a real command here (rather
+	// than nil) also sidesteps PaletteState's typed-input path, which has no
+	// needs-args recovery and would otherwise just close the palette
+	// silently on a bare ":view" + Enter.
 	palette.Register(Command{
 		Name:        "view",
-		Description: "Open a saved view by name (e.g. view today)",
+		Description: "Open a saved view by name (e.g. view today); bare view restores the dashboard",
 		Execute: func(args []string) tea.Cmd {
-			if len(args) == 0 {
-				return nil
-			}
 			name := strings.Join(args, " ")
 			return func() tea.Msg { return openViewMsg{name: name} }
 		},
@@ -614,6 +626,7 @@ func New(cfg Config) (Model, error) {
 		rituals:            rituals,
 		kinds:              cfg.Kinds,
 		stageGroups:        cfg.StageGroups,
+		divergence:         cfg.Divergence,
 		logger:             cfg.Logger,
 		logOverlay:         newLogOverlay(theme),
 		helpOverlay:        newHelpOverlay(theme),
@@ -621,6 +634,8 @@ func New(cfg Config) (Model, error) {
 		stagesOverlay:      newStagesOverlay(theme, cfg.StageGroups),
 		ready:              false,
 	}
+	m.kindsOverlay.divergence = cfg.Divergence
+	m.stagesOverlay.divergence = cfg.Divergence
 
 	// Pre-populate the right pane with the first selected item so the detail
 	// pane is not blank on startup.
@@ -867,6 +882,31 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case openViewMsg:
+		// Guard against clobbering an active form, or mounting a viewPane
+		// invisibly underneath a still-open viewport overlay (see
+		// viewportOverlayActive's doc comment) — the same guard every other
+		// open-message handler in this switch carries. A viewPane mounting
+		// under an open form is worse here than for the sibling form-open
+		// messages: it would also silently pull the rug from under the
+		// selectedID lookups a couple of the capture-form branches above
+		// depend on (m.leftPane.(nodeListPane) stops matching).
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
+			return m, nil
+		}
+
+		// A bare ":view" (no argument) restores the node-list dashboard
+		// rather than trying to look up a view named "". This is the
+		// palette-driven twin of the esc restore path below — both exist
+		// because mounting a viewPane replaces the left pane wholesale, and
+		// nothing else in the app can put a nodeListPane back once that
+		// happens (see the leftPaneIsView/esc handling for the fuller
+		// rationale).
+		if msg.name == "" {
+			m.refreshDashboard()
+			m.statusBar.SetCaptureText("Restored dashboard")
+			return m, m.clearCaptureCmd()
+		}
+
 		// TD.13: load a saved view, run its query, and mount the left pane
 		// with the renderer matching its Display mode. Read through
 		// StoreFS.ReadView — the same interface seam refreshDashboard and
@@ -894,6 +934,21 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Height: m.layout.TotalHeight(),
 		})
 		m.MountLeft(sized)
+
+		// DisplayProse and DisplayBudget aren't wired to a renderer yet (see
+		// viewPane's doc comment) and silently fall back to list rendering.
+		// Still mount so the user's data is visible, but flag the mode by
+		// name via a sticky message rather than leaving the fallback
+		// unexplained — mirrors the sticky error pattern just above for the
+		// query-failure case.
+		switch view.Display {
+		case types.DisplayProse, types.DisplayBudget:
+			m.statusBar.SetCaptureText(fmt.Sprintf(
+				"View %q uses %s display, not yet supported — showing as list", msg.name, view.Display))
+			m.statusBar.MarkCaptureSticky()
+			return m, nil
+		}
+
 		m.statusBar.SetCaptureText(fmt.Sprintf("Opened view %q", msg.name))
 		return m, m.clearCaptureCmd()
 
@@ -1212,6 +1267,16 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Recompute the single divergence report alongside the registry
+		// rebuild above, and re-point both overlays at it — see the
+		// Model.divergence doc comment for why this must stay one shared
+		// report rather than each overlay recomputing its own.
+		if refreshed {
+			m.divergence = stage.DetectDiverged(m.kinds, m.stageGroups)
+			m.kindsOverlay.divergence = m.divergence
+			m.stagesOverlay.divergence = m.divergence
+		}
+
 		// renamedFrom empty covers both a same-name edit and a genuine
 		// create — kindFormSubmitMsg doesn't distinguish them, and the
 		// remap hand-off below doesn't need to either, so both keep the
@@ -1314,6 +1379,15 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					refreshed = true
 				}
 			}
+		}
+
+		// Recompute the shared divergence report now that both kinds (above,
+		// on a group rename's fan-out) and stage groups are current — see
+		// the Model.divergence doc comment.
+		if refreshed {
+			m.divergence = stage.DetectDiverged(m.kinds, m.stageGroups)
+			m.kindsOverlay.divergence = m.divergence
+			m.stagesOverlay.divergence = m.divergence
 		}
 
 		text := fmt.Sprintf("Created stage group %q", msg.name)
@@ -1460,6 +1534,17 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleStageShift(-1)
 		case msg.String() == "esc" && m.statusBar.CaptureSticky():
 			m.statusBar.SetCaptureText(CaptureBarPlaceholder())
+			return m, nil
+		case msg.String() == "esc" && m.leftPaneNeedsRestore():
+			// Mounting a viewPane replaces the left pane wholesale (see
+			// openViewMsg), and every route back to the node list —
+			// ctrl+o/ctrl+d/[/] edit/archive/stage-shift, theme rebuilds —
+			// is gated on a nodeListPane type assertion that silently fails
+			// once it's gone. Without this, the only way back was creating
+			// a throwaway node (refreshDashboard runs as a side effect of
+			// capture) or restarting. Ordered after the CaptureSticky case
+			// above so dismissing a sticky message always takes priority.
+			m.refreshDashboard()
 			return m, nil
 		default:
 			return m.updateFocusedPane(msg)
@@ -1865,6 +1950,17 @@ func (m Model) applyTheme(t *ActiveTheme) Model {
 		m.leftPane = newNodeListPane(lp.result, t, lp.staleThresholdDays)
 	} else if _, ok := m.leftPane.(emptyPane); ok {
 		m.leftPane = m.sizedEmptyPane(t)
+	} else if vp, ok := m.leftPane.(viewPane); ok {
+		// viewPane retains view/result specifically so it can be rebuilt
+		// with a new theme without re-running the saved view's query —
+		// previously there was no branch for it here at all, so a viewPane
+		// kept pointing at the pre-switch *ActiveTheme (viewPane.theme is
+		// only read by its own palette builders) and rendered in the old
+		// theme's colours while the rest of the frame repainted. Set theme
+		// directly rather than going through newViewPane, which would reset
+		// width back to its 80-column default and undo the last resize.
+		vp.theme = t
+		m.leftPane = vp
 	}
 
 	// Always replace the right pane — never leave a stale viewportPane (old
@@ -2038,7 +2134,13 @@ func (m *Model) refreshDashboard() {
 			Width:  m.layout.TotalWidth(),
 			Height: m.layout.TotalHeight(),
 		})
-		m.leftPane = sized
+		// MountLeft rather than a direct assignment: it also calls
+		// syncKeyHints, which matters whenever the previous left pane was a
+		// non-nodeListPane (e.g. a viewPane restored via esc/bare :view) —
+		// those panes report no key hints of their own, and a direct
+		// assignment here would leave the status bar showing them stale
+		// until the next unrelated focus change.
+		m.MountLeft(sized)
 	}
 }
 
@@ -2072,6 +2174,16 @@ func (m Model) currentSelectedID() string {
 		return lp.SelectedNodeID()
 	}
 	return ""
+}
+
+// leftPaneNeedsRestore reports whether the left pane is currently something
+// other than the node-list dashboard and an emptyPane — i.e. a viewPane
+// mounted via :view. Only viewPane is checked explicitly, rather than
+// negating nodeListPane, so a future non-dashboard, non-view pane type
+// doesn't silently pick up an esc-restore behaviour nobody asked for.
+func (m Model) leftPaneNeedsRestore() bool {
+	_, ok := m.leftPane.(viewPane)
+	return ok
 }
 
 // renderDetail fetches a node by ID and renders it into a detailPane.

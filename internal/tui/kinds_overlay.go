@@ -20,6 +20,12 @@ type kindsOverlay struct {
 	kinds       *types.KindRegistry
 	stageGroups *types.StageGroupRegistry
 
+	// divergence is the shared TD.5 report (see Model.divergence's doc
+	// comment) — re-pointed at every rebuild site alongside kinds/stageGroups
+	// rather than recomputed here, so this overlay always agrees with the
+	// startup advisory and stagesOverlay on the same on-disk state.
+	divergence stage.DivergenceReport
+
 	width, height int
 }
 
@@ -76,14 +82,15 @@ func (ko *kindsOverlay) Open(width, height int) {
 			}
 		}
 
-		// TD.5: recomputed fresh on every Open rather than threaded through
-		// the constructor — ko.kinds/ko.stageGroups are always current by
-		// the time Open runs (every rebuild site re-points them before the
-		// overlay is next opened), so there's no staleness risk, and this
-		// avoids reintroducing the exact kind of parallel side-channel
-		// TD.15 just removed.
+		// TD.5: ko.divergence is the single report shared with the startup
+		// advisory and stagesOverlay (Model.divergence) — re-pointed at every
+		// rebuild site alongside ko.kinds/ko.stageGroups, rather than
+		// recomputed here. Recomputing independently used to be able to
+		// disagree with the startup advisory on identical on-disk state
+		// (stagesOverlay's equivalent call passed nil for kinds, which
+		// changed the schema-drift checked/mismatched denominator).
 		divergedNames := map[string]bool{}
-		for _, d := range stage.DetectDiverged(ko.kinds, ko.stageGroups).Diverged {
+		for _, d := range ko.divergence.Diverged {
 			if d.Kind {
 				divergedNames[d.Name] = true
 			}

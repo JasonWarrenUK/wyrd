@@ -62,7 +62,7 @@ func (r DivergenceReport) IsEmpty() bool {
 // the current embedded defaults, reporting which ones have drifted since
 // the fork.
 //
-// Three cases are deliberately excluded from Diverged, not just
+// Four cases are deliberately excluded from Diverged, not just
 // under-reported:
 //
 //  1. Entries with an empty ShadowOf (purely user-authored — nothing to
@@ -84,6 +84,12 @@ func (r DivergenceReport) IsEmpty() bool {
 //     be asked to review kind-by-kind. (A rename of the referencing kind's
 //     own group choice, were the user to make one deliberately later,
 //     would go through the ordinary edit path and get ShadowEntry instead.)
+//  4. ShadowEditedAndRenamed entries. RenameStageGroup stamps these on
+//     already-shadowed kinds it rewrites in place — same rationale as
+//     ShadowRenameFanOut, but for a kind the user had already forked
+//     themselves rather than one the rename freshly shadowed. ShadowOf
+//     still records the user's original hand-edit; only the StageGroup
+//     mismatch it now causes is excluded.
 //
 // An entry with an empty ShadowReason (stamped before this field existed)
 // is treated as ShadowEdited — the original, and by far the most common,
@@ -97,7 +103,8 @@ func DetectDiverged(kinds *types.KindRegistry, groups *types.StageGroupRegistry)
 			if k.ShadowOf == "" {
 				continue
 			}
-			if k.ShadowReason == types.ShadowTombstone || k.ShadowReason == types.ShadowRenameFanOut {
+			if k.ShadowReason == types.ShadowTombstone || k.ShadowReason == types.ShadowRenameFanOut ||
+				k.ShadowReason == types.ShadowEditedAndRenamed {
 				continue
 			}
 			current := DefaultKindHash(k.Name)

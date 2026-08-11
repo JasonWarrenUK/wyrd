@@ -64,14 +64,19 @@ func (v viewPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 // View dispatches on v.view.Display and renders the result through the
 // matching views renderer, building its palette from the active theme
 // (TD.6) rather than the renderer's own hardcoded Default*Palette().
-// Falls back to list rendering for an empty or unrecognised Display value,
-// matching the DisplayList behaviour today.jsonc already ships with.
+// Falls back to list rendering for a nil view, an empty Display value, or
+// an unrecognised one, matching the DisplayList behaviour today.jsonc
+// already ships with. The nil case is unreachable via newViewPane today
+// (Store.ReadView never returns a nil view with a nil error) but every
+// other pane in this package tolerates its nil inputs, so View does too.
 func (v viewPane) View() string {
 	bg, _ := v.themeColours()
 
 	var content string
-	switch v.view.Display {
-	case types.DisplayTimeline:
+	switch {
+	case v.view == nil:
+		content = ""
+	case v.view.Display == types.DisplayTimeline:
 		content = v.renderTimeline()
 	default:
 		content = v.renderList()

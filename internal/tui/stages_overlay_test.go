@@ -127,6 +127,13 @@ func TestStagesOverlay_DivergedMarker(t *testing.T) {
 	theme := loadStagesTestTheme(t)
 
 	so := newStagesOverlay(theme, reg)
+	// TD.5: divergence is computed once and threaded in, mirroring how
+	// app.go now populates it, rather than the overlay recomputing its own
+	// report on every Open. nil for kinds matches stagesOverlay's real
+	// shape — it never holds a kinds registry — and is exactly the
+	// previously-untested case that used to disagree with kindsOverlay's
+	// equivalent (both-registries) call on the same on-disk state.
+	so.divergence = stage.DetectDiverged(nil, reg)
 	so.Open(160, 50)
 
 	view := so.View(160, 50)

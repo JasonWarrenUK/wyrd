@@ -116,6 +116,10 @@ func TestKindsOverlay_DivergedMarker(t *testing.T) {
 	theme := loadStagesTestTheme(t)
 
 	ko := newKindsOverlay(theme, kindsReg, groupsReg)
+	// TD.5: divergence is computed once and threaded in, mirroring how
+	// app.go now populates it, rather than the overlay recomputing its own
+	// report on every Open.
+	ko.divergence = stage.DetectDiverged(kindsReg, groupsReg)
 	ko.Open(160, 50)
 
 	view := ko.View(160, 50)

@@ -19,6 +19,16 @@ type stagesOverlay struct {
 	theme       *ActiveTheme
 	stageGroups *types.StageGroupRegistry
 
+	// divergence is the shared TD.5 report (see Model.divergence's doc
+	// comment) — re-pointed at every rebuild site alongside stageGroups
+	// rather than recomputed here. This overlay previously recomputed its
+	// own report with DetectDiverged(nil, stageGroups); because
+	// DetectDiverged pools its checked/mismatched counts across both
+	// registries, passing nil for kinds changed the schema-drift ratio and
+	// could disagree with kindsOverlay/the startup advisory on identical
+	// on-disk state.
+	divergence stage.DivergenceReport
+
 	width, height int
 }
 
@@ -73,13 +83,14 @@ func (so *stagesOverlay) Open(width, height int) {
 			}
 		}
 
-		// TD.5: recomputed fresh on every Open — see kindsOverlay's matching
-		// comment for why this doesn't need constructor threading. Passing
-		// nil for kinds is safe (DetectDiverged nil-guards both registries)
-		// and correct here: stagesOverlay has no kinds registry of its own,
-		// and only the StageGroup half of the report (!d.Kind) is used.
+		// TD.5: so.divergence is the single report shared with the startup
+		// advisory and kindsOverlay (Model.divergence) — re-pointed at every
+		// rebuild site alongside so.stageGroups, rather than recomputed
+		// here. Only the StageGroup half of the report (!d.Kind) is used;
+		// stagesOverlay has no kinds registry of its own, but the report
+		// itself is always computed over both.
 		divergedNames := map[string]bool{}
-		for _, d := range stage.DetectDiverged(nil, so.stageGroups).Diverged {
+		for _, d := range so.divergence.Diverged {
 			if !d.Kind {
 				divergedNames[d.Name] = true
 			}
