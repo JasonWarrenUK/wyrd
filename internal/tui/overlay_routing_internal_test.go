@@ -112,6 +112,40 @@ func TestRitualTickSurvivesOpenOverlay(t *testing.T) {
 	}
 }
 
+// TestClockTickSurvivesOpenOverlay covers TD.16: clockTickMsg is the only
+// thing that re-arms the status-bar clock tick, so any overlay that swallows
+// it leaves the HH:MM readout stale for the rest of the session — the same
+// failure mode TD.12 fixed for ritualCheckTickMsg. Table over all five
+// overlays, mirroring TestRitualTickSurvivesOpenOverlay.
+func TestClockTickSurvivesOpenOverlay(t *testing.T) {
+	for _, h := range overlayHarnesses(t) {
+		t.Run(h.name, func(t *testing.T) {
+			m := newRitualTestModel(t)
+			m = h.open(t, m)
+			if !h.isActive(m) {
+				t.Fatalf("%s overlay did not open", h.name)
+			}
+
+			updated, cmd := m.Update(clockTickMsg{})
+			got, ok := updated.(Model)
+			if !ok {
+				t.Fatalf("Update returned %T, want Model", updated)
+			}
+
+			// The clockTickMsg handler always returns a non-nil re-arm
+			// command, so a nil command here means the message was
+			// swallowed by the overlay guard rather than reaching the
+			// switch below it.
+			if cmd == nil {
+				t.Errorf("%s overlay swallowed clockTickMsg — clock tick did not reach its handler", h.name)
+			}
+			if !h.isActive(got) {
+				t.Errorf("%s overlay closed unexpectedly after a declined message", h.name)
+			}
+		})
+	}
+}
+
 // TestWindowSizeAppliesWhileOverlayOpen asserts a resize reaches the root
 // tea.WindowSizeMsg handler (which updates m.layout) even while an overlay is
 // open, rather than being consumed by the overlay guard.

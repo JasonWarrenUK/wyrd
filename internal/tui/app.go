@@ -156,6 +156,11 @@ type ritualTriggerMsg struct {
 // ritualCheckTickMsg fires on a timer to check whether any rituals are due.
 type ritualCheckTickMsg struct{}
 
+// clockTickMsg fires once per wall-clock minute boundary so the status bar's
+// HH:MM clock (TD.16) stays live rather than only updating on the next
+// unrelated render. The handler carries no payload and re-arms itself.
+type clockTickMsg struct{}
+
 // Model is the root Bubble Tea model for the Wyrd TUI. It owns all mutable
 // state; transitions happen in Update and rendering in View. No state is held
 // outside this struct.
@@ -602,8 +607,10 @@ func New(cfg Config) (Model, error) {
 
 // Init returns the initial command. We fire the ritual check tick immediately
 // so any due rituals are presented on launch, then every 60 seconds thereafter.
+// The clock tick (TD.16) is seeded alongside it so the status-bar clock
+// starts ticking from launch.
 func (m Model) Init() tea.Cmd {
-	return ritualCheckTick()
+	return tea.Batch(ritualCheckTick(), m.clockTick())
 }
 
 // ritualCheckTick returns a tea.Cmd that fires a ritualCheckTickMsg immediately
@@ -619,6 +626,38 @@ func ritualCheckTick() tea.Cmd {
 func ritualCheckTickNext() tea.Cmd {
 	return tea.Tick(60*time.Second, func(_ time.Time) tea.Msg {
 		return ritualCheckTickMsg{}
+	})
+}
+
+// delayToNextMinute returns how long to wait from now until the next
+// wall-clock minute boundary. Split out from clockTick as a pure function so
+// the boundary-alignment maths is unit-testable without going through
+// tea.Tick, whose returned tea.Cmd is an opaque closure.
+func delayToNextMinute(now time.Time) time.Duration {
+	next := now.Truncate(time.Minute).Add(time.Minute)
+	delay := next.Sub(now)
+	if delay <= 0 {
+		delay = time.Minute
+	}
+	return delay
+}
+
+// clockTick returns a tea.Cmd that fires a clockTickMsg at the next
+// wall-clock minute boundary (per m.clock, so it honours an injected
+// types.StubClock in tests), rather than a flat 60s interval — a flat
+// interval free-runs from whenever it happened to be armed and can leave
+// the displayed HH:MM up to 59s stale relative to the real minute change.
+// Not gated behind reduce_motion: that flag is documented as disabling
+// spring-eased animation (VP.6), and gating a once-a-minute digit change
+// behind it would leave those users a permanently stale clock — a
+// correctness regression, not an accessibility win.
+func (m Model) clockTick() tea.Cmd {
+	now := time.Now()
+	if m.clock != nil {
+		now = m.clock.Now()
+	}
+	return tea.Tick(delayToNextMinute(now), func(_ time.Time) tea.Msg {
+		return clockTickMsg{}
 	})
 }
 
@@ -970,6 +1009,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, ritualCheckTickNext()
+
+	case clockTickMsg:
+		// No state to update — StatusBar.View reads m.clock live on every
+		// render. This tick's only job is to cause a render at all, then
+		// re-arm itself for the next minute boundary.
+		return m, m.clockTick()
 
 	case ritualTriggerMsg:
 		if m.store == nil || m.queryRunner == nil {
