@@ -305,7 +305,7 @@ func (r *ProseRenderer) buildEdgeLines(node *types.Node, edges []*types.Edge, no
 	var lines []string
 	for _, edge := range edges {
 		outgoing := edge.From == node.ID
-		glyph := EdgeGlyph(edge.Type, outgoing)
+		glyph := r.edgeGlyph(edge.Type, outgoing)
 
 		otherID := edge.To
 		if !outgoing {
@@ -338,4 +338,26 @@ func (r *ProseRenderer) buildEdgeLines(node *types.Node, edges []*types.Edge, no
 	}
 
 	return lines
+}
+
+// edgeGlyph selects the glyph for an edge, preferring r.Glyphs' own
+// dedicated EdgeParent/EdgeRelated glyphs for those edge types (this is
+// ProseGlyphs' whole purpose — a caller-customisable glyph set, per its own
+// doc comment), and falling back to the shared views.EdgeGlyph direction
+// logic (EdgeFrom/EdgeTo, matching DetailRenderer's own arrows) for every
+// other edge type. Restores the pre-parity behaviour that TD.20's initial
+// pass accidentally dropped when it switched buildEdgeLines over to
+// views.EdgeGlyph unconditionally, silently making r.Glyphs dead.
+func (r *ProseRenderer) edgeGlyph(edgeType string, outgoing bool) string {
+	switch edgeType {
+	case string(types.EdgeParent):
+		return r.Glyphs.EdgeParent
+	case string(types.EdgeRelated):
+		return r.Glyphs.EdgeRelated
+	default:
+		if outgoing {
+			return r.Glyphs.EdgeFrom
+		}
+		return r.Glyphs.EdgeTo
+	}
 }

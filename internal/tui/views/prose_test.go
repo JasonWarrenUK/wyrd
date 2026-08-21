@@ -170,6 +170,46 @@ func TestProseRenderer_WaitingOnEdgeShowsAgeSuffix(t *testing.T) {
 	}
 }
 
+func TestProseRenderer_ParentAndRelatedEdgesUseDedicatedGlyphs(t *testing.T) {
+	// TD.20 review fix: buildEdgeLines must read r.Glyphs.EdgeParent/
+	// EdgeRelated for those edge types, not fall through to the plain
+	// outgoing/incoming glyph pair (this was accidentally dropped, then
+	// restored, during TD.20's parity work).
+	r := NewProseRenderer()
+	node := &types.Node{ID: "node-1", Body: "Source", Date: types.DateFields{Created: time.Now(), Modified: time.Now()}}
+	edges := []*types.Edge{
+		{ID: "e1", Type: "parent", From: "node-1", To: "node-2"},
+		{ID: "e2", Type: "related", From: "node-1", To: "node-3"},
+	}
+
+	output := stripANSI(r.Render(node, edges, nil, time.Now(), 80))
+	if !strings.Contains(output, r.Glyphs.EdgeParent) {
+		t.Errorf("expected dedicated parent glyph %q, got: %q", r.Glyphs.EdgeParent, output)
+	}
+	if !strings.Contains(output, r.Glyphs.EdgeRelated) {
+		t.Errorf("expected dedicated related glyph %q, got: %q", r.Glyphs.EdgeRelated, output)
+	}
+}
+
+func TestProseRenderer_CustomGlyphsAreHonoured(t *testing.T) {
+	// TD.20 review fix: a caller-customised Glyphs value must actually
+	// change the rendered output, proving ProseGlyphs isn't dead.
+	r := NewProseRenderer()
+	r.Glyphs.EdgeFrom = "▶"
+	node := &types.Node{ID: "node-1", Body: "Source", Date: types.DateFields{Created: time.Now(), Modified: time.Now()}}
+	edges := []*types.Edge{
+		{ID: "e1", Type: "blocks", From: "node-1", To: "node-2"},
+	}
+
+	output := stripANSI(r.Render(node, edges, nil, time.Now(), 80))
+	if !strings.Contains(output, "▶") {
+		t.Errorf("expected the customised EdgeFrom glyph ▶ in output, got: %q", output)
+	}
+	if strings.Contains(output, DefaultProseGlyphs().EdgeFrom) {
+		t.Errorf("expected the default glyph to be replaced, not both present, got: %q", output)
+	}
+}
+
 func TestProseRenderer_OutgoingEdgeGlyph(t *testing.T) {
 	r := NewProseRenderer()
 	node := &types.Node{

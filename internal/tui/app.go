@@ -2335,10 +2335,10 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 
 // renderProse is renderDetail's TD.20 sibling: same viewport sizing and
 // nodesByID/edges collection, but rendered via views.ProseRenderer instead
-// of DetailRenderer, for a DisplayProse saved view's selected row. Colours
-// map onto the theme's own budget-status trio for edge ageing (Muted/
-// OverflowWarn/OverflowCrit), matching renderDetail's own choice — there is
-// no separate "prose ageing" concept in the theme.
+// of DetailRenderer, for a DisplayProse saved view's selected row. Edge
+// ageing uses the theme's FgMuted/OverflowWarn/OverflowCritical trio,
+// matching renderDetail's own choice — there is no separate "prose ageing"
+// concept in the theme.
 func (m Model) renderProse(nodeID string) PaneModel {
 	if m.index == nil || nodeID == "" {
 		return m.sizedEmptyPane(m.theme)
