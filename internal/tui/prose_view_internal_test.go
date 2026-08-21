@@ -15,9 +15,8 @@ import (
 // TestDisplayProse_SelectionRoutesToProseRenderer is the TD.20 end-to-end
 // contract: opening a DisplayProse saved view mounts a nodeListPane over its
 // query's rows, and selecting a row renders the right pane via
-// views.ProseRenderer (not DetailRenderer) — proven by checking for content
-// only ProseRenderer's simpler contract would produce (no ARCHIVED/BLOCKED
-// banner, no kind/stage line) while the node's own body still appears.
+// views.ProseRenderer (not DetailRenderer) — proven by checking that the
+// node's own body reaches the right pane through that path.
 func TestDisplayProse_SelectionRoutesToProseRenderer(t *testing.T) {
 	dir := t.TempDir()
 	clock := types.StubClock{Fixed: time.Date(2026, 3, 23, 9, 0, 0, 0, time.UTC)}
@@ -99,5 +98,165 @@ func TestDisplayProse_SelectionRoutesToProseRenderer(t *testing.T) {
 	// full phrase (mirrors the same fix prose_test.go's stripANSI needed).
 	if !paneContains(m, "Prose") || !paneContains(m, "marker") || !paneContains(m, "body") {
 		t.Error("expected the selected node's body to reach the right pane via ProseRenderer")
+	}
+}
+
+// TestDisplayProse_ArchivedNodeShowsBanner is the TD.20a end-to-end contract:
+// renderProse threads the ARCHIVED banner through exactly like renderDetail
+// does, via the real Model.Update path rather than calling ProseRenderer
+// directly (that's already covered by the views package's own unit tests).
+func TestDisplayProse_ArchivedNodeShowsBanner(t *testing.T) {
+	dir := t.TempDir()
+	clock := types.StubClock{Fixed: time.Date(2026, 3, 23, 9, 0, 0, 0, time.UTC)}
+	s, err := store.New(dir, clock)
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
+
+	n, err := s.CreateNode("Archived marker body", []string{"note"})
+	if err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	n.Properties = map[string]interface{}{"status": "archived"}
+	if err := s.WriteNode(n); err != nil {
+		t.Fatalf("WriteNode: %v", err)
+	}
+
+	viewsDir := filepath.Join(s.StorePath(), "views")
+	if err := os.MkdirAll(viewsDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll views: %v", err)
+	}
+	viewJSONC := `{
+		"name": "notes",
+		"query": "MATCH (n:note) RETURN n.id AS id, n.title AS title",
+		"display": "prose"
+	}`
+	if err := os.WriteFile(filepath.Join(viewsDir, "notes.jsonc"), []byte(viewJSONC), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	engine := query.NewEngine(s.Index(), 10)
+	m2, err := New(Config{
+		Store:       s,
+		StorePath:   dir,
+		Index:       s.Index(),
+		QueryRunner: engine,
+		Clock:       clock,
+	})
+	if err != nil {
+		t.Fatalf("tui.New: %v", err)
+	}
+	updated, _ := m2.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m := updated.(Model)
+
+	updated, _ = m.Update(openViewMsg{name: "notes"})
+	m = updated.(Model)
+
+	selectNode(t, &m, n.ID)
+
+	updated, cmd := m.Update(nodeSelectedMsg{nodeID: n.ID})
+	m = updated.(Model)
+	msg := cmd()
+	proseMsg, ok := msg.(proseReadyMsg)
+	if !ok {
+		t.Fatalf("expected proseReadyMsg from the async command, got %T", msg)
+	}
+
+	updated, _ = m.Update(proseMsg)
+	m = updated.(Model)
+
+	if !paneContains(m, "ARCHIVED") {
+		t.Error("expected the ARCHIVED banner to reach the right pane via renderProse")
+	}
+}
+
+// TestDisplayProse_KindStageLineUsesModelRegistries is the TD.20a end-to-end
+// contract: renderProse threads m.kinds/m.stageGroups into ProseRenderer,
+// exactly as renderDetail does — a kind lookup that only succeeds with the
+// live Model's registry proves the wiring, not just ProseRenderer's own
+// (already-covered) unit behaviour.
+func TestDisplayProse_KindStageLineUsesModelRegistries(t *testing.T) {
+	dir := t.TempDir()
+	clock := types.StubClock{Fixed: time.Date(2026, 3, 23, 9, 0, 0, 0, time.UTC)}
+	s, err := store.New(dir, clock)
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
+
+	n, err := s.CreateNode("Kinded marker body", []string{"note"})
+	if err != nil {
+		t.Fatalf("CreateNode: %v", err)
+	}
+	n.Kind = "Waypoint"
+	n.Stage = "exploring"
+	if err := s.WriteNode(n); err != nil {
+		t.Fatalf("WriteNode: %v", err)
+	}
+
+	viewsDir := filepath.Join(s.StorePath(), "views")
+	if err := os.MkdirAll(viewsDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll views: %v", err)
+	}
+	viewJSONC := `{
+		"name": "notes",
+		"query": "MATCH (n:note) RETURN n.id AS id, n.title AS title",
+		"display": "prose"
+	}`
+	if err := os.WriteFile(filepath.Join(viewsDir, "notes.jsonc"), []byte(viewJSONC), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	engine := query.NewEngine(s.Index(), 10)
+	m2, err := New(Config{
+		Store:       s,
+		StorePath:   dir,
+		Index:       s.Index(),
+		QueryRunner: engine,
+		Clock:       clock,
+	})
+	if err != nil {
+		t.Fatalf("tui.New: %v", err)
+	}
+	updated, _ := m2.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m := updated.(Model)
+
+	// Wire a registry directly onto the live Model, mirroring how the app
+	// itself lazily populates m.kinds/m.stageGroups from store files — this
+	// test only needs to prove renderProse forwards whatever is there.
+	m.kinds = types.NewKindRegistry([]types.Kind{
+		{Name: "Waypoint", StageGroup: "explore-flow", Glyph: "◆", Colour: "#794aff"},
+	})
+
+	updated, _ = m.Update(openViewMsg{name: "notes"})
+	m = updated.(Model)
+
+	selectNode(t, &m, n.ID)
+
+	updated, cmd := m.Update(nodeSelectedMsg{nodeID: n.ID})
+	m = updated.(Model)
+	msg := cmd()
+	proseMsg, ok := msg.(proseReadyMsg)
+	if !ok {
+		t.Fatalf("expected proseReadyMsg from the async command, got %T", msg)
+	}
+
+	updated, _ = m.Update(proseMsg)
+	m = updated.(Model)
+
+	if !paneContains(m, "Waypoint") {
+		t.Error("expected kind name 'Waypoint' resolved via m.kinds in the right pane")
+	}
+	if !paneContains(m, "exploring") {
+		t.Error("expected stage 'exploring' in the right pane")
 	}
 }
