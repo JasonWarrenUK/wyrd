@@ -929,7 +929,7 @@
 					{
 						"id": "TD.19",
 						"description": "Mount DisplaySchedule (TD.13 follow-up) — the ScheduleRenderer takes a DisplacementResult, which only displacement.Calculate produces from a []ScheduleEntry input; nothing in the codebase currently constructs a ScheduleEntry from query results or anywhere else — this task needs to build that data source (query → ScheduleEntry adapter) as well as add a DisplaySchedule DisplayMode constant to types.SavedView before the renderer can mount at all. This is DA.4's real precondition, not TD.13 itself, since TD.13 shipped without a schedule view",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"TD.13"
 						]
