@@ -326,20 +326,21 @@ func TestOpenViewMsg_BareViewRestoresDashboard(t *testing.T) {
 }
 
 // TestOpenViewMsg_UnsupportedDisplayModeStillMountsWithWarning covers
-// DisplayProse/DisplayBudget: viewPane.View has no renderer for either yet
-// and falls back to list rendering, so the data stays visible, but the
-// openViewMsg handler must flag the mode by name via a sticky status
-// message rather than leaving the fallback unexplained.
+// DisplayBudget: viewPane.View has no renderer for it yet and falls back to
+// list rendering, so the data stays visible, but the openViewMsg handler
+// must flag the mode by name via a sticky status message rather than
+// leaving the fallback unexplained. DisplayProse moved to its own test
+// below (TD.20): it's wired now and no longer takes this fallback path.
 func TestOpenViewMsg_UnsupportedDisplayModeStillMountsWithWarning(t *testing.T) {
 	viewJSONC := `{
 		"name": "notes",
-		"query": "MATCH (n) WHERE 'note' IN n.types RETURN n",
-		"display": "prose"
+		"query": "MATCH (n:note) RETURN n.id AS id, n.title AS title",
+		"display": "budget"
 	}`
 	runner := &stubRunner{results: map[string]*types.QueryResult{
-		"MATCH (n) WHERE 'note' IN n.types RETURN n": {
-			Columns: []string{"title"},
-			Rows:    []map[string]interface{}{{"title": "A note"}},
+		"MATCH (n:note) RETURN n.id AS id, n.title AS title": {
+			Columns: []string{"id", "title"},
+			Rows:    []map[string]interface{}{{"id": "n-1", "title": "A note"}},
 		},
 	}}
 	m := newViewCommandTestModel(t, "notes", viewJSONC, runner)
@@ -352,6 +353,46 @@ func TestOpenViewMsg_UnsupportedDisplayModeStillMountsWithWarning(t *testing.T) 
 	}
 	if !got.statusBar.CaptureSticky() {
 		t.Error("expected the unsupported-mode message to be sticky")
+	}
+}
+
+// TestOpenViewMsg_DisplayProseMountsNodeListPane covers TD.20: a
+// DisplayProse saved view mounts a nodeListPane (the query's rows shown as
+// a selectable list, matching the ordinary dashboard's own shape), sets
+// leftPaneIsProseView, and reports success rather than the "not yet
+// supported" warning DisplayProse used to carry before this task. The
+// query aliases a scalar id column (RETURN n.id AS id, ...) rather than a
+// bare "RETURN n": nodeListPane/rowsToItems reads row["id"] as a string, and
+// a bare "RETURN n" binds the whole *types.Node under the match variable
+// name instead, which is not a shape nodeListPane can select against.
+func TestOpenViewMsg_DisplayProseMountsNodeListPane(t *testing.T) {
+	viewJSONC := `{
+		"name": "notes",
+		"query": "MATCH (n:note) RETURN n.id AS id, n.title AS title",
+		"display": "prose"
+	}`
+	runner := &stubRunner{results: map[string]*types.QueryResult{
+		"MATCH (n:note) RETURN n.id AS id, n.title AS title": {
+			Columns: []string{"id", "title"},
+			Rows:    []map[string]interface{}{{"id": "n-1", "title": "A note"}},
+		},
+	}}
+	m := newViewCommandTestModel(t, "notes", viewJSONC, runner)
+
+	updated, cmd := m.Update(openViewMsg{name: "notes"})
+	got := updated.(Model)
+
+	if _, ok := got.leftPane.(nodeListPane); !ok {
+		t.Fatalf("leftPane is %T, want nodeListPane (TD.20 DisplayProse mount)", got.leftPane)
+	}
+	if !got.leftPaneIsProseView {
+		t.Error("expected leftPaneIsProseView to be true after mounting a DisplayProse view")
+	}
+	if got.statusBar.CaptureSticky() {
+		t.Error("expected a plain (non-sticky) success message, not the unsupported-mode warning")
+	}
+	if cmd == nil {
+		t.Error("expected a non-nil status-bar clear command on success")
 	}
 }
 

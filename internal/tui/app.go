@@ -14,6 +14,7 @@ import (
 	"github.com/jasonwarrenuk/wyrd/internal/cli"
 	"github.com/jasonwarrenuk/wyrd/internal/stage"
 	"github.com/jasonwarrenuk/wyrd/internal/tui/ritual"
+	"github.com/jasonwarrenuk/wyrd/internal/tui/views"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -218,6 +219,19 @@ type Model struct {
 	// leftPane is the left-side content (schedule / view / ritual).
 	leftPane PaneModel
 
+	// leftPaneIsProseView is true when the current left pane is a
+	// DisplayProse saved view's row list (TD.20). It is a nodeListPane like
+	// the ordinary dashboard, so currentSelectedID() and nodeSelectedMsg
+	// work unchanged — this flag exists solely to route nodeSelectedMsg to
+	// renderProseAsync/proseReadyMsg instead of the default
+	// renderDetailAsync/detailReadyMsg pair, so the right pane renders via
+	// ProseRenderer (with resolved edge titles) rather than DetailRenderer
+	// for this saved view's rows. Reset to false by MountLeft and
+	// refreshDashboard (every ordinary left-pane mount); set true
+	// explicitly by openViewMsg's DisplayProse branch, the only place that
+	// mounts a prose-backed nodeListPane.
+	leftPaneIsProseView bool
+
 	// dashboardCols is the column set resolved at startup (saved dashboard
 	// view columns when present, package default otherwise). Dashboard
 	// refreshes re-read the view but fall back to this, so custom columns
@@ -329,6 +343,15 @@ type Model struct {
 
 // detailReadyMsg carries the result of an async detail render.
 type detailReadyMsg struct {
+	nodeID string
+	pane   PaneModel
+}
+
+// proseReadyMsg is detailReadyMsg's TD.20 sibling: the result of an async
+// ProseRenderer render, delivered when the left pane is a DisplayProse
+// saved view's row list (leftPaneIsProseView) rather than the ordinary
+// dashboard.
+type proseReadyMsg struct {
 	nodeID string
 	pane   PaneModel
 }
@@ -928,6 +951,30 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.MarkCaptureSticky()
 			return m, nil
 		}
+
+		// DisplayProse (TD.20) mounts a nodeListPane, not a viewPane: the
+		// left pane shows the query's rows exactly like the ordinary
+		// dashboard does, and the right pane renders the selected row's
+		// full prose via the parallel nodeSelectedMsg route below
+		// (leftPaneIsProseView) rather than viewPane's own single-QueryResult
+		// rendering, which has no per-row "selected node" concept at all.
+		// This also means DisplayProse rows need real node IDs: a query
+		// must alias a scalar id column (RETURN n.id AS id, ...), the same
+		// convention DefaultDashboardQuery uses — a bare "RETURN n" (binding
+		// the whole node under its match variable, not under "id") produces
+		// rows nodeListPane can't resolve to a selectable ID.
+		if view.Display == types.DisplayProse {
+			lp := newNodeListPane(*result, m.theme, m.staleThresholdDays)
+			sized, _ := lp.Update(tea.WindowSizeMsg{
+				Width:  m.layout.TotalWidth(),
+				Height: m.layout.TotalHeight(),
+			})
+			m.MountLeft(sized)
+			m.leftPaneIsProseView = true
+			m.statusBar.SetCaptureText(fmt.Sprintf("Opened view %q", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+
 		vp := newViewPane(view, *result, m.theme)
 		sized, _ := vp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
@@ -935,14 +982,15 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 		m.MountLeft(sized)
 
-		// DisplayProse and DisplayBudget aren't wired to a renderer yet (see
-		// viewPane's doc comment) and silently fall back to list rendering.
-		// Still mount so the user's data is visible, but flag the mode by
-		// name via a sticky message rather than leaving the fallback
-		// unexplained — mirrors the sticky error pattern just above for the
-		// query-failure case.
+		// DisplayBudget isn't wired to a renderer yet (see viewPane's doc
+		// comment) and silently falls back to list rendering. Still mount
+		// so the user's data is visible, but flag the mode by name via a
+		// sticky message rather than leaving the fallback unexplained —
+		// mirrors the sticky error pattern just above for the query-failure
+		// case. DisplayProse came out of this switch in TD.20: it now has
+		// a real renderer via the nodeListPane branch above.
 		switch view.Display {
-		case types.DisplayProse, types.DisplayBudget:
+		case types.DisplayBudget:
 			m.statusBar.SetCaptureText(fmt.Sprintf(
 				"View %q uses %s display, not yet supported — showing as list", msg.name, view.Display))
 			m.statusBar.MarkCaptureSticky()
@@ -1170,11 +1218,17 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case nodeSelectedMsg:
 		// Don't overwrite the right pane with detail if a form is active.
 		if _, isForm := m.rightPane.(formActivePane); !isForm {
-			// Render detail asynchronously so Glamour initialisation doesn't
-			// block the event loop. The right pane shows a placeholder until
-			// the detailReadyMsg arrives.
+			// Render asynchronously so Glamour initialisation doesn't block
+			// the event loop. The right pane shows a placeholder until the
+			// detailReadyMsg (or, for a DisplayProse saved view, TD.20's
+			// proseReadyMsg) arrives.
 			m.rightPane = m.sizedEmptyPane(m.theme)
-			cmd := m.renderDetailAsync(msg.nodeID)
+			var cmd tea.Cmd
+			if m.leftPaneIsProseView {
+				cmd = m.renderProseAsync(msg.nodeID)
+			} else {
+				cmd = m.renderDetailAsync(msg.nodeID)
+			}
 			if m.index != nil {
 				if node, err := m.index.GetNode(msg.nodeID); err == nil {
 					edgeCount := len(m.index.EdgesFrom(msg.nodeID)) + len(m.index.EdgesTo(msg.nodeID))
@@ -1204,6 +1258,20 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Mount the pane unless a form has taken over the right pane in the
 		// meantime.
+		if _, isForm := m.rightPane.(formActivePane); !isForm {
+			m.rightPane = msg.pane
+		}
+		return m, nil
+
+	case proseReadyMsg:
+		// TD.20 sibling of detailReadyMsg — same staleness guard, same
+		// form guard. Kept as a separate message type (rather than
+		// dispatching inside detailReadyMsg on leftPaneIsProseView) so a
+		// slow detail render that outlives a fast switch to/from a prose
+		// view can never land in the wrong renderer's slot.
+		if msg.nodeID != "" && msg.nodeID != m.currentSelectedID() {
+			return m, nil
+		}
 		if _, isForm := m.rightPane.(formActivePane); !isForm {
 			m.rightPane = msg.pane
 		}
@@ -2031,9 +2099,13 @@ func (m Model) View() tea.View {
 }
 
 // MountLeft replaces the left pane content. Phase 4 agents call this to
-// mount their view implementations.
+// mount their view implementations. Always clears leftPaneIsProseView
+// (TD.20) — the DisplayProse branch in openViewMsg's handler sets it back
+// to true immediately after calling this, since that is the only mount
+// site that needs it set.
 func (m *Model) MountLeft(pane PaneModel) {
 	m.leftPane = pane
+	m.leftPaneIsProseView = false
 	m.syncKeyHints()
 }
 
@@ -2155,6 +2227,15 @@ func (m Model) sizedEmptyPane(theme *ActiveTheme) PaneModel {
 	return p
 }
 
+// renderProseAsync is renderDetailAsync's TD.20 sibling for a DisplayProse
+// saved view's row list.
+func (m Model) renderProseAsync(nodeID string) tea.Cmd {
+	return func() tea.Msg {
+		pane := m.renderProse(nodeID)
+		return proseReadyMsg{nodeID: nodeID, pane: pane}
+	}
+}
+
 func (m Model) renderDetailAsync(nodeID string) tea.Cmd {
 	return func() tea.Msg {
 		pane := m.renderDetail(nodeID)
@@ -2249,6 +2330,68 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	if vpHeight < 1 {
 		vpHeight = 1
 	}
+	return newViewportPaneWithOffset(vpWidth, vpHeight, content, m.theme.BgPrimary(), logoH)
+}
+
+// renderProse is renderDetail's TD.20 sibling: same viewport sizing and
+// nodesByID/edges collection, but rendered via views.ProseRenderer instead
+// of DetailRenderer, for a DisplayProse saved view's selected row. Colours
+// map onto the theme's own budget-status trio for edge ageing (Muted/
+// OverflowWarn/OverflowCrit), matching renderDetail's own choice — there is
+// no separate "prose ageing" concept in the theme.
+func (m Model) renderProse(nodeID string) PaneModel {
+	if m.index == nil || nodeID == "" {
+		return m.sizedEmptyPane(m.theme)
+	}
+	node, err := m.index.GetNode(nodeID)
+	if err != nil {
+		return m.sizedEmptyPane(m.theme)
+	}
+
+	edges := append(m.index.EdgesFrom(nodeID), m.index.EdgesTo(nodeID)...)
+
+	allNodes := m.index.AllNodes()
+	nodesByID := make(map[string]*types.Node, len(allNodes))
+	for _, n := range allNodes {
+		nodesByID[n.ID] = n
+	}
+
+	rw := m.layout.RightWidth()
+	logoH := LogoHeight(rw)
+	vpWidth := rw - 2
+	vpHeight := m.layout.PaneHeight() - logoH - 2
+	if vpWidth < 1 {
+		vpWidth = 1
+	}
+	if vpHeight < 1 {
+		vpHeight = 1
+	}
+
+	renderer := views.NewProseRenderer()
+	renderer.Palette.Background = m.theme.BgPrimary()
+	renderer.Palette.Title = m.theme.AccentPrimary()
+	renderer.Palette.Body = m.theme.FgPrimary()
+	renderer.Palette.MetaKey = m.theme.AccentSecondary()
+	renderer.Palette.MetaValue = m.theme.FgPrimary()
+	renderer.Palette.EdgeType = m.theme.AccentSecondary()
+	renderer.Palette.EdgeGlyph = m.theme.FgMuted()
+	renderer.Palette.Separator = m.theme.Border()
+	renderer.Palette.Muted = m.theme.FgMuted()
+	renderer.Palette.AgeWarn = m.theme.OverflowWarn()
+	renderer.Palette.AgeCritical = m.theme.OverflowCritical()
+
+	now := time.Now()
+	if m.clock != nil {
+		now = m.clock.Now()
+	}
+
+	// FillBackground repaints Glamour's un-backgrounded blank lines and
+	// inter-block gaps: ProseRenderer deliberately doesn't call this itself
+	// (package views cannot import package tui, where FillBackground
+	// lives), so the caller applies it here, exactly as renderDetail's own
+	// renderMarkdown does for DetailRenderer.
+	content := FillBackground(renderer.Render(node, edges, nodesByID, now, vpWidth), m.theme.BgPrimary())
+
 	return newViewportPaneWithOffset(vpWidth, vpHeight, content, m.theme.BgPrimary(), logoH)
 }
 
