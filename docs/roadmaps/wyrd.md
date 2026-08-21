@@ -211,7 +211,8 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [x] **TD.17** — Rune-splitting truncation bugs — the roadmap named one site (`form.go:909`, now `form.go:927` after TD.10(b) shifted lines); three more identical `>N → [:N-3]+"…"` byte-slicing sites existed, two of them on node `Body` (arbitrary free text): `form.go:1072`, `app.go:1629`, `cli/compact.go:84`. All four fixed. `internal/tui/form.go` gained a shared `truncateDisplay` using `runewidth` (matching `node_list_pane.go`'s existing `listPadOrTruncate` convention — display cells, not rune count); `internal/cli` can't import `internal/tui` without inverting the CLI/TUI layering, so `cli/compact.go` got its own small rune-count `truncateBody` instead, proportionate to a plain stdout summary line rather than a fixed terminal-cell budget
 - [ ] **TD.18** — Three-way combine UI for TD.5 divergence — TD.5 shipped detection and markers only; this adds the per-field combine flow: a `huh` form showing user value vs old default vs new default for each diverged entry (from `stage.DetectDiverged`), letting the user adopt individual upstream changes without discarding their own edits. Must not touch `ShadowOf`/`ShadowReason` except on explicit user action — the re-edit-preserves-`ShadowOf` invariant TD.5's tests guard is exactly what a careless combine flow would violate _(depends on TD.5)_
 - [ ] **TD.19** — Mount `DisplaySchedule` (TD.13 follow-up) — `ScheduleRenderer` takes a `DisplacementResult`, which only `displacement.Calculate` produces from a `[]ScheduleEntry` input; nothing in the codebase currently constructs a `ScheduleEntry` from query results or anywhere else — this task needs to build that data source (query → `ScheduleEntry` adapter) as well as add a `DisplaySchedule` `DisplayMode` constant to `types.SavedView` before the renderer can mount at all. This is `DA.4`'s real precondition, not TD.13 itself, since TD.13 shipped without a schedule view _(depends on TD.13)_
-- [ ] **TD.20** — Mount `DisplayProse` into the right pane (TD.13 follow-up) — `ProseRenderer` takes (node, edges), a right-pane shape unlike list/timeline's `QueryResult`, so this needs design work on how a left-pane `:view` command drives right-pane content, plus a decision on the overlap with `internal/tui/detail.go`'s existing VP.3 glamour-styled markdown renderer — which wins, or do they merge _(depends on TD.13)_
+- [x] **TD.20** — Mount `DisplayProse` into the right pane (TD.13 follow-up) — `ProseRenderer` takes (node, edges), a right-pane shape unlike list/timeline's `QueryResult`, so this needs design work on how a left-pane `:view` command drives right-pane content, plus a decision on the overlap with `internal/tui/detail.go`'s existing VP.3 glamour-styled markdown renderer — which wins, or do they merge. Resolved: `ProseRenderer` stays the mounted renderer, brought to parity with `DetailRenderer` on the plain single-node contract (Glamour markdown, resolved edge peer titles, ageing suffix, theme-wired colours); a `DisplayProse` saved view mounts a `nodeListPane` over its query's rows (reusing the existing selection pipeline) and a parallel `renderProseAsync`/`proseReadyMsg` route renders the selected row via `ProseRenderer` rather than `DetailRenderer`
+- [ ] **TD.20a** — Bring `ProseRenderer` to full `DetailRenderer` parity — ARCHIVED/BLOCKED banners, staleness suffix, kind/stage line, BUDGETS section, SPEND LOG section. Split off TD.20's own scope during implementation: full parity was several times the size of the single-node-view wiring itself. Needs `KindRegistry`/`StageGroupRegistry` threading into `ProseRenderer` or its caller — `DetailRenderer` already has this via `renderDetail`, but the `DisplayProse` mount path (`viewPane`/`renderProse` in `app.go`) does not carry it yet _(depends on TD.20)_
 - [ ] **TD.21** — Mount `DisplayBudget` (TD.13 follow-up) — `BudgetRenderer` takes `[]*types.Node`, not a `types.QueryResult`, so this needs a row-id-to-node hydration adapter (query rows → extract id column → `index.GetNode` → `[]*types.Node`) before the renderer can mount. Budget nodes already exist in the store today (SL.7b ships a Budget kind), so this has real data behind it unlike the schedule task _(depends on TD.13)_
 
 ---
@@ -407,6 +408,7 @@ graph LR
 	DA.8["DA.8: Integrate screenshots and gifs into READM…"]
 	M7["M7: Milestone 7: Documentation Assets"]:::mile
 	TD.20["TD.20: Mount DisplayProse into the right pane (…"]
+	TD.20a["TD.20a: Bring ProseRenderer to full DetailRende…"]
 	TD.21["TD.21: Mount DisplayBudget (TD.13 follow-up) —…"]
 	ME["ME: Milestone E: Tech Debt"]:::mile
 	SY.2["SY.2: String-aware JSONC parsing in the merge d…"]
@@ -651,7 +653,8 @@ graph LR
 	TD.19 --> ME
 	DA.4 --> DA.8
 	DA.8 --> M7
-	TD.20 --> ME
+	TD.20 --> TD.20a
+	TD.20a --> ME
 	TD.21 --> ME
 	SY.2 --> SY.1
 	SY.2 --> SY.5
@@ -667,7 +670,7 @@ graph LR
 	QC.5 --> MI
 	QC.6 --> MI
 	PL.1 --> MJ
-	class CO.3,DL.4,NW.1,PL.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.3,SY.4,TD.18,TD.19,TD.20,TD.21,VP.7,VP.8 todo
+	class CO.3,DL.4,NW.1,PL.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.3,SY.4,TD.18,TD.19,TD.20a,TD.21,VP.7,VP.8 todo
 	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9,SY.1,SY.5 blocked
-	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,SY.2,TD.1,TD.10,TD.11,TD.12,TD.13,TD.14,TD.15,TD.16,TD.17,TD.2,TD.3,TD.4,TD.5,TD.6,TD.7,TD.8,TD.9,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
+	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,SY.2,TD.1,TD.10,TD.11,TD.12,TD.13,TD.14,TD.15,TD.16,TD.17,TD.2,TD.20,TD.3,TD.4,TD.5,TD.6,TD.7,TD.8,TD.9,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```
