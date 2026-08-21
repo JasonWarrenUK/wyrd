@@ -177,8 +177,11 @@ func (v viewPane) renderSchedule() string {
 		Clock:   clock,
 	})
 
+	// r.Width is left at NewScheduleRenderer's default: ScheduleRenderer.Render
+	// doesn't currently read it (fill bars size off the fixed fillBarWidth
+	// constant), so setting it from v.width here would claim a layout effect
+	// that doesn't exist. Revisit once the renderer actually consumes Width.
 	r := views.NewScheduleRenderer()
-	r.Width = v.width
 	return r.Render(result)
 }
 
