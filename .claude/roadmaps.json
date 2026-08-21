@@ -919,11 +919,18 @@
 						"dependsOn": []
 					},
 					{
-						"id": "TD.18",
-						"description": "Three-way combine UI for TD.5 divergence — TD.5 shipped detection and markers only; this adds the per-field combine flow: a huh form showing user value vs old default vs new default for each diverged entry (from stage.DetectDiverged), letting the user adopt individual upstream changes without discarding their own edits. Must not touch ShadowOf/ShadowReason except on explicit user action — the re-edit-preserves-ShadowOf invariant TD.5's tests guard is exactly what a careless combine flow would violate",
+						"id": "TD.18a",
+						"description": "Decide TD.18's combine scope — DetectDiverged's DivergedEntry (internal/stage/reconcile.go) only ever stored StoredHash/CurrentHash, both one-way hashes; the old default's actual field values at fork time were never persisted anywhere. TD.18's three-way combine (user value vs old default vs new default) is unimplementable as scoped without recovering that content. Two real options: (a) narrow TD.18 to a two-way combine (your value vs current default, adopt/keep per field) — implementable today, but drops the old-default comparison; (b) extend what a shadow persists (ShadowOf or a sibling field) to store the pre-fork default's content, not just its hash — a schema decision touching every shadow-writing site (kindFormPane, stageFormPane, the rename cascades in internal/stage/rename.go) and DivergedEntry's own shape. Pre-production, so migration cost isn't the blocker; which shape is",
 						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "TD.18",
+						"description": "Three-way combine UI for TD.5 divergence — TD.5 shipped detection and markers only; this adds the per-field combine flow: a huh form showing user value vs old default vs new default for each diverged entry (from stage.DetectDiverged), letting the user adopt individual upstream changes without discarding their own edits. Must not touch ShadowOf/ShadowReason except on explicit user action — the re-edit-preserves-ShadowOf invariant TD.5's tests guard is exactly what a careless combine flow would violate. Scope depends on TD.18a's resolution: a two-way or three-way combine flow, per whichever option TD.18a settles on",
+						"status": "blocked",
 						"dependsOn": [
-							"TD.5"
+							"TD.5",
+							"TD.18a"
 						]
 					},
 					{
