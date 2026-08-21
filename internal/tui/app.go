@@ -2318,12 +2318,13 @@ func (m Model) renderDetail(nodeID string) PaneModel {
 	return newViewportPaneWithOffset(vpWidth, vpHeight, content, m.theme.BgPrimary(), logoH)
 }
 
-// renderProse is renderDetail's TD.20 sibling: same viewport sizing and
-// nodesByID/edges collection, but rendered via views.ProseRenderer instead
-// of DetailRenderer, for a DisplayProse saved view's selected row. Edge
-// ageing uses the theme's FgMuted/OverflowWarn/OverflowCritical trio,
-// matching renderDetail's own choice — there is no separate "prose ageing"
-// concept in the theme.
+// renderProse is renderDetail's TD.20/TD.20a sibling: same viewport sizing,
+// nodesByID/edges collection, and Kinds/StageGroups/glyph/staleness wiring,
+// but rendered via views.ProseRenderer instead of DetailRenderer, for a
+// DisplayProse saved view's selected row. Edge ageing, BLOCKED, and BUDGETS
+// colours all reuse the theme's own named colours (FgMuted/OverflowWarn/
+// OverflowCritical/BudgetOK/BudgetCaution/BudgetOver), matching renderDetail's
+// own choices — there is no separate "prose" palette concept in the theme.
 func (m Model) renderProse(nodeID string) PaneModel {
 	if m.index == nil || nodeID == "" {
 		return m.sizedEmptyPane(m.theme)
@@ -2364,6 +2365,15 @@ func (m Model) renderProse(nodeID string) PaneModel {
 	renderer.Palette.Muted = m.theme.FgMuted()
 	renderer.Palette.AgeWarn = m.theme.OverflowWarn()
 	renderer.Palette.AgeCritical = m.theme.OverflowCritical()
+	renderer.Palette.Archived = m.theme.BudgetOver()
+	renderer.Palette.BudgetOK = m.theme.BudgetOK()
+	renderer.Palette.BudgetCaution = m.theme.BudgetCaution()
+	renderer.Palette.BudgetOver = m.theme.BudgetOver()
+	renderer.Kinds = m.kinds
+	renderer.StageGroups = m.stageGroups
+	renderer.BlockedGlyph = m.theme.Glyphs().Blocked
+	renderer.StaleGlyph = m.theme.Glyphs().Stale
+	renderer.StaleThresholdDays = m.staleThresholdDays
 
 	now := time.Now()
 	if m.clock != nil {
@@ -2374,8 +2384,11 @@ func (m Model) renderProse(nodeID string) PaneModel {
 	// inter-block gaps: ProseRenderer deliberately doesn't call this itself
 	// (package views cannot import package tui, where FillBackground
 	// lives), so the caller applies it here, exactly as renderDetail's own
-	// renderMarkdown does for DetailRenderer.
-	content := FillBackground(renderer.Render(node, edges, nodesByID, now, vpWidth), m.theme.BgPrimary())
+	// renderMarkdown does for DetailRenderer. budgetNodes is nil here,
+	// matching renderDetail's own current call (TD.20a): neither renderer
+	// is yet wired to a budget-node lookup for an arbitrary selected node,
+	// so the BUDGETS section stays dormant in both until that lookup exists.
+	content := FillBackground(renderer.Render(node, edges, nodesByID, nil, now, vpWidth), m.theme.BgPrimary())
 
 	return newViewportPaneWithOffset(vpWidth, vpHeight, content, m.theme.BgPrimary(), logoH)
 }
