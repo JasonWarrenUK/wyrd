@@ -954,7 +954,7 @@
 					{
 						"id": "TD.20a",
 						"description": "Bring ProseRenderer to full DetailRenderer parity — ARCHIVED/BLOCKED banners, staleness suffix, kind/stage line, BUDGETS section, SPEND LOG section. Split off TD.20's own scope during implementation: full parity was several times the size of the single-node-view wiring itself. Needs KindRegistry/StageGroupRegistry threading into ProseRenderer or its caller — DetailRenderer already has this via renderDetail, but the DisplayProse mount path (viewPane/renderProse in app.go) does not carry it yet",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"TD.20"
 						]
