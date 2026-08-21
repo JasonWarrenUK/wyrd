@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	glamourStyles "github.com/charmbracelet/glamour/styles"
 	"github.com/jasonwarrenuk/wyrd/internal/budget"
+	"github.com/jasonwarrenuk/wyrd/internal/tui/views"
 	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
@@ -369,42 +370,16 @@ func (r *DetailRenderer) renderMarkdown(body string, plainStyle lipgloss.Style) 
 	return FillBackground(out, r.bg())
 }
 
-// isColourDark returns true when c is a dark colour (perceived luminance < 0.5).
-// Falls back to true (dark) for nil or transparent colours.
-func isColourDark(c color.Color) bool {
-	if c == nil {
-		return true
-	}
-	// color.Color.RGBA() returns 16-bit channels (0–65535).
-	r16, g16, b16, _ := c.RGBA()
-	// Relative luminance approximation (ITU-R BT.709 coefficients).
-	lum := (0.2126*float64(r16) + 0.7152*float64(g16) + 0.0722*float64(b16)) / 65535.0
-	return lum < 0.5
-}
-
-// colourHex converts a color.Color to a "#rrggbb" hex string for use in
-// glamour's StylePrimitive.Color / BackgroundColor fields. Returns "" for nil
-// or fully-transparent colours so callers can use hexPtr to skip nil fields.
-func colourHex(c color.Color) string {
-	if c == nil {
-		return ""
-	}
-	// RGBA returns pre-multiplied 16-bit channels (0–65535); shift down to 8-bit.
-	r16, g16, b16, _ := c.RGBA()
-	return fmt.Sprintf("#%02x%02x%02x", r16>>8, g16>>8, b16>>8)
-}
-
-// hexPtr converts a color.Color to the *string form required by glamour's
-// StylePrimitive.Color field. Returns nil when the colour is nil or transparent
-// so that glamour falls back to its own defaults rather than receiving an empty
-// string (which it would interpret as "no colour").
-func hexPtr(c color.Color) *string {
-	s := colourHex(c)
-	if s == "" {
-		return nil
-	}
-	return &s
-}
+// isColourDark, colourHex, and hexPtr were relocated to
+// internal/tui/views/colourutil.go (TD.20) as IsColourDark/ColourHex/HexPtr,
+// so ProseRenderer's own Glamour setup can share the exact same colour logic
+// instead of drifting with its own copy. Local aliases below keep this
+// file's call sites unchanged.
+var (
+	isColourDark = views.IsColourDark
+	colourHex    = views.ColourHex
+	hexPtr       = views.HexPtr
+)
 
 // ---- Internal helpers ----
 
@@ -446,58 +421,16 @@ func (r *DetailRenderer) blockers(node *types.Node, edges []*types.Edge, nodesBy
 	return blockers
 }
 
-// nodeTitle returns the node's Title when set, falling back to the first line
-// of Body. Use this for all display contexts that show a node's name.
-func nodeTitle(node *types.Node) string {
-	if node.Title != "" {
-		return node.Title
-	}
-	return firstLine(node.Body)
-}
-
-// bodyWithoutTitle returns node.Body with the first line stripped when it
-// would duplicate the rendered title. This covers two cases:
-//   - node.Title is empty: the title was derived from firstLine(body), so drop
-//     that line to avoid repeating it.
-//   - node.Title is set and the body's first non-empty line is the same text
-//     (possibly as a markdown heading, e.g. "# My Title"): drop that line too.
-func bodyWithoutTitle(node *types.Node) string {
-	body := strings.TrimRight(node.Body, "\n")
-	if body == "" {
-		return ""
-	}
-
-	lines := strings.SplitN(body, "\n", 2)
-	firstRaw := strings.TrimSpace(lines[0])
-	// Strip leading markdown heading markers for comparison.
-	firstPlain := strings.TrimLeft(firstRaw, "# ")
-
-	var titlePlain string
-	if node.Title != "" {
-		titlePlain = node.Title
-	} else {
-		titlePlain = firstPlain
-	}
-
-	if strings.EqualFold(firstPlain, titlePlain) {
-		if len(lines) < 2 {
-			return ""
-		}
-		return strings.TrimLeft(lines[1], "\n")
-	}
-	return body
-}
-
-// firstLine returns the first non-empty line of s.
-func firstLine(s string) string {
-	for _, line := range strings.Split(s, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			return trimmed
-		}
-	}
-	return s
-}
+// nodeTitle, bodyWithoutTitle, and firstLine were relocated to
+// internal/tui/views/nodetext.go (TD.20) as NodeTitle/BodyWithoutTitle/
+// FirstLine, so ProseRenderer can share the exact same title-resolution
+// rule instead of drifting with its own copy. Local aliases below keep this
+// file's (and search.go's) call sites unchanged.
+var (
+	nodeTitle        = views.NodeTitle
+	bodyWithoutTitle = views.BodyWithoutTitle
+	firstLine        = views.FirstLine
+)
 
 // renderKindStageLine builds the "◆ Task · doing" line shown immediately after type badges.
 //
@@ -578,33 +511,11 @@ func renderSourceIndicator(src *types.Source, mutedStyle lipgloss.Style) string 
 	return mutedStyle.Render("synced via " + strings.Join(parts, " · "))
 }
 
-// edgeGlyph returns the directional glyph and display label for an edge.
-//
-// Direction is from the perspective of the focal node (nodeID):
-//   - outgoing edge (nodeID == edge.From): the node is the actor
-//   - incoming edge (nodeID == edge.To):   the node is the recipient
-func edgeGlyph(edgeType string, outgoing bool) string {
-	switch edgeType {
-	case string(types.EdgeBlocks):
-		if outgoing {
-			return "→" // this node blocks something
-		}
-		return "←" // something is blocking this node
-	case string(types.EdgeParent):
-		return "→"
-	case string(types.EdgeWaitingOn):
-		return "⊘"
-	case string(types.EdgeRelated):
-		return "◇"
-	case "depends_on":
-		return "→"
-	default:
-		if outgoing {
-			return "→"
-		}
-		return "←"
-	}
-}
+// edgeGlyph was relocated to internal/tui/views/colourutil.go (TD.20) as
+// EdgeGlyph, so ProseRenderer's edge section can match this exactly instead
+// of drifting with its own subset. Local alias keeps this file's call sites
+// unchanged.
+var edgeGlyph = views.EdgeGlyph
 
 // renderEdgeLine produces a single formatted edge line for the EDGES section.
 func (r *DetailRenderer) renderEdgeLine(
@@ -649,27 +560,19 @@ func (r *DetailRenderer) renderEdgeLine(
 		age := now.Sub(edge.Date.Created)
 		days := int(age.Hours() / 24)
 		suffix := fmt.Sprintf(" · %dd", days)
-		ageColour := ageColourForDays(days, c)
+		ageColour := ageColourForDays(days, c.FGMuted, c.OverflowWarn, c.OverflowCrit)
 		line += lipgloss.NewStyle().Foreground(ageColour).Background(bg).Render(suffix)
 	}
 
 	return line
 }
 
-// ageColourForDays returns the appropriate colour based on edge age.
-//
-//   - 0–7 days:  muted
-//   - 8–14 days: overflow warn colour
-//   - 15+ days:  overflow critical colour
-func ageColourForDays(days int, c Colours) color.Color {
-	switch {
-	case days <= 7:
-		return c.FGMuted
-	case days <= 14:
-		return c.OverflowWarn
-	default:
-		return c.OverflowCrit
-	}
+// ageColourForDays wraps views.AgeColourForDays (TD.20 relocation): the
+// underlying logic moved to internal/tui/views/colourutil.go so
+// ProseRenderer can share it, generalised there to take three plain colours
+// instead of this file's tui-package-only Colours struct.
+func ageColourForDays(days int, muted, warn, critical color.Color) color.Color {
+	return views.AgeColourForDays(days, views.AgeColours{Muted: muted, Warn: warn, Critical: critical})
 }
 
 // renderBudgetLine produces a compact one-line budget summary with a progress bar.

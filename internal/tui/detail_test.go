@@ -256,7 +256,7 @@ func TestRender_EdgesSection_DependsOn(t *testing.T) {
 func TestEdgeAgeColour_Muted_0to7Days(t *testing.T) {
 	c := defaultColours()
 	for _, days := range []int{0, 3, 7} {
-		colour := ageColourForDays(days, c)
+		colour := ageColourForDays(days, c.FGMuted, c.OverflowWarn, c.OverflowCrit)
 		if colour != c.FGMuted {
 			t.Errorf("expected muted colour for %d days, got %s", days, colour)
 		}
@@ -266,7 +266,7 @@ func TestEdgeAgeColour_Muted_0to7Days(t *testing.T) {
 func TestEdgeAgeColour_Warn_8to14Days(t *testing.T) {
 	c := defaultColours()
 	for _, days := range []int{8, 10, 14} {
-		colour := ageColourForDays(days, c)
+		colour := ageColourForDays(days, c.FGMuted, c.OverflowWarn, c.OverflowCrit)
 		if colour != c.OverflowWarn {
 			t.Errorf("expected warn colour for %d days, got %s", days, colour)
 		}
@@ -276,7 +276,7 @@ func TestEdgeAgeColour_Warn_8to14Days(t *testing.T) {
 func TestEdgeAgeColour_Critical_15PlusDays(t *testing.T) {
 	c := defaultColours()
 	for _, days := range []int{15, 20, 100} {
-		colour := ageColourForDays(days, c)
+		colour := ageColourForDays(days, c.FGMuted, c.OverflowWarn, c.OverflowCrit)
 		if colour != c.OverflowCrit {
 			t.Errorf("expected critical colour for %d days, got %s", days, colour)
 		}
