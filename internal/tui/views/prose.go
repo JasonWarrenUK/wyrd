@@ -252,7 +252,7 @@ func (r *ProseRenderer) Render(node *types.Node, edges []*types.Edge, nodesByID 
 		sb.WriteRune('\n')
 		sb.WriteString(sectionHeaderStyle.Render("BLOCKED BY"))
 		sb.WriteRune('\n')
-		blockedGlyphStyle := lipgloss.NewStyle().Foreground(r.Palette.Archived).Background(bg)
+		blockedGlyphStyle := lipgloss.NewStyle().Foreground(r.Palette.BudgetOver).Background(bg)
 		for _, blocker := range blockers {
 			sb.WriteString(blockedGlyphStyle.Render(r.BlockedGlyph) + "  " + mutedStyle.Render(NodeTitle(blocker)))
 			sb.WriteRune('\n')
