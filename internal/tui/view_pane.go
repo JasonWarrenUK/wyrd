@@ -2,6 +2,7 @@ package tui
 
 import (
 	"image/color"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/jasonwarrenuk/wyrd/internal/tui/views"
@@ -13,15 +14,22 @@ import (
 // no importer anywhere in the binary. It replaces the left (node-list) pane
 // when a saved view is opened via the :view palette command.
 //
-// Only DisplayList and DisplayTimeline are wired here: both renderers take
-// a types.QueryResult directly, the same shape the dashboard already
-// produces, so they mount with no data adapter. DisplayProse (a single
-// node + its edges — a right-pane shape, not a left-pane one),
-// DisplayBudget ([]*types.Node — needs a row-id-to-node hydration step),
-// and a schedule/displacement mode (no DisplayMode constant exists yet, and
-// nothing in the codebase currently constructs the DisplacementInput a
-// schedule render needs) are deliberately out of scope — see the roadmap
-// for their follow-up tasks.
+// DisplayList, DisplayTimeline, DisplaySchedule (TD.19), and DisplayBudget
+// (TD.21) are wired here. DisplayList and DisplayTimeline take a
+// types.QueryResult directly, the same shape the dashboard already produces,
+// so they mount with no data adapter. DisplaySchedule needs
+// views.EntriesFromQueryResult to bridge types.QueryResult to the
+// []views.ScheduleEntry displacement.Calculate requires; there is no
+// "currently being timed" concept anywhere in the codebase yet (see
+// docs/agent-guide/06-views-schedule.md), so ActiveEntryID and Elapsed are
+// always zero-valued here — displacement never triggers until that lands
+// separately. DisplayBudget needs views.NodesFromQueryResult to hydrate each
+// result row's id column into the full *types.Node BudgetRenderer.Render
+// requires (a query RETURN can't carry allocated/warn_at/spend_log directly
+// without hand-listing every budget field) — this is why viewPane carries
+// an index field. DisplayProse (a single node + its edges — a right-pane
+// shape, not a left-pane one) remains deliberately out of scope — see the
+// roadmap for its follow-up task.
 //
 // views cannot import package tui (circular — views/timeline.go's padLine
 // exists specifically because of this), so the palette-to-theme adaptation
@@ -32,6 +40,8 @@ type viewPane struct {
 	result types.QueryResult
 	theme  *ActiveTheme
 	width  int
+	index  types.GraphIndex
+	clock  types.Clock
 }
 
 // Compile-time check: viewPane must satisfy PaneModel.
@@ -41,8 +51,12 @@ var _ PaneModel = viewPane{}
 // result. theme may be nil (renders with zero-value colours, matching
 // emptyPane's nil-theme tolerance); width is the initial pane width, before
 // any WindowSizeMsg — 80 matches nodeListPane's initialWidth constant.
-func newViewPane(view *types.SavedView, result types.QueryResult, theme *ActiveTheme) viewPane {
-	return viewPane{view: view, result: result, theme: theme, width: 80}
+// index may be nil (renderBudget then hydrates zero nodes rather than
+// panicking, matching NodesFromQueryResult's own nil guard) — only
+// DisplayBudget rendering uses it. clock defaults to types.RealClock{} —
+// only DisplaySchedule rendering uses it, to compute DayEnd.
+func newViewPane(view *types.SavedView, result types.QueryResult, theme *ActiveTheme, index types.GraphIndex) viewPane {
+	return viewPane{view: view, result: result, theme: theme, width: 80, index: index, clock: types.RealClock{}}
 }
 
 // Update tracks the pane width from resize events. The rendered content is
@@ -78,6 +92,10 @@ func (v viewPane) View() string {
 		content = ""
 	case v.view.Display == types.DisplayTimeline:
 		content = v.renderTimeline()
+	case v.view.Display == types.DisplayBudget:
+		content = v.renderBudget()
+	case v.view.Display == types.DisplaySchedule:
+		content = v.renderSchedule()
 	default:
 		content = v.renderList()
 	}
@@ -142,6 +160,70 @@ func (v viewPane) renderTimeline() string {
 	r := views.NewTimelineRenderer()
 	r.Palette = v.timelinePalette()
 	return r.View(v.result, v.width)
+}
+
+// budgetPalette builds a views.BudgetPalette from the active theme. OK,
+// Caution, and Over use the theme's own purpose-built BudgetOK/BudgetCaution
+// /BudgetOver colours (theme.go — the same trio the CP.16 spend-log status
+// bar already renders with), so a budget saved view and the status bar agree
+// on what "caution" looks like. Label/Muted mirror FgPrimary/FgMuted, and
+// Amount uses FgMuted (a budget's £ figures are secondary to the envelope
+// name, matching the renderer's own Default palette weighting).
+func (v viewPane) budgetPalette() views.BudgetPalette {
+	if v.theme == nil {
+		return views.DefaultBudgetPalette()
+	}
+	return views.BudgetPalette{
+		OK:      v.theme.BudgetOK(),
+		Caution: v.theme.BudgetCaution(),
+		Over:    v.theme.BudgetOver(),
+		Label:   v.theme.FgPrimary(),
+		Amount:  v.theme.FgMuted(),
+		Muted:   v.theme.FgMuted(),
+	}
+}
+
+// renderBudget renders v.result via views.NodesFromQueryResult and
+// views.BudgetRenderer. Hydration needs v.index (nil is tolerated — it just
+// produces zero nodes, per NodesFromQueryResult's own guard — matching
+// every other nil-tolerant dependency on this pane).
+func (v viewPane) renderBudget() string {
+	nodes := views.NodesFromQueryResult(v.result, v.index, "")
+	r := views.NewBudgetRenderer()
+	r.Palette = v.budgetPalette()
+	return r.Render(nodes, v.width)
+}
+
+// renderSchedule renders v.result via views.EntriesFromQueryResult and
+// views.Calculate. ActiveEntryID and Elapsed are always zero-valued: no part
+// of the codebase yet tracks "the task currently being timed" (see
+// docs/agent-guide/06-views-schedule.md), so displacement compression never
+// triggers until that timer concept is built separately. DayEnd is the next
+// local midnight after clock.Now() — there is no work-day-boundary config to
+// source it from, so this is the simplest correct default: the schedule
+// window covers the rest of today.
+func (v viewPane) renderSchedule() string {
+	entries := views.EntriesFromQueryResult(v.result, views.ScheduleColumns{})
+
+	clock := v.clock
+	if clock == nil {
+		clock = types.RealClock{}
+	}
+	now := clock.Now()
+	dayEnd := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, 1)
+
+	result := views.Calculate(views.DisplacementInput{
+		Entries: entries,
+		DayEnd:  dayEnd,
+		Clock:   clock,
+	})
+
+	// r.Width is left at NewScheduleRenderer's default: ScheduleRenderer.Render
+	// doesn't currently read it (fill bars size off the fixed fillBarWidth
+	// constant), so setting it from v.width here would claim a layout effect
+	// that doesn't exist. Revisit once the renderer actually consumes Width.
+	r := views.NewScheduleRenderer()
+	return r.Render(result)
 }
 
 // KeyBindings returns an empty slice — the view pane has no keys of its own

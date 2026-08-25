@@ -293,6 +293,48 @@ func sumSpendLog(v interface{}) float64 {
 	return total
 }
 
+// Default column name read by NodesFromQueryResult. A saved view with
+// DisplayBudget is expected to RETURN a column under this name; use idCol to
+// override it per view (mirrors views.ScheduleColumns' override convention).
+const budgetIDColumn = "id"
+
+// NodesFromQueryResult hydrates a types.QueryResult into the []*types.Node
+// shape BudgetRenderer.Render expects. This is the row-id-to-node hydration
+// step TD.21's own roadmap description names: a saved view's query only ever
+// returns rows of columns (id, title, ...), never full nodes, so each row's
+// id column is looked up against index to recover the actual node —
+// including its allocated/warn_at/spend_log properties, which no query
+// RETURN could carry directly without hand-listing every budget field.
+//
+// idCol overrides the column name read for the node id; pass "" to use the
+// default ("id"). Rows missing the id column, or whose id doesn't resolve
+// via index.GetNode (deleted node, bad data, index not yet caught up),
+// are skipped rather than erroring — matching EntriesFromQueryResult's
+// (schedule.go) same treatment of a malformed row: an omission from the
+// view, not a crash.
+func NodesFromQueryResult(result types.QueryResult, index types.GraphIndex, idCol string) []*types.Node {
+	if idCol == "" {
+		idCol = budgetIDColumn
+	}
+	if index == nil {
+		return nil
+	}
+
+	nodes := make([]*types.Node, 0, len(result.Rows))
+	for _, row := range result.Rows {
+		id := formatCellValue(row[idCol])
+		if id == "" {
+			continue
+		}
+		node, err := index.GetNode(id)
+		if err != nil {
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
 // toFloat64 attempts a best-effort conversion of v to float64.
 func toFloat64(v interface{}) float64 {
 	switch n := v.(type) {
