@@ -105,6 +105,13 @@ type StageGroup struct {
 	// ShadowReason records why ShadowOf is set — see ShadowReason's doc
 	// comment. Excluded from the ShadowOf content hash.
 	ShadowReason ShadowReason `json:"shadow_reason,omitempty"`
+
+	// ShadowSource holds the pre-fork default's content verbatim — see
+	// Kind.ShadowSource's doc comment for the full rationale (pointer
+	// requirement, nesting, exclusion from the content hash). Nil for
+	// purely user-authored entries and for shadows written at
+	// tombstone/rename-cascade sites.
+	ShadowSource *StageGroup `json:"shadow_source,omitempty"`
 }
 
 // Validate checks the minimal structural invariants for a usable stage group:

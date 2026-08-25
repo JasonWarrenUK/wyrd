@@ -30,6 +30,21 @@ type DivergedEntry struct {
 	// any current default (e.g. detached by a rename) is not reported as
 	// diverged at all — see DetectDiverged's doc comment.
 	CurrentHash string
+
+	// OldKind is the pre-fork default's content when this entry is a
+	// diverged Kind (Kind == true) and its shadow carried a ShadowSource.
+	// Nil when either condition doesn't hold — including when the shadow
+	// predates ShadowSource existing (TD.18b), in which case TD.18's
+	// combine form must degrade to a two-way flow for this entry rather
+	// than erroring. Deliberately a typed pointer rather than folding
+	// OldKind/OldGroup into a single `any` field: an any-typed field
+	// holding a nil *types.Kind is a non-nil interface, so an `== nil`
+	// check on it would silently miss the missing-snapshot case this field
+	// exists to signal.
+	OldKind *types.Kind
+
+	// OldGroup is OldKind's StageGroup mirror, set when Kind == false.
+	OldGroup *types.StageGroup
 }
 
 // DivergenceReport is the result of comparing a merged registry's shadowed
@@ -120,6 +135,7 @@ func DetectDiverged(kinds *types.KindRegistry, groups *types.StageGroupRegistry)
 				candidates = append(candidates, DivergedEntry{
 					Name: k.Name, Kind: true,
 					StoredHash: k.ShadowOf, CurrentHash: current,
+					OldKind: k.ShadowSource,
 				})
 			}
 		}
@@ -143,6 +159,7 @@ func DetectDiverged(kinds *types.KindRegistry, groups *types.StageGroupRegistry)
 				candidates = append(candidates, DivergedEntry{
 					Name: g.Name, Kind: false,
 					StoredHash: g.ShadowOf, CurrentHash: current,
+					OldGroup: g.ShadowSource,
 				})
 			}
 		}

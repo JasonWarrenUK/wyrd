@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 // hashPrefix tags every stamped ShadowOf value with the algorithm used to
@@ -29,17 +31,64 @@ func DefaultKindHash(name string) string {
 	}
 	for _, k := range defaults {
 		if k.Name == name {
-			// ShadowOf and ShadowReason are provenance about the fork, not
-			// content of the default — zero both before hashing so the hash
-			// is stable regardless of whether a caller passes a struct that
-			// already carries a stamp, and so adding ShadowReason itself
-			// doesn't retroactively change every previously-stamped hash.
+			// ShadowOf, ShadowReason and ShadowSource are provenance about
+			// the fork, not content of the default — zero all three before
+			// hashing so the hash is stable regardless of whether a caller
+			// passes a struct that already carries a stamp, and so adding
+			// each field doesn't retroactively change every
+			// previously-stamped hash. DefaultKinds() never returns an
+			// entry with these set in practice (no embedded default carries
+			// one), so this is defensive rather than currently reachable —
+			// see hashKindLikeProvenance in provenance_test.go for the same
+			// defensive zeroing on the test side.
 			k.ShadowOf = ""
 			k.ShadowReason = ""
+			k.ShadowSource = nil
 			return hashEntry(k)
 		}
 	}
 	return ""
+}
+
+// DefaultKind returns a pointer to the baked-in default kind registered
+// under name, with its own provenance fields (ShadowOf, ShadowReason,
+// ShadowSource) left zero, or nil if no default kind has that name
+// (including when DefaultKinds itself fails to load). Used to snapshot
+// Kind.ShadowSource when a form forks a still-unshadowed default (TD.18b) —
+// the pointer returned here is safe to store directly as another entry's
+// ShadowSource without further copying, since DefaultKinds() already
+// returns a defensive copy per element.
+func DefaultKind(name string) *types.Kind {
+	defaults, err := DefaultKinds()
+	if err != nil {
+		return nil
+	}
+	for _, k := range defaults {
+		if k.Name == name {
+			k.ShadowOf = ""
+			k.ShadowReason = ""
+			k.ShadowSource = nil
+			return &k
+		}
+	}
+	return nil
+}
+
+// DefaultStageGroup mirrors DefaultKind for StageGroup.
+func DefaultStageGroup(name string) *types.StageGroup {
+	defaults, err := DefaultStageGroups()
+	if err != nil {
+		return nil
+	}
+	for _, g := range defaults {
+		if g.Name == name {
+			g.ShadowOf = ""
+			g.ShadowReason = ""
+			g.ShadowSource = nil
+			return &g
+		}
+	}
+	return nil
 }
 
 // DefaultStageGroupHash returns the content hash of the baked-in default
@@ -55,6 +104,7 @@ func DefaultStageGroupHash(name string) string {
 		if g.Name == name {
 			g.ShadowOf = ""
 			g.ShadowReason = ""
+			g.ShadowSource = nil
 			return hashEntry(g)
 		}
 	}

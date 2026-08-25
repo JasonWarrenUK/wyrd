@@ -33,6 +33,24 @@ type Kind struct {
 	// distinction; TD.5 treats an empty reason on a shadowed entry the same
 	// as ShadowEdited. Excluded from the ShadowOf content hash.
 	ShadowReason ShadowReason `json:"shadow_reason,omitempty"`
+
+	// ShadowSource holds the pre-fork default's content verbatim — a
+	// snapshot of what the default *was* at the moment this entry became a
+	// shadow, not what it is now. Enables TD.18's three-way combine (your
+	// value / old default / new default) without recovering content a hash
+	// alone can't give back. Nil for purely user-authored entries and for
+	// shadows written at tombstone/rename-cascade sites (TD.18a: those
+	// never reach the combine form, since DetectDiverged excludes them
+	// before this field would ever be read).
+	//
+	// Must be a pointer — omitempty on a value struct never actually omits
+	// (Go marshals a zero struct as "{}", not nothing), which would
+	// silently invalidate every ShadowOf hash the moment this field
+	// existed. Excluded from the ShadowOf content hash for the same reason
+	// ShadowReason is; always constructed with its own
+	// ShadowOf/ShadowReason/ShadowSource left zero so it never nests more
+	// than one level.
+	ShadowSource *Kind `json:"shadow_source,omitempty"`
 }
 
 // Validate checks the minimal structural invariants for a usable registry
