@@ -215,6 +215,7 @@ description: Wyrd feature roadmap — status lattice, node type expansion, backl
 - [x] **TD.20** — Mount `DisplayProse` into the right pane (TD.13 follow-up) — `ProseRenderer` takes (node, edges), a right-pane shape unlike list/timeline's `QueryResult`, so this needs design work on how a left-pane `:view` command drives right-pane content, plus a decision on the overlap with `internal/tui/detail.go`'s existing VP.3 glamour-styled markdown renderer — which wins, or do they merge. Resolved: `ProseRenderer` stays the mounted renderer, brought to parity with `DetailRenderer` on the plain single-node contract (Glamour markdown, resolved edge peer titles, ageing suffix, theme-wired colours); a `DisplayProse` saved view mounts a `nodeListPane` over its query's rows (reusing the existing selection pipeline) and a parallel `renderProseAsync`/`proseReadyMsg` route renders the selected row via `ProseRenderer` rather than `DetailRenderer`
 - [ ] **TD.20a** — Bring `ProseRenderer` to full `DetailRenderer` parity — ARCHIVED/BLOCKED banners, staleness suffix, kind/stage line, BUDGETS section, SPEND LOG section. Split off TD.20's own scope during implementation: full parity was several times the size of the single-node-view wiring itself. Needs `KindRegistry`/`StageGroupRegistry` threading into `ProseRenderer` or its caller — `DetailRenderer` already has this via `renderDetail`, but the `DisplayProse` mount path (`viewPane`/`renderProse` in `app.go`) does not carry it yet _(depends on TD.20)_
 - [x] **TD.21** — Mount `DisplayBudget` (TD.13 follow-up) — `BudgetRenderer` takes `[]*types.Node`, not a `types.QueryResult`, so this needs a row-id-to-node hydration adapter (query rows → extract id column → `index.GetNode` → `[]*types.Node`) before the renderer can mount. Budget nodes already exist in the store today (SL.7b ships a Budget kind), so this has real data behind it unlike the schedule task
+- [ ] **TD.22** — Fix flaky `TestWatcher_NodeFileRenameEvictsFromIndex` — `internal/store/watcher_test.go:322` fails with "condition not met within 2s" under the full `go test ./...` run but passes 5/5 in isolation, and reproduces identically on main. Likely fsnotify rename-event timing under parallel package load: either tighten the rename→eviction path in the watcher or make the test's wait poll rather than sleep-and-check
 
 ---
 
@@ -388,6 +389,7 @@ graph LR
 	TD.17["TD.17: form.go:909 rune-splitting bug — shortNo…"]
 	TD.18a["TD.18a: Decide TD.18's combine scope — DetectDi…"]
 	TD.18["TD.18: Three-way combine UI for TD.5 divergence…"]
+	TD.22["TD.22: Fix flaky TestWatcher_NodeFileRenameEvic…"]
 	VP.1["VP.1: Logo/title pane atop the detail column —…"]
 	VP.3["VP.3: Theme-derived glamour stylesheet — build…"]
 	VP.4["VP.4: Gradient focus border — replace the flat…"]
@@ -599,6 +601,7 @@ graph LR
 	TD.17 --> ME
 	TD.18a --> TD.18
 	TD.18 --> ME
+	TD.22 --> ME
 	VP.1 --> MF
 	VP.3 --> MF
 	VP.4 --> VP.6
@@ -673,7 +676,7 @@ graph LR
 	QC.5 --> MI
 	QC.6 --> MI
 	PL.1 --> MJ
-	class CO.3,DL.4,NW.1,PL.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.3,SY.4,TD.18a,TD.20a,VP.7,VP.8 todo
+	class CO.3,DL.4,NW.1,PL.1,QC.1,QC.2,QC.3,QC.4,QC.5,QC.6,RT.10,RT.6,RT.7,RT.9,SK.1,SP.8,SY.3,SY.4,TD.18a,TD.20a,TD.22,VP.7,VP.8 todo
 	class DA.2,DA.3,DA.4,DA.5,DA.6,DA.7,DA.8,DA.9,DL.5,NW.2,SK.2,SK.3,SK.4,SP.10,SP.11,SP.2,SP.4,SP.5,SP.6,SP.9,SY.1,SY.5,TD.18 blocked
 	class CO.1,CO.2,CP.0,CP.1,CP.10,CP.11,CP.13,CP.14,CP.15,CP.16,CP.17,CP.2,CP.3,CP.4,CP.5,CP.6,CP.7,CP.8,CP.9,DA.1,DL.1,DL.2,DL.3,DL.6,LG.1,LG.2,LG.3,LG.4,LG.5,LG.6,LG.7,RT.1,RT.2,RT.3,RT.4,RT.5,RT.8,SL.1,SL.10,SL.11,SL.12,SL.13,SL.14,SL.15,SL.16,SL.17,SL.2,SL.3,SL.4,SL.5,SL.6,SL.7a,SL.7b,SL.7c,SL.8,SL.8b,SL.9,SP.1,SP.3,SP.7,SY.2,TD.1,TD.10,TD.11,TD.12,TD.13,TD.14,TD.15,TD.16,TD.17,TD.19,TD.2,TD.20,TD.21,TD.3,TD.4,TD.5,TD.6,TD.7,TD.8,TD.9,VP.1,VP.2,VP.3,VP.4,VP.5,VP.6,VP.9 done
 ```

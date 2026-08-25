@@ -967,6 +967,12 @@
 							"TD.13"
 						],
 						"pr": 56
+					},
+					{
+						"id": "TD.22",
+						"description": "Fix flaky TestWatcher_NodeFileRenameEvictsFromIndex — internal/store/watcher_test.go:322 fails with \"condition not met within 2s\" under the full go test ./... run but passes 5/5 in isolation, and reproduces identically on main. Likely fsnotify rename-event timing under parallel package load: either tighten the rename→eviction path in the watcher or make the test's wait poll rather than sleep-and-check",
+						"status": "todo",
+						"dependsOn": []
 					}
 				]
 			},
