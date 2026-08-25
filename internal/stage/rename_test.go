@@ -327,6 +327,44 @@ func TestRenameStageGroupPreservesExistingShadowOf(t *testing.T) {
 	}
 }
 
+// TestRenameStageGroupPreservesExistingShadowSource is
+// TestRenameStageGroupPreservesExistingShadowOf's TD.18b sibling: a user
+// kind that already carries a ShadowSource snapshot keeps it untouched when
+// RenameStageGroup rewrites its StageGroup in place. The in-place branch
+// copies the existing entry wholesale (out[i] starts as a copy of
+// existing[i] — see rename.go's comment on that loop), so this should pass
+// with no production code change; the test exists to pin that behaviour
+// explicitly rather than rely on it as an accident of struct-copy semantics.
+func TestRenameStageGroupPreservesExistingShadowSource(t *testing.T) {
+	store := newFakeStore()
+	sentinel := "sha256:sentinel00000000"
+	source := &types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+	store.kindsSeed = []types.Kind{
+		{Name: "Task", StageGroup: "task-flow", Glyph: "★", ShadowOf: sentinel, ShadowSource: source},
+	}
+
+	_, err := stage.RenameStageGroup(store, "task-flow", "todo-flow")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var taskEntries int
+	for _, k := range store.lastWrittenKinds {
+		if k.Name == "Task" {
+			taskEntries++
+			if k.ShadowSource == nil {
+				t.Fatal("Task.ShadowSource = nil, want preserved snapshot")
+			}
+			if *k.ShadowSource != *source {
+				t.Errorf("Task.ShadowSource = %+v, want preserved %+v", *k.ShadowSource, *source)
+			}
+		}
+	}
+	if taskEntries != 1 {
+		t.Errorf("expected exactly 1 Task entry, got %d", taskEntries)
+	}
+}
+
 // TestRenameStageGroupStampsEditedAndRenamedOnAlreadyShadowedKind covers the
 // provenance gap the in-place rewrite branch used to leave: an
 // already-shadowed user kind (ShadowOf set, ordinary hand-edit) whose

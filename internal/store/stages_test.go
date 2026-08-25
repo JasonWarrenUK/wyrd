@@ -319,6 +319,63 @@ func TestWriteStagesRoundTripsShadowOf(t *testing.T) {
 	}
 }
 
+// TestWriteStagesOmitsEmptyShadowSource mirrors
+// TestWriteStagesOmitsEmptyShadowOf for TD.18b's ShadowSource.
+func TestWriteStagesOmitsEmptyShadowSource(t *testing.T) {
+	s, parent := newStagesTestStore(t)
+
+	groups := []types.StageGroup{
+		{Name: "review-flow", Stages: []string{"Draft", "Approved"}, Cycle: types.CycleTerminate},
+	}
+	if err := s.WriteStages(groups); err != nil {
+		t.Fatalf("WriteStages() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(parent, "stages.jsonc"))
+	if err != nil {
+		t.Fatalf("reading stages.jsonc: %v", err)
+	}
+	if strings.Contains(string(raw), "shadow_source") {
+		t.Errorf("raw stages.jsonc contains \"shadow_source\" for a group with a nil ShadowSource:\n%s", raw)
+	}
+}
+
+// TestWriteStagesRoundTripsShadowSource verifies a non-nil ShadowSource
+// survives a write/read round trip (TD.18b), mirroring
+// TestWriteStagesRoundTripsShadowOf.
+func TestWriteStagesRoundTripsShadowSource(t *testing.T) {
+	s, _ := newStagesTestStore(t)
+
+	source := &types.StageGroup{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate}
+	groups := []types.StageGroup{
+		{
+			Name: "review-flow", Stages: []string{"Draft", "Approved"}, Cycle: types.CycleTerminate,
+			ShadowOf:     "sha256:deadbeefdeadbeef",
+			ShadowSource: source,
+		},
+	}
+	if err := s.WriteStages(groups); err != nil {
+		t.Fatalf("WriteStages() error = %v", err)
+	}
+
+	reg, err := s.ReadStages()
+	if err != nil {
+		t.Fatalf("ReadStages() error = %v", err)
+	}
+	review, ok := reg.Lookup("review-flow")
+	if !ok {
+		t.Fatal("Lookup(review-flow) ok = false after write+read round-trip")
+	}
+	if review.ShadowSource == nil {
+		t.Fatal("ShadowSource = nil after write+read round-trip")
+	}
+	// StageGroup embeds a []string (Stages), so it isn't comparable with !=.
+	if review.ShadowSource.Name != source.Name || review.ShadowSource.Cycle != source.Cycle ||
+		len(review.ShadowSource.Stages) != len(source.Stages) {
+		t.Errorf("ShadowSource = %+v, want %+v", *review.ShadowSource, *source)
+	}
+}
+
 func TestWriteStagesOverwrite(t *testing.T) {
 	s, _ := newStagesTestStore(t)
 

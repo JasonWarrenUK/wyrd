@@ -12,14 +12,16 @@ import (
 )
 
 // hashKindLikeProvenance reimplements the hashing algorithm inline (zero
-// ShadowOf and ShadowReason, marshal, sha256, hex, truncate to 16, prefix
-// "sha256:") so TestDefaultKindHashDiffersOnFieldChange fails loudly if the
-// production algorithm ever silently changes shape rather than passing
-// vacuously. ShadowReason (TD.5) is zeroed for the same reason ShadowOf is:
-// it's provenance about the fork, not content of the default.
+// ShadowOf, ShadowReason and ShadowSource, marshal, sha256, hex, truncate to
+// 16, prefix "sha256:") so TestDefaultKindHashDiffersOnFieldChange fails
+// loudly if the production algorithm ever silently changes shape rather than
+// passing vacuously. ShadowReason (TD.5) and ShadowSource (TD.18b) are
+// zeroed for the same reason ShadowOf is: both are provenance about the
+// fork, not content of the default.
 func hashKindLikeProvenance(k types.Kind) string {
 	k.ShadowOf = ""
 	k.ShadowReason = ""
+	k.ShadowSource = nil
 	data, err := json.Marshal(k)
 	if err != nil {
 		return ""
@@ -136,6 +138,37 @@ func TestDefaultKindHashIgnoresShadowReason(t *testing.T) {
 	}
 }
 
+// TestDefaultKindHashIgnoresShadowSource mirrors
+// TestDefaultKindHashIgnoresShadowReason for the ShadowSource field added by
+// TD.18b: a copy of the default carrying a non-nil ShadowSource must hash
+// identically to the pristine default, or adding ShadowSource would
+// retroactively invalidate every hash stamped before this field existed.
+// This is the test that catches a missed zeroing site — see
+// hashKindLikeProvenance's doc comment.
+func TestDefaultKindHashIgnoresShadowSource(t *testing.T) {
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+	var task types.Kind
+	for _, k := range defaults {
+		if k.Name == "Task" {
+			task = k
+			break
+		}
+	}
+	if task.Name == "" {
+		t.Fatal("precondition failed: no built-in Task kind found")
+	}
+
+	withSource := task
+	withSource.ShadowSource = &types.Kind{Name: "irrelevant", Glyph: "x"}
+
+	if got, want := hashKindLikeProvenance(withSource), stage.DefaultKindHash("Task"); got != want {
+		t.Errorf("hash with ShadowSource set = %q, want %q (ShadowSource must be zeroed before hashing)", got, want)
+	}
+}
+
 // TestDefaultKindHashUnknownNameEmpty verifies a name with no matching
 // built-in default returns "".
 func TestDefaultKindHashUnknownNameEmpty(t *testing.T) {
@@ -162,10 +195,12 @@ func TestDefaultKindHashDiffersBetweenKinds(t *testing.T) {
 // DefaultStageGroupHash — mirrors the Kind tests above.
 // ---------------------------------------------------------------------------
 
-// ShadowReason is zeroed for the same reason as in hashKindLikeProvenance.
+// ShadowReason and ShadowSource are zeroed for the same reason as in
+// hashKindLikeProvenance.
 func hashStageGroupLikeProvenance(g types.StageGroup) string {
 	g.ShadowOf = ""
 	g.ShadowReason = ""
+	g.ShadowSource = nil
 	data, err := json.Marshal(g)
 	if err != nil {
 		return ""
@@ -241,6 +276,60 @@ func TestDefaultStageGroupHashIgnoresShadowOf(t *testing.T) {
 
 	if got, want := hashStageGroupLikeProvenance(withShadow), stage.DefaultStageGroupHash("task-flow"); got != want {
 		t.Errorf("hash with ShadowOf set = %q, want %q (ShadowOf must be zeroed before hashing)", got, want)
+	}
+}
+
+// TestDefaultStageGroupHashIgnoresShadowReason mirrors
+// TestDefaultKindHashIgnoresShadowReason for StageGroup — this test was
+// previously missing on the StageGroup side despite ShadowReason existing on
+// both types since TD.5.
+func TestDefaultStageGroupHashIgnoresShadowReason(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	var taskFlow types.StageGroup
+	for _, g := range defaults {
+		if g.Name == "task-flow" {
+			taskFlow = g
+			break
+		}
+	}
+	if taskFlow.Name == "" {
+		t.Fatal("precondition failed: no built-in task-flow group found")
+	}
+
+	withReason := taskFlow
+	withReason.ShadowReason = types.ShadowRenameFanOut
+
+	if got, want := hashStageGroupLikeProvenance(withReason), stage.DefaultStageGroupHash("task-flow"); got != want {
+		t.Errorf("hash with ShadowReason set = %q, want %q (ShadowReason must be zeroed before hashing)", got, want)
+	}
+}
+
+// TestDefaultStageGroupHashIgnoresShadowSource mirrors
+// TestDefaultKindHashIgnoresShadowSource for StageGroup (TD.18b).
+func TestDefaultStageGroupHashIgnoresShadowSource(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	var taskFlow types.StageGroup
+	for _, g := range defaults {
+		if g.Name == "task-flow" {
+			taskFlow = g
+			break
+		}
+	}
+	if taskFlow.Name == "" {
+		t.Fatal("precondition failed: no built-in task-flow group found")
+	}
+
+	withSource := taskFlow
+	withSource.ShadowSource = &types.StageGroup{Name: "irrelevant", Stages: []string{"x"}}
+
+	if got, want := hashStageGroupLikeProvenance(withSource), stage.DefaultStageGroupHash("task-flow"); got != want {
+		t.Errorf("hash with ShadowSource set = %q, want %q (ShadowSource must be zeroed before hashing)", got, want)
 	}
 }
 
