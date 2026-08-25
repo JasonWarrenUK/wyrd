@@ -944,11 +944,21 @@
 					},
 					{
 						"id": "TD.20",
-						"description": "Mount DisplayProse into the right pane (TD.13 follow-up) — ProseRenderer takes (node, edges), a right-pane shape unlike list/timeline's QueryResult, so this needs design work on how a left-pane :view command drives right-pane content, plus a decision on the overlap with internal/tui/detail.go's existing VP.3 glamour-styled markdown renderer — which wins, or do they merge",
-						"status": "todo",
+						"description": "Mount DisplayProse into the right pane (TD.13 follow-up) — ProseRenderer takes (node, edges), a right-pane shape unlike list/timeline's QueryResult, so this needs design work on how a left-pane :view command drives right-pane content, plus a decision on the overlap with internal/tui/detail.go's existing VP.3 glamour-styled markdown renderer — which wins, or do they merge. Resolved: ProseRenderer stays the mounted renderer, brought to parity with DetailRenderer on the plain single-node contract (Glamour markdown, resolved edge peer titles, ageing suffix, theme-wired colours); a DisplayProse saved view mounts a nodeListPane over its query's rows (reusing the existing selection pipeline) and a parallel renderProseAsync/proseReadyMsg route renders the selected row via ProseRenderer rather than DetailRenderer",
+						"status": "done",
 						"dependsOn": [
 							"TD.13"
-						]
+						],
+						"pr": 57
+					},
+					{
+						"id": "TD.20a",
+						"description": "Bring ProseRenderer to full DetailRenderer parity — ARCHIVED/BLOCKED banners, staleness suffix, kind/stage line, BUDGETS section, SPEND LOG section. Split off TD.20's own scope during implementation: full parity was several times the size of the single-node-view wiring itself. Needs KindRegistry/StageGroupRegistry threading into ProseRenderer or its caller — DetailRenderer already has this via renderDetail, but the DisplayProse mount path (viewPane/renderProse in app.go) does not carry it yet",
+						"status": "done",
+						"dependsOn": [
+							"TD.20"
+						],
+						"pr": 58
 					},
 					{
 						"id": "TD.21",
@@ -958,6 +968,12 @@
 							"TD.13"
 						],
 						"pr": 56
+					},
+					{
+						"id": "TD.22",
+						"description": "Fix flaky TestWatcher_NodeFileRenameEvictsFromIndex — internal/store/watcher_test.go:322 fails with \"condition not met within 2s\" under the full go test ./... run but passes 5/5 in isolation, and reproduces identically on main. Likely fsnotify rename-event timing under parallel package load: either tighten the rename→eviction path in the watcher or make the test's wait poll rather than sleep-and-check",
+						"status": "todo",
+						"dependsOn": []
 					}
 				]
 			},
