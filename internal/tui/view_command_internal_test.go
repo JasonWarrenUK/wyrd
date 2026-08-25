@@ -146,7 +146,7 @@ func TestApplyThemeRebuildsViewPane(t *testing.T) {
 
 	view := &types.SavedView{Name: "today", Display: types.DisplayList, Columns: []string{"title"}}
 	result := types.QueryResult{Columns: []string{"title"}, Rows: []map[string]interface{}{{"title": "Write tests"}}}
-	vp := newViewPane(view, result, themeA)
+	vp := newViewPane(view, result, themeA, nil)
 	// A prior resize should survive the theme switch — applyTheme must not
 	// rebuild through newViewPane, which would reset width back to its
 	// 80-column default.

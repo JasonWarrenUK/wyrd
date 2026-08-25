@@ -11,13 +11,23 @@ import (
 
 // newTestViewPane builds a viewPane with the built-in fallback theme, sized
 // via a WindowSizeMsg — mirrors newTestEmptyPane in pane_internal_test.go.
+// index may be nil for every non-budget test; newTestViewPaneWithIndex is
+// the budget-dispatch variant that supplies one.
 func newTestViewPane(t *testing.T, view *types.SavedView, result types.QueryResult, termWidth, termHeight int) viewPane {
+	t.Helper()
+	return newTestViewPaneWithIndex(t, view, result, nil, termWidth, termHeight)
+}
+
+// newTestViewPaneWithIndex is newTestViewPane plus an explicit
+// types.GraphIndex, for DisplayBudget dispatch tests that need
+// views.NodesFromQueryResult to actually resolve a node.
+func newTestViewPaneWithIndex(t *testing.T, view *types.SavedView, result types.QueryResult, index types.GraphIndex, termWidth, termHeight int) viewPane {
 	t.Helper()
 	theme, err := LoadTheme(".", "")
 	if err != nil {
 		t.Fatalf("LoadTheme: %v", err)
 	}
-	p := newViewPane(view, result, theme)
+	p := newViewPane(view, result, theme, index)
 	updated, _ := p.Update(tea.WindowSizeMsg{Width: termWidth, Height: termHeight})
 	pane, ok := updated.(viewPane)
 	if !ok {
@@ -90,6 +100,17 @@ func TestViewPane_TimelinePaddingCarriesThemeBackground(t *testing.T) {
 	}
 }
 
+// budgetResult returns a QueryResult shaped for DisplayBudget — the default
+// id column views.NodesFromQueryResult reads.
+func budgetResult() types.QueryResult {
+	return types.QueryResult{
+		Columns: []string{"id", "title"},
+		Rows: []map[string]interface{}{
+			{"id": "budget-1", "title": "Groceries"},
+		},
+	}
+}
+
 // scheduleResult returns a QueryResult shaped for DisplaySchedule — the
 // default column names views.EntriesFromQueryResult reads.
 func scheduleResult() types.QueryResult {
@@ -98,6 +119,63 @@ func scheduleResult() types.QueryResult {
 		Rows: []map[string]interface{}{
 			{"id": "task-1", "title": "EPA review", "start": "2026-03-01T08:00:00Z", "duration": float64(90), "energy": "deep"},
 		},
+	}
+}
+
+// TestViewPane_BudgetPaddingCarriesThemeBackground covers the same bleed
+// contract (CLAUDE.md's TUI styling rules) for the DisplayBudget dispatch
+// branch (TD.21), matching TestViewPane_TimelinePaddingCarriesThemeBackground.
+func TestViewPane_BudgetPaddingCarriesThemeBackground(t *testing.T) {
+	index := &stubIndex{nodes: []*types.Node{
+		{ID: "budget-1", Title: "Groceries", Types: []string{"budget"},
+			Properties: map[string]interface{}{"allocated": float64(200), "warn_at": float64(0.8)}},
+	}}
+	view := &types.SavedView{Name: "budgets", Display: types.DisplayBudget}
+	p := newTestViewPaneWithIndex(t, view, budgetResult(), index, 80, 24)
+	out := p.View()
+
+	if !ansiTruecolourBgRe.MatchString(out) {
+		t.Fatalf("expected a truecolour background in budget output, got %q", out)
+	}
+}
+
+// TestViewPane_DispatchesToBudget extends the TD.13 dispatch contract test
+// to DisplayBudget (TD.21): the same result must render distinctly from
+// list mode, and the hydrated node's title must actually reach the renderer
+// — proving the query -> []*types.Node -> BudgetRenderer pipeline wires end
+// to end via the index, not just that the switch branch is taken.
+func TestViewPane_DispatchesToBudget(t *testing.T) {
+	index := &stubIndex{nodes: []*types.Node{
+		{ID: "budget-1", Title: "Groceries", Types: []string{"budget"},
+			Properties: map[string]interface{}{"allocated": float64(200), "warn_at": float64(0.8)}},
+	}}
+	result := budgetResult()
+
+	listView := &types.SavedView{Name: "v", Display: types.DisplayList, Columns: []string{"id", "title"}}
+	budgetView := &types.SavedView{Name: "v", Display: types.DisplayBudget}
+
+	listOut := stripANSI(newTestViewPaneWithIndex(t, listView, result, index, 80, 24).View())
+	budgetOut := stripANSI(newTestViewPaneWithIndex(t, budgetView, result, index, 80, 24).View())
+
+	if listOut == budgetOut {
+		t.Errorf("expected list and budget rendering to differ, both produced:\n%s", listOut)
+	}
+	if !strings.Contains(budgetOut, "Groceries") {
+		t.Errorf("expected budget mode to show the hydrated node's title, got %q", budgetOut)
+	}
+}
+
+// TestViewPane_BudgetNilIndexShowsPlaceholder covers a nil index (e.g. the
+// store hasn't finished loading): hydration must produce zero nodes rather
+// than panicking, and the renderer falls back to its own empty-state
+// message.
+func TestViewPane_BudgetNilIndexShowsPlaceholder(t *testing.T) {
+	view := &types.SavedView{Name: "budgets", Display: types.DisplayBudget}
+	p := newTestViewPane(t, view, budgetResult(), 80, 24)
+	out := stripANSI(p.View())
+
+	if !strings.Contains(out, "No budget envelopes") {
+		t.Errorf("expected empty-state message, got %q", out)
 	}
 }
 
@@ -152,6 +230,20 @@ func TestViewPane_ScheduleEmptyResultShowsPlaceholder(t *testing.T) {
 	}
 }
 
+// TestViewPane_BudgetUnresolvableIDSkipped covers a row whose id doesn't
+// resolve against the index (deleted node, index lag): the row is skipped,
+// not fatal — the pane still renders whatever did resolve.
+func TestViewPane_BudgetUnresolvableIDSkipped(t *testing.T) {
+	index := &stubIndex{nodes: nil}
+	view := &types.SavedView{Name: "budgets", Display: types.DisplayBudget}
+	p := newTestViewPaneWithIndex(t, view, budgetResult(), index, 80, 24)
+	out := stripANSI(p.View())
+
+	if !strings.Contains(out, "No budget envelopes") {
+		t.Errorf("expected empty-state message for an unresolvable row, got %q", out)
+	}
+}
+
 // TestViewPane_ZeroWidthBeforeFirstResize covers the pre-resize case: before
 // any WindowSizeMsg, the pane still uses its constructor default (80,
 // matching nodeListPane's initialWidth) rather than zero or a negative
@@ -162,7 +254,7 @@ func TestViewPane_ZeroWidthBeforeFirstResize(t *testing.T) {
 		t.Fatalf("LoadTheme: %v", err)
 	}
 	view := &types.SavedView{Name: "today", Display: types.DisplayList}
-	p := newViewPane(view, listResult(), theme)
+	p := newViewPane(view, listResult(), theme, nil)
 
 	out := stripANSI(p.View())
 	if !strings.Contains(out, "First task") {

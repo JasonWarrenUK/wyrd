@@ -953,10 +953,11 @@
 					{
 						"id": "TD.21",
 						"description": "Mount DisplayBudget (TD.13 follow-up) — BudgetRenderer takes []*types.Node, not a types.QueryResult, so this needs a row-id-to-node hydration adapter (query rows → extract id column → index.GetNode → []*types.Node) before the renderer can mount. Budget nodes already exist in the store today (SL.7b ships a Budget kind), so this has real data behind it unlike the schedule task",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"TD.13"
-						]
+						],
+						"pr": 56
 					}
 				]
 			},

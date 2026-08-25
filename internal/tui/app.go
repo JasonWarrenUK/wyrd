@@ -928,21 +928,22 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.MarkCaptureSticky()
 			return m, nil
 		}
-		vp := newViewPane(view, *result, m.theme)
+		vp := newViewPane(view, *result, m.theme, m.index)
 		sized, _ := vp.Update(tea.WindowSizeMsg{
 			Width:  m.layout.TotalWidth(),
 			Height: m.layout.TotalHeight(),
 		})
 		m.MountLeft(sized)
 
-		// DisplayProse and DisplayBudget aren't wired to a renderer yet (see
-		// viewPane's doc comment) and silently fall back to list rendering.
-		// Still mount so the user's data is visible, but flag the mode by
-		// name via a sticky message rather than leaving the fallback
-		// unexplained — mirrors the sticky error pattern just above for the
-		// query-failure case.
+		// DisplayProse isn't wired to a renderer yet (see viewPane's doc
+		// comment) and silently falls back to list rendering. Still mount so
+		// the user's data is visible, but flag the mode by name via a
+		// sticky message rather than leaving the fallback unexplained —
+		// mirrors the sticky error pattern just above for the query-failure
+		// case. DisplayBudget came out of this switch in TD.21: it now has
+		// a real renderer via viewPane.renderBudget.
 		switch view.Display {
-		case types.DisplayProse, types.DisplayBudget:
+		case types.DisplayProse:
 			m.statusBar.SetCaptureText(fmt.Sprintf(
 				"View %q uses %s display, not yet supported — showing as list", msg.name, view.Display))
 			m.statusBar.MarkCaptureSticky()
