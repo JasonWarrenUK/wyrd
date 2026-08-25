@@ -78,6 +78,7 @@ const (
 	DisplayTimeline DisplayMode = "timeline"
 	DisplayProse    DisplayMode = "prose"
 	DisplayBudget   DisplayMode = "budget"
+	DisplaySchedule DisplayMode = "schedule"
 )
 
 // Ritual defines an automated check-in workflow.

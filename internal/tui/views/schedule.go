@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/jasonwarrenuk/wyrd/internal/types"
 )
 
 const (
@@ -150,6 +151,127 @@ func (r *ScheduleRenderer) renderDisplaced(timeLabel, title string) string {
 	muted := lipgloss.NewStyle().
 		Foreground(r.Palette.Muted)
 	return fmt.Sprintf("%s %s %s", muted.Render(timeLabel), overflow, muted.Render(title))
+}
+
+// Default column names read by EntriesFromQueryResult. A saved view with
+// DisplaySchedule is expected to RETURN columns under these names; use
+// ScheduleColumns to override any of them per view.
+const (
+	scheduleIDColumn       = "id"
+	scheduleTitleColumn    = "title"
+	scheduleStartColumn    = "start"
+	scheduleDurationColumn = "duration"
+	scheduleEnergyColumn   = "energy"
+	scheduleCalendarColumn = "is_calendar_event"
+)
+
+// ScheduleColumns names the query result columns EntriesFromQueryResult reads
+// from each row. Any field left empty falls back to its default column name
+// (see the schedule*Column constants).
+type ScheduleColumns struct {
+	ID              string
+	Title           string
+	Start           string
+	Duration        string
+	Energy          string
+	IsCalendarEvent string
+}
+
+// column returns name if set, otherwise the given default.
+func (c ScheduleColumns) column(name, def string) string {
+	if name != "" {
+		return name
+	}
+	return def
+}
+
+// EntriesFromQueryResult adapts a types.QueryResult into the []ScheduleEntry
+// shape Calculate expects. This is the query -> ScheduleEntry data source
+// TD.13 left unbuilt: nothing else in the codebase constructs a ScheduleEntry
+// from a query row.
+//
+// Expected columns (overridable via cols): id, title, start (time.Time or an
+// ISO 8601 string, via the same parseTimeValue timeline.go uses), duration
+// (minutes as a number, or a Go duration string like "30m"), energy ("deep",
+// "medium", or "low" — unrecognised values fall back to EnergyLow, matching
+// ScheduleRenderer.energyStyle's own default), and is_calendar_event (bool).
+// Rows missing id or start are skipped rather than erroring: a malformed row
+// silently omitted from the schedule is preferable to the whole view
+// crashing, matching this package's other adapters (extractTypes,
+// parseTimeValue) which all degrade gracefully on unexpected shapes.
+func EntriesFromQueryResult(result types.QueryResult, cols ScheduleColumns) []ScheduleEntry {
+	idCol := cols.column(cols.ID, scheduleIDColumn)
+	titleCol := cols.column(cols.Title, scheduleTitleColumn)
+	startCol := cols.column(cols.Start, scheduleStartColumn)
+	durationCol := cols.column(cols.Duration, scheduleDurationColumn)
+	energyCol := cols.column(cols.Energy, scheduleEnergyColumn)
+	calendarCol := cols.column(cols.IsCalendarEvent, scheduleCalendarColumn)
+
+	entries := make([]ScheduleEntry, 0, len(result.Rows))
+	for _, row := range result.Rows {
+		id := formatCellValue(row[idCol])
+		start := parseTimeValue(row[startCol])
+		if id == "" || start.IsZero() {
+			continue
+		}
+
+		entries = append(entries, ScheduleEntry{
+			ID:              id,
+			Title:           formatCellValue(row[titleCol]),
+			Start:           start,
+			Duration:        parseScheduleDuration(row[durationCol]),
+			Energy:          parseEnergyLevel(row[energyCol]),
+			IsCalendarEvent: parseBoolValue(row[calendarCol]),
+		})
+	}
+	return entries
+}
+
+// parseScheduleDuration reads a duration cell as either a bare number of
+// minutes (the shape JSONC round-trips numeric properties as — float64) or a
+// Go duration string such as "30m". Returns 0 (fill remaining time, per
+// ScheduleEntry.Duration's own doc comment) on anything else.
+func parseScheduleDuration(v interface{}) time.Duration {
+	switch t := v.(type) {
+	case time.Duration:
+		return t
+	case float64:
+		return time.Duration(t) * time.Minute
+	case int:
+		return time.Duration(t) * time.Minute
+	case string:
+		if d, err := time.ParseDuration(t); err == nil {
+			return d
+		}
+	}
+	return 0
+}
+
+// parseEnergyLevel maps a cell value onto EnergyLevel, defaulting to
+// EnergyLow for anything unrecognised — the same default
+// ScheduleRenderer.energyStyle falls back to.
+func parseEnergyLevel(v interface{}) EnergyLevel {
+	switch EnergyLevel(formatCellValue(v)) {
+	case EnergyDeep:
+		return EnergyDeep
+	case EnergyMedium:
+		return EnergyMedium
+	default:
+		return EnergyLow
+	}
+}
+
+// parseBoolValue reads a cell as a bool, tolerating the string forms JSONC
+// or a hand-written query might produce. Anything else is false.
+func parseBoolValue(v interface{}) bool {
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		return t == "true"
+	default:
+		return false
+	}
 }
 
 // energyStyle returns the fill character and colour for an energy level.
