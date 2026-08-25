@@ -250,7 +250,6 @@
 						"description": "Fix overlay/runner step desync — the overlay keeps its own `stepTracker` incremented once per user action, but the runner's private `stepIndex` can advance more than once per action (`SubmitPrompt` calls `Advance()` internally; a failing gate auto-advances recursively), so after any gate step the overlay's key routing and \"Step N/M\" title point at the wrong step and a following `query_list` step becomes uninteractable. Fix: the runner exposes its step index (or the overlay derives all step state from the runner) so the two cannot diverge",
 						"status": "todo",
 						"dependsOn": [
-							"RT.2",
 							"RT.5"
 						]
 					},
@@ -940,7 +939,6 @@
 						"description": "Schema half of TD.18's three-way combine — split off during implementation once the schema change (ShadowSource field, five zeroing sites, two stamp sites, DivergedEntry plumbing) turned out to be independently mergeable and worth de-risking ahead of the harder combine-UI work, mirroring how TD.20 split off TD.20a. Adds ShadowSource *Kind / *StageGroup (a pointer, not a value struct — verified empirically that encoding/json's omitempty never omits a zero-value struct, only a nil pointer/slice/map, so a value-typed field would have silently invalidated every existing ShadowOf hash the moment it existed) holding the pre-fork default's content verbatim. Zeroed at five sites before hashing (DefaultKindHash, DefaultStageGroupHash, RenameStageGroup's fan-out branch, plus the two hand-reimplemented hash helpers in provenance_test.go that exist specifically to fail loudly on a missed production zeroing). Stamped at only 2 of the 5 ShadowOf sites — kind_form.go's and stage_form.go's ordinary edit-submit switches (both the carry-forward and fresh-fork branches) — never at the tombstone or rename-cascade sites, which DetectDiverged already excludes from ever reaching a combine form, so stamping them would be pure file bloat. New stage.DefaultKind(name)/DefaultStageGroup(name) accessors return a nil-safe pointer to a default with its own provenance fields zeroed, avoiding a duplicate scan at each stamp site. DivergedEntry gains OldKind *types.Kind / OldGroup *types.StageGroup (not a single `any` field — an any-typed field holding a nil pointer is non-nil as an interface, which would have silently broken TD.18's \"degrade to two-way when the snapshot is missing\" path), populated from the shadow's own ShadowSource at both DetectDiverged append sites. No UI changes — the combine form itself is TD.18, stacked on this. ⚠️ Breaking change — kinds.jsonc/stages.jsonc gain a field; mitigated by omitempty and forward/backward JSON compatibility, matching TD.14's precedent for the same two files.",
 						"status": "todo",
 						"dependsOn": [
-							"TD.5",
 							"TD.18a"
 						]
 					},
