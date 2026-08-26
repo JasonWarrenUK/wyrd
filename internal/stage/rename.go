@@ -154,6 +154,7 @@ func RenameStageGroup(store types.StoreFS, oldName, newName string) (int, error)
 		unhashed := d
 		unhashed.ShadowOf = ""
 		unhashed.ShadowReason = ""
+		unhashed.ShadowSource = nil
 		shadow.ShadowOf = hashEntry(unhashed)
 		out = append(out, shadow)
 		rewritten++

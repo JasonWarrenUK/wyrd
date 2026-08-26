@@ -731,6 +731,89 @@ func TestStageEditFormReEditPreservesShadowReason(t *testing.T) {
 	}
 }
 
+// TestStageEditFormReEditPreservesShadowSource mirrors
+// TestKindEditFormReEditPreservesShadowSource (TD.18b): a re-edit must
+// carry the existing entry's ShadowSource snapshot forward unchanged.
+func TestStageEditFormReEditPreservesShadowSource(t *testing.T) {
+	sentinel := "sha256:deadbeefdeadbeef"
+	source := &types.StageGroup{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate}
+	existing := types.StageGroup{
+		Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate,
+		ShadowOf:     sentinel,
+		ShadowSource: source,
+	}
+	store := &errStoreFS{seed: []types.StageGroup{existing}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newStageFormPane(theme, store, nil, &existing)
+	_, cmd := driveToCompletedWith(f, "task-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowSource
+	if got == nil {
+		t.Fatal("ShadowSource = nil, want preserved snapshot")
+	}
+	// StageGroup embeds a []string (Stages), so it isn't comparable with
+	// != — compare the fields the test actually cares about instead.
+	if got.Name != source.Name || got.Cycle != source.Cycle || len(got.Stages) != len(source.Stages) {
+		t.Errorf("ShadowSource = %+v, want preserved %+v", *got, *source)
+	}
+}
+
+// TestStageEditFormFreshForkSnapshotsPreEditDefault mirrors
+// TestKindEditFormFreshForkSnapshotsPreEditDefault (TD.18b): editing a
+// still-unshadowed baked-in default for the first time must snapshot the
+// PRE-EDIT default's content, not the just-submitted values.
+func TestStageEditFormFreshForkSnapshotsPreEditDefault(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+	var taskFlow types.StageGroup
+	for _, g := range defaults {
+		if g.Name == "task-flow" {
+			taskFlow = g
+			break
+		}
+	}
+	if taskFlow.Name == "" {
+		t.Fatal("precondition failed: no built-in task-flow group found")
+	}
+
+	store := &errStoreFS{} // task-flow not yet shadowed
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newStageFormPane(theme, store, nil, &taskFlow)
+	// Submit with an extra stage — the pre-edit default's Stages must be
+	// what's snapshotted, not this longer list.
+	_, cmd := driveToCompletedWith(f, "task-flow", "Open\nDoing\nDone", string(types.CycleTerminate), "")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowSource
+	if got == nil {
+		t.Fatal("ShadowSource = nil, want a snapshot of the pre-edit default")
+	}
+	if len(got.Stages) != len(taskFlow.Stages) {
+		t.Errorf("ShadowSource.Stages = %v, want the pre-edit default's %v, not the just-submitted longer list",
+			got.Stages, taskFlow.Stages)
+	}
+	if got.ShadowOf != "" || got.ShadowReason != "" || got.ShadowSource != nil {
+		t.Errorf("ShadowSource's own provenance fields must be zero, got %+v", got)
+	}
+}
+
 // TestStageEditFormRenameDefaultStampsBothShadowAndTombstone verifies that
 // renaming a baked-in default stamps ShadowOf on both the renamed entry and
 // the tombstone left under the old name.

@@ -88,6 +88,48 @@ func TestDetectDivergedChangedDefaultIsDiverged(t *testing.T) {
 	if !report.Diverged[0].Kind {
 		t.Error("expected Diverged[0].Kind = true for a Kind entry")
 	}
+	// shadow (above) carries no ShadowSource, matching every shadow stamped
+	// before TD.18b existed — OldKind must be nil, not a zero-value struct,
+	// so TD.18's combine form can tell "no snapshot available" apart from
+	// "the snapshot is the zero Kind" and degrade to a two-way flow for
+	// this entry rather than rendering nonsense.
+	if report.Diverged[0].OldKind != nil {
+		t.Errorf("expected OldKind = nil for a shadow with no ShadowSource, got %+v", report.Diverged[0].OldKind)
+	}
+}
+
+// TestDetectDivergedCarriesOldKindFromShadowSource covers TD.18b: a diverged
+// entry whose shadow carries a ShadowSource snapshot surfaces it as OldKind,
+// unmodified, so TD.18's combine form doesn't need a second lookup.
+func TestDetectDivergedCarriesOldKindFromShadowSource(t *testing.T) {
+	defaults, err := stage.DefaultKinds()
+	if err != nil {
+		t.Fatalf("DefaultKinds: %v", err)
+	}
+
+	snapshot := &types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "●", Colour: "#7755ee"}
+	shadow := types.Kind{
+		Name: "Task", StageGroup: "task-flow", Glyph: "★", Colour: "#9b70ff",
+		ShadowOf:     "sha256:0000000000000000",
+		ShadowSource: snapshot,
+	}
+
+	kinds := stage.MergeKinds(defaults, []types.Kind{shadow})
+	groups := stage.MergeStageGroups(nil, nil)
+
+	report := stage.DetectDiverged(kinds, groups)
+	if len(report.Diverged) != 1 {
+		t.Fatalf("expected exactly 1 diverged entry, got %d: %+v", len(report.Diverged), report.Diverged)
+	}
+	if report.Diverged[0].OldKind == nil {
+		t.Fatal("expected OldKind to be populated from ShadowSource")
+	}
+	if *report.Diverged[0].OldKind != *snapshot {
+		t.Errorf("OldKind = %+v, want %+v", *report.Diverged[0].OldKind, *snapshot)
+	}
+	if report.Diverged[0].OldGroup != nil {
+		t.Errorf("expected OldGroup = nil for a Kind entry, got %+v", report.Diverged[0].OldGroup)
+	}
 }
 
 // TestDetectDivergedTombstoneExcluded covers the tombstone trap: a verbatim
@@ -278,6 +320,42 @@ func TestDetectDivergedStageGroups(t *testing.T) {
 	}
 	if report.Diverged[0].Kind {
 		t.Error("expected Diverged[0].Kind = false for a StageGroup entry")
+	}
+}
+
+// TestDetectDivergedCarriesOldGroupFromShadowSource is
+// TestDetectDivergedCarriesOldKindFromShadowSource's StageGroup mirror
+// (TD.18b): a diverged StageGroup whose shadow carries a ShadowSource
+// snapshot surfaces it as OldGroup, unmodified.
+func TestDetectDivergedCarriesOldGroupFromShadowSource(t *testing.T) {
+	defaults, err := stage.DefaultStageGroups()
+	if err != nil {
+		t.Fatalf("DefaultStageGroups: %v", err)
+	}
+
+	snapshot := &types.StageGroup{Name: "task-flow", Stages: []string{"Open", "Done"}, Cycle: types.CycleTerminate}
+	diverged := types.StageGroup{
+		Name: "task-flow", Stages: []string{"Open", "Doing", "Done", "Archived"}, Cycle: types.CycleTerminate,
+		ShadowOf:     "sha256:0000000000000000",
+		ShadowSource: snapshot,
+	}
+
+	kinds := stage.MergeKinds(nil, nil)
+	groups := stage.MergeStageGroups(defaults, []types.StageGroup{diverged})
+
+	report := stage.DetectDiverged(kinds, groups)
+	if len(report.Diverged) != 1 {
+		t.Fatalf("expected exactly 1 diverged entry, got %d: %+v", len(report.Diverged), report.Diverged)
+	}
+	if report.Diverged[0].OldGroup == nil {
+		t.Fatal("expected OldGroup to be populated from ShadowSource")
+	}
+	got := report.Diverged[0].OldGroup
+	if got.Name != snapshot.Name || got.Cycle != snapshot.Cycle || len(got.Stages) != len(snapshot.Stages) {
+		t.Errorf("OldGroup = %+v, want %+v", *got, *snapshot)
+	}
+	if report.Diverged[0].OldKind != nil {
+		t.Errorf("expected OldKind = nil for a StageGroup entry, got %+v", report.Diverged[0].OldKind)
 	}
 }
 

@@ -289,6 +289,63 @@ func TestWriteKindsRoundTripsShadowOf(t *testing.T) {
 	}
 }
 
+// TestWriteKindsOmitsEmptyShadowSource mirrors
+// TestWriteKindsOmitsEmptyShadowOf for TD.18b's ShadowSource — the pointer
+// type only pays off if omitempty genuinely drops it from a nil field on
+// real disk bytes, not just in an in-memory hash comparison.
+func TestWriteKindsOmitsEmptyShadowSource(t *testing.T) {
+	s, parent := newKindsTestStore(t)
+
+	kinds := []types.Kind{
+		{Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#9b70ff"},
+	}
+	if err := s.WriteKinds(kinds); err != nil {
+		t.Fatalf("WriteKinds() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(parent, "kinds.jsonc"))
+	if err != nil {
+		t.Fatalf("reading kinds.jsonc: %v", err)
+	}
+	if strings.Contains(string(raw), "shadow_source") {
+		t.Errorf("raw kinds.jsonc contains \"shadow_source\" for a kind with a nil ShadowSource:\n%s", raw)
+	}
+}
+
+// TestWriteKindsRoundTripsShadowSource verifies a non-nil ShadowSource
+// survives a write/read round trip (TD.18b), mirroring
+// TestWriteKindsRoundTripsShadowOf.
+func TestWriteKindsRoundTripsShadowSource(t *testing.T) {
+	s, _ := newKindsTestStore(t)
+
+	source := &types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+	kinds := []types.Kind{
+		{
+			Name: "Errand", StageGroup: "task-flow", Glyph: "!", Colour: "#9b70ff",
+			ShadowOf:     "sha256:deadbeefdeadbeef",
+			ShadowSource: source,
+		},
+	}
+	if err := s.WriteKinds(kinds); err != nil {
+		t.Fatalf("WriteKinds() error = %v", err)
+	}
+
+	reg, err := s.ReadKinds()
+	if err != nil {
+		t.Fatalf("ReadKinds() error = %v", err)
+	}
+	errand, ok := reg.Lookup("Errand")
+	if !ok {
+		t.Fatal("Lookup(Errand) ok = false after write+read round-trip")
+	}
+	if errand.ShadowSource == nil {
+		t.Fatal("ShadowSource = nil after write+read round-trip")
+	}
+	if *errand.ShadowSource != *source {
+		t.Errorf("ShadowSource = %+v, want %+v", *errand.ShadowSource, *source)
+	}
+}
+
 func TestWriteKindsOverwrite(t *testing.T) {
 	s, _ := newKindsTestStore(t)
 

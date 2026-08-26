@@ -735,6 +735,77 @@ func TestKindEditFormReEditPreservesShadowReason(t *testing.T) {
 	}
 }
 
+// TestKindEditFormReEditPreservesShadowSource is
+// TestKindEditFormReEditPreservesShadowReason's TD.18b sibling: a re-edit
+// must carry the existing entry's ShadowSource snapshot forward unchanged,
+// not silently drop it — losing it on re-edit would make TD.18's combine
+// form degrade to two-way the moment a user touches any unrelated field on
+// an already-shadowed entry.
+func TestKindEditFormReEditPreservesShadowSource(t *testing.T) {
+	sentinel := "sha256:deadbeefdeadbeef"
+	source := &types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+	existing := types.Kind{
+		Name: "Task", StageGroup: "task-flow", Glyph: "◆",
+		ShadowOf:     sentinel,
+		ShadowSource: source,
+	}
+	store := &errKindsStoreFS{seed: []types.Kind{existing}}
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	// Edit an unrelated field (glyph) — the snapshot must not move.
+	_, cmd := driveKindFormToCompletedWith(f, "Task", "★", "#9b70ff", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowSource
+	if got == nil {
+		t.Fatal("ShadowSource = nil, want preserved snapshot")
+	}
+	if *got != *source {
+		t.Errorf("ShadowSource = %+v, want preserved %+v", *got, *source)
+	}
+}
+
+// TestKindEditFormFreshForkSnapshotsPreEditDefault covers TD.18b's other
+// branch: editing a still-unshadowed baked-in default for the first time
+// must snapshot the PRE-EDIT default's content into ShadowSource, not the
+// just-submitted values — the latter would tell TD.18's combine form
+// nothing about what changed upstream.
+func TestKindEditFormFreshForkSnapshotsPreEditDefault(t *testing.T) {
+	existing := types.Kind{Name: "Task", StageGroup: "task-flow", Glyph: "◆", Colour: "#9b70ff"}
+	store := &errKindsStoreFS{seed: nil} // Task isn't in the user's file yet
+	theme, err := LoadTheme(".", "")
+	if err != nil {
+		t.Fatalf("LoadTheme: %v", err)
+	}
+
+	f := newKindFormPane(theme, store, nil, nil, &existing)
+	// Submit with a changed glyph — the pre-edit default's glyph is "◆".
+	_, cmd := driveKindFormToCompletedWith(f, "Task", "★", "#ffffff", "task-flow")
+	collectMsg(cmd)
+
+	if len(store.lastWritten) != 1 {
+		t.Fatalf("lastWritten len = %d, want 1", len(store.lastWritten))
+	}
+	got := store.lastWritten[0].ShadowSource
+	if got == nil {
+		t.Fatal("ShadowSource = nil, want a snapshot of the pre-edit default")
+	}
+	if got.Glyph != "◆" {
+		t.Errorf("ShadowSource.Glyph = %q, want the pre-edit default's %q, not the just-submitted %q",
+			got.Glyph, "◆", "★")
+	}
+	if got.ShadowOf != "" || got.ShadowReason != "" || got.ShadowSource != nil {
+		t.Errorf("ShadowSource's own provenance fields must be zero, got %+v", got)
+	}
+}
+
 // TestKindEditFormRenameDefaultStampsBothShadowAndTombstone verifies that
 // renaming a baked-in default stamps ShadowOf on both the renamed entry and
 // the tombstone left under the old name.

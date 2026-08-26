@@ -364,9 +364,18 @@ func (f kindFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		case f.editing != nil && f.editing.ShadowOf != "":
 			kind.ShadowOf = f.editing.ShadowOf
 			kind.ShadowReason = f.editing.ShadowReason
+			// TD.18b: carry the existing snapshot forward unchanged too —
+			// same rule as ShadowOf. A re-edit must not silently drop the
+			// combine form's old-default comparison the way recomputing
+			// ShadowOf would silently resolve unreviewed drift.
+			kind.ShadowSource = f.editing.ShadowSource
 		case f.isDefault:
 			kind.ShadowOf = stage.DefaultKindHash(f.originalName)
 			kind.ShadowReason = types.ShadowEdited
+			// TD.18b: snapshot the pre-edit default's content, not the
+			// post-edit kind — hashing/storing the just-submitted values
+			// would tell TD.18's combine form nothing about what changed.
+			kind.ShadowSource = stage.DefaultKind(f.originalName)
 		}
 
 		renamed := f.originalName != "" && kind.Name != f.originalName

@@ -344,9 +344,15 @@ func (f stageFormPane) Update(msg tea.Msg) (PaneModel, tea.Cmd) {
 		case f.editing != nil && f.editing.ShadowOf != "":
 			group.ShadowOf = f.editing.ShadowOf
 			group.ShadowReason = f.editing.ShadowReason
+			// TD.18b: carry the existing snapshot forward unchanged too —
+			// same rule as ShadowOf, mirroring kindFormPane.
+			group.ShadowSource = f.editing.ShadowSource
 		case f.isDefault:
 			group.ShadowOf = stage.DefaultStageGroupHash(f.originalName)
 			group.ShadowReason = types.ShadowEdited
+			// TD.18b: snapshot the pre-edit default's content, mirroring
+			// kindFormPane's identical reasoning.
+			group.ShadowSource = stage.DefaultStageGroup(f.originalName)
 		}
 
 		renamed := f.originalName != "" && group.Name != f.originalName
