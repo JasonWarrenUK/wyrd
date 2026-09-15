@@ -91,13 +91,21 @@ On startup, all files are loaded into an in-memory graph index with O(1) edge lo
 
 A **kind** (Task, Habit, Event, Project, Goblin, Talk, Travel, Note, Journal, Budget) is a named node role: a glyph, a colour, and a reference to a **stage group**, the ordered progression a node of that kind moves through (`task-flow` runs `Open → Maybe → Later → Soon → Now → Done`, for instance). `]` advances the selected node to its next stage; `[` retreats it. Boundary behaviour is per group: `terminate` stops at the ends, `loop` wraps around, `loop-to-stage` wraps to a named stage rather than the first.
 
-Ten kinds and six stage groups ship built in. Define your own in `~/wyrd/kinds.jsonc` and `~/wyrd/stages.jsonc`; user-defined groups shadow baked-in ones of the same name. From the command palette:
+Ten kinds and six stage groups ship built in; user-defined ones shadow baked-in ones of the same name. Manage them entirely from the command palette:
 
 ```text
-:kinds        list registered kinds (glyph, colour, stage group)
-:stages       list registered stage groups (provenance, cycle, progression)
-:stages new   create a stage group (name, ordered stages, cycle behaviour)
+:kinds                 list registered kinds (glyph, colour, stage group)
+:kinds new             create a kind
+:kinds edit <name>     edit a kind, or override a built-in default
+:kinds delete <name>   delete a custom kind, or revert a shadowed one to its default
+:stages                list registered stage groups (provenance, cycle, progression)
+:stages new            create a stage group (name, ordered stages, cycle behaviour)
+:stages edit <name>    edit a stage group, or override a built-in default
+:stages delete <name>  delete a custom group, or revert a shadowed one to its default
+:stages remap          scan for nodes holding a stage absent from their kind's group and reassign them
 ```
+
+Both files can also be hand-edited at `~/wyrd/kinds.jsonc` and `~/wyrd/stages.jsonc`; the commands above are the supported route.
 
 ---
 
