@@ -126,7 +126,18 @@ func newKindDeleteFormPane(theme *ActiveTheme, store types.StoreFS, index types.
 				if name == kind.Name {
 					continue
 				}
-				opts = append(opts, huh.NewOption(name, name))
+				label := name
+				// A tombstone occupies its default's name but is inert by
+				// design (kind_form.go's tombstone comment: "nothing to
+				// reference it"). provenanceMarker alone would render it
+				// "(edited)", indistinguishable from a genuine hand-edited
+				// shadow, so a node landing here would look like it moved
+				// to a live kind rather than the name it was renamed away
+				// from. Flag it explicitly instead.
+				if k, ok := kinds.Lookup(name); ok && k.ShadowReason == types.ShadowTombstone {
+					label = fmt.Sprintf("%s (renamed away, restores built-in)", name)
+				}
+				opts = append(opts, huh.NewOption(label, name))
 			}
 		}
 		if len(opts) > 0 {

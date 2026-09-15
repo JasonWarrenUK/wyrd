@@ -118,7 +118,15 @@ func newStageDeleteFormPane(theme *ActiveTheme, store types.StoreFS, group types
 				if name == group.Name {
 					continue
 				}
-				opts = append(opts, huh.NewOption(name, name))
+				label := name
+				// See the matching comment in kind_delete_form.go: a
+				// tombstone occupies its default's name but is inert by
+				// design, and provenanceMarker can't tell it apart from a
+				// genuine hand-edited shadow. Flag it explicitly instead.
+				if g, ok := groups.Lookup(name); ok && g.ShadowReason == types.ShadowTombstone {
+					label = fmt.Sprintf("%s (renamed away, restores built-in)", name)
+				}
+				opts = append(opts, huh.NewOption(label, name))
 			}
 		}
 		if len(opts) > 0 {
