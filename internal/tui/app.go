@@ -1159,7 +1159,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetCaptureText("Usage: :stages delete <name>")
 			return m, m.clearCaptureCmd()
 		}
-		if m.stageGroups == nil || m.kinds == nil {
+		if m.stageGroups == nil || m.kinds == nil || m.index == nil {
 			m.statusBar.SetCaptureText("Delete unavailable: no stage-group or kind registry")
 			return m, m.clearCaptureCmd()
 		}
