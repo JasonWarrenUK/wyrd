@@ -25,8 +25,9 @@ type formActivePane interface {
 }
 
 // formMountable is implemented by the form panes app.go mounts via
-// mountForm — kindFormPane, stageFormPane and remapFormPane. Deliberately not
-// implemented by formPane (task/journal/note/budget/spend) or spendFormPane:
+// mountForm — kindFormPane, stageFormPane, remapFormPane, kindDeleteFormPane
+// and stageDeleteFormPane. Deliberately not implemented by formPane
+// (task/journal/note/budget/spend) or spendFormPane:
 // those five construction sites don't share mountForm's exact shape (spend
 // has an error return; the task/journal/note/budget dispatch picks its
 // constructor from a switch keyed on capture-bar prefix) and folding them in

@@ -46,6 +46,14 @@ type openKindEditFormMsg struct {
 	name string
 }
 
+// openKindDeleteFormMsg is emitted when the :kinds delete <name> command is
+// invoked. name is the raw, possibly-empty argument text — resolution and
+// the provenance branch happen in the mount handler, mirroring
+// openKindEditFormMsg.
+type openKindDeleteFormMsg struct {
+	name string
+}
+
 // openStageFormMsg is emitted when the :stages new command is invoked.
 type openStageFormMsg struct{}
 
@@ -64,6 +72,14 @@ type openStagesOverlayMsg struct{}
 // query execution, not-found handling) happens in the mount handler, which
 // has access to m.store/m.queryRunner the command closure doesn't.
 type openViewMsg struct {
+	name string
+}
+
+// openStageDeleteFormMsg is emitted when the :stages delete <name> command
+// is invoked. name is the raw, possibly-empty argument text — resolution
+// and the provenance branch happen in the mount handler, mirroring
+// openStageEditFormMsg.
+type openStageDeleteFormMsg struct {
 	name string
 }
 
@@ -560,10 +576,12 @@ func New(cfg Config) (Model, error) {
 
 	// Wire up the "kinds" command. ":kinds" lists all kinds (SL.9); ":kinds
 	// new" opens the kind creation form (SL.10); ":kinds edit <name>" opens
-	// the kind edit form pre-populated from the existing entry (SL.16).
+	// the kind edit form pre-populated from the existing entry (SL.16);
+	// ":kinds delete <name>" deletes a custom kind or reverts a shadowed one
+	// (SL.18).
 	palette.Register(Command{
 		Name:        "kinds",
-		Description: "List kinds (kinds new | kinds edit <name>)",
+		Description: "List kinds (kinds new | kinds edit <name> | kinds delete <name>)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openKindFormMsg{} }
@@ -576,6 +594,11 @@ func New(cfg Config) (Model, error) {
 				name := strings.Join(args[1:], " ")
 				return func() tea.Msg { return openKindEditFormMsg{name: name} }
 			}
+			if len(args) > 0 && args[0] == "delete" {
+				// See the matching comment on the "edit" branch above.
+				name := strings.Join(args[1:], " ")
+				return func() tea.Msg { return openKindDeleteFormMsg{name: name} }
+			}
 			return func() tea.Msg { return openKindsOverlayMsg{} }
 		},
 	})
@@ -584,10 +607,11 @@ func New(cfg Config) (Model, error) {
 	// ":stages new" opens the stage-group creation form (SL.11); ":stages
 	// remap" scans for orphaned stages and opens the remap form (SL.14);
 	// ":stages edit <name>" opens the stage-group edit form pre-populated
-	// from the existing entry (SL.17).
+	// from the existing entry (SL.17); ":stages delete <name>" deletes a
+	// custom group or reverts a shadowed one (SL.18).
 	palette.Register(Command{
 		Name:        "stages",
-		Description: "List stage groups (stages new | stages edit <name> | stages remap)",
+		Description: "List stage groups (stages new | stages edit <name> | stages delete <name> | stages remap)",
 		Execute: func(args []string) tea.Cmd {
 			if len(args) > 0 && args[0] == "new" {
 				return func() tea.Msg { return openStageFormMsg{} }
@@ -602,6 +626,10 @@ func New(cfg Config) (Model, error) {
 				// information tokenising the raw command line.
 				name := strings.Join(args[1:], " ")
 				return func() tea.Msg { return openStageEditFormMsg{name: name} }
+			}
+			if len(args) > 0 && args[0] == "delete" {
+				name := strings.Join(args[1:], " ")
+				return func() tea.Msg { return openStageDeleteFormMsg{name: name} }
 			}
 			return func() tea.Msg { return openStagesOverlayMsg{} }
 		},
@@ -1023,6 +1051,70 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fp := newKindFormPane(m.theme, m.store, m.kinds, m.stageGroups, &k)
 		return m.mountForm(fp)
 
+	case openKindDeleteFormMsg:
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay.
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
+			return m, nil
+		}
+		if msg.name == "" {
+			m.statusBar.SetCaptureText("Usage: :kinds delete <name>")
+			return m, m.clearCaptureCmd()
+		}
+		if m.kinds == nil || m.index == nil {
+			m.statusBar.SetCaptureText("Delete unavailable: no kind registry or index")
+			return m, m.clearCaptureCmd()
+		}
+		k, ok := m.kinds.Lookup(msg.name)
+		if !ok {
+			k, ok = lookupKindFold(m.kinds, msg.name)
+		}
+		if !ok {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No kind %q — see :kinds", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+
+		// Provenance branch. Deliberately NOT provenanceMarker: a tombstone
+		// is IsUserDefined AND a default name, so the marker renders
+		// "(edited)" and cannot distinguish it from a hand-edited shadow.
+		// ShadowReason, read off the merged registry entry Lookup just
+		// returned, can — see the doc comment on kindDeleteRevert.
+		if !m.kinds.IsUserDefined(k.Name) {
+			m.statusBar.SetCaptureText(fmt.Sprintf(
+				"%q is a built-in kind you haven't changed — nothing to delete. Use :kinds edit to override it.", k.Name))
+			return m, m.clearCaptureCmd()
+		}
+
+		if k.ShadowReason == types.ShadowTombstone || k.ShadowOf != "" {
+			// Reverting a rename-fan-out (or edited-and-renamed) shadow can
+			// strand nodes: stage.DefaultKind returns the embedded default,
+			// which still names whatever group it pointed at when the
+			// shadow was written. If that group has since been renamed
+			// away, restoring the default resurrects a StageGroup
+			// reference that no longer resolves — every node of this kind
+			// becomes Unresolvable, unrepairable by the remap form. Refuse
+			// rather than silently creating that class of stranded node.
+			if def := stage.DefaultKind(k.Name); def != nil && def.StageGroup != "" && m.stageGroups != nil {
+				if _, ok := m.stageGroups.Lookup(def.StageGroup); !ok {
+					m.statusBar.SetCaptureText(fmt.Sprintf(
+						"Cannot restore built-in %q: it points at stage group %q, which no longer exists. Use :kinds edit to change its stage group instead.",
+						k.Name, def.StageGroup))
+					m.statusBar.MarkCaptureSticky()
+					return m, nil
+				}
+			}
+			fp := newKindDeleteFormPane(m.theme, m.store, m.index, k, kindDeleteRevert, 0, nil)
+			return m.mountForm(fp)
+		}
+
+		affected := stage.NodesHoldingKind(m.index, k.Name)
+		if len(affected) > 0 {
+			fp := newKindDeleteFormPane(m.theme, m.store, m.index, k, kindDeleteReassign, len(affected), m.kinds)
+			return m.mountForm(fp)
+		}
+		fp := newKindDeleteFormPane(m.theme, m.store, m.index, k, kindDeleteCustom, 0, nil)
+		return m.mountForm(fp)
+
 	case openStageFormMsg:
 		// Guard against clobbering an active form, or mounting a form
 		// invisibly underneath a still-open viewport overlay.
@@ -1057,6 +1149,53 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fp := newStageFormPane(m.theme, m.store, m.stageGroups, &g)
 		return m.mountForm(fp)
 
+	case openStageDeleteFormMsg:
+		// Guard against clobbering an active form, or mounting a form
+		// invisibly underneath a still-open viewport overlay.
+		if _, isForm := m.rightPane.(formActivePane); isForm || m.viewportOverlayActive() {
+			return m, nil
+		}
+		if msg.name == "" {
+			m.statusBar.SetCaptureText("Usage: :stages delete <name>")
+			return m, m.clearCaptureCmd()
+		}
+		if m.stageGroups == nil || m.kinds == nil || m.index == nil {
+			m.statusBar.SetCaptureText("Delete unavailable: no stage-group or kind registry")
+			return m, m.clearCaptureCmd()
+		}
+		g, ok := m.stageGroups.Lookup(msg.name)
+		if !ok {
+			g, ok = lookupStageGroupFold(m.stageGroups, msg.name)
+		}
+		if !ok {
+			m.statusBar.SetCaptureText(fmt.Sprintf("No stage group %q — see :stages", msg.name))
+			return m, m.clearCaptureCmd()
+		}
+
+		// Provenance branch — see the matching comment on openKindDeleteFormMsg.
+		if !m.stageGroups.IsUserDefined(g.Name) {
+			m.statusBar.SetCaptureText(fmt.Sprintf(
+				"%q is a built-in stage group you haven't changed — nothing to delete. Use :stages edit to override it.", g.Name))
+			return m, m.clearCaptureCmd()
+		}
+
+		if g.ShadowReason == types.ShadowTombstone || g.ShadowOf != "" {
+			// No fan-out hazard here (unlike kinds): a stage group holds no
+			// outward reference, so reverting it can only ever orphan
+			// nodes, never make them Unresolvable — the remap form can
+			// always repair the result.
+			fp := newStageDeleteFormPane(m.theme, m.store, g, stageDeleteRevert, nil, nil)
+			return m.mountForm(fp)
+		}
+
+		referenced := stage.KindsReferencingGroup(m.kinds, g.Name)
+		if len(referenced) > 0 {
+			fp := newStageDeleteFormPane(m.theme, m.store, g, stageDeleteRepoint, referenced, m.stageGroups)
+			return m.mountForm(fp)
+		}
+		fp := newStageDeleteFormPane(m.theme, m.store, g, stageDeleteCustom, nil, nil)
+		return m.mountForm(fp)
+
 	case openRemapFormMsg:
 		// Guard against clobbering an active form, or mounting a form
 		// invisibly underneath a still-open viewport overlay.
@@ -1078,7 +1217,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if len(report.Orphans) > maxRemapOrphans {
 			m.statusBar.SetCaptureText(fmt.Sprintf(
-				"Too many orphaned stage combinations (%d) to remap here — fix stages.jsonc/kinds.jsonc directly",
+				"%d orphaned stage combinations, too many to remap at once. Narrow the set with :kinds edit / :stages edit, then run :stages remap again",
 				len(report.Orphans),
 			))
 			m.statusBar.MarkCaptureSticky()
@@ -1383,6 +1522,62 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar.SetCaptureText("Could not save kind: " + msg.err.Error())
 		return m, m.clearCaptureCmd()
 
+	case kindDeleteSubmitMsg:
+		m.unmountForm()
+
+		// Rebuild the in-memory kind registry, same as kindFormSubmitMsg.
+		refreshed := false
+		if m.store != nil {
+			if defaults, err := stage.DefaultKinds(); err == nil {
+				if userReg, err := m.store.ReadKinds(); err == nil {
+					m.kinds = stage.MergeKinds(defaults, userReg.All())
+					m.kindsOverlay.kinds = m.kinds
+					refreshed = true
+				}
+			}
+		}
+		if refreshed {
+			m.divergence = stage.DetectDiverged(m.kinds, m.stageGroups)
+			m.kindsOverlay.divergence = m.divergence
+			m.stagesOverlay.divergence = m.divergence
+		}
+
+		var text string
+		switch msg.mode {
+		case kindDeleteReassign:
+			text = fmt.Sprintf("Deleted kind %q (%d node%s moved)", msg.name, msg.reassigned, plural(msg.reassigned))
+		case kindDeleteCustom:
+			text = fmt.Sprintf("Deleted kind %q", msg.name)
+		default: // kindDeleteRevert
+			text = fmt.Sprintf("Restored built-in kind %q", msg.name)
+		}
+
+		// Remap hand-off only for reassign and revert — a bare custom
+		// delete has nothing left that could be orphaned (T3: it never
+		// hands off, since a delete with no reassignment target would only
+		// ever find Unresolvable nodes, which the remap form cannot fix).
+		if refreshed && (msg.mode == kindDeleteReassign || msg.mode == kindDeleteRevert) {
+			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
+				n := report.NodeCount()
+				text = fmt.Sprintf("%s — %d node%s need a new stage", text, n, plural(n))
+				m.statusBar.SetCaptureText(text)
+				// Safe to chain: m.rightPane was set to an empty pane above,
+				// so openRemapFormMsg's formActivePane guard passes when
+				// this message is processed on the next Update call.
+				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
+			}
+			text += m.orphanAdvisory()
+		}
+		m.statusBar.SetCaptureText(text)
+		return m, m.clearCaptureCmd()
+
+	case kindDeleteErrorMsg:
+		m.unmountForm()
+		m.statusBar.SetCaptureText("Could not delete kind: " + msg.err.Error())
+		m.statusBar.MarkCaptureSticky()
+		return m, nil
+
 	case stageFormSubmitMsg:
 		m.unmountForm()
 
@@ -1492,6 +1687,70 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.unmountForm()
 		m.statusBar.SetCaptureText("Could not save stage group: " + msg.err.Error())
 		return m, m.clearCaptureCmd()
+
+	case stageDeleteSubmitMsg:
+		m.unmountForm()
+
+		// A repoint rewrites kinds.jsonc (RenameStageGroup's fan-out), so
+		// the kind registry must be rebuilt too — same reasoning as
+		// stageFormSubmitMsg's rename cascade.
+		if msg.mode == stageDeleteRepoint && m.store != nil {
+			if kindDefaults, err := stage.DefaultKinds(); err == nil {
+				if userKindReg, err := m.store.ReadKinds(); err == nil {
+					m.kinds = stage.MergeKinds(kindDefaults, userKindReg.All())
+					m.kindsOverlay.kinds = m.kinds
+				}
+			}
+		}
+
+		refreshed := false
+		if m.store != nil {
+			if defaults, err := stage.DefaultStageGroups(); err == nil {
+				if userReg, err := m.store.ReadStages(); err == nil {
+					m.stageGroups = stage.MergeStageGroups(defaults, userReg.All())
+					m.kindsOverlay.stageGroups = m.stageGroups
+					m.stagesOverlay.stageGroups = m.stageGroups
+					refreshed = true
+				}
+			}
+		}
+		if refreshed {
+			m.divergence = stage.DetectDiverged(m.kinds, m.stageGroups)
+			m.kindsOverlay.divergence = m.divergence
+			m.stagesOverlay.divergence = m.divergence
+		}
+
+		var text string
+		switch msg.mode {
+		case stageDeleteRepoint:
+			text = fmt.Sprintf("Deleted stage group %q (%d kind%s repointed)", msg.name, msg.repointed, plural(msg.repointed))
+		case stageDeleteCustom:
+			text = fmt.Sprintf("Deleted stage group %q", msg.name)
+		default: // stageDeleteRevert
+			text = fmt.Sprintf("Restored built-in stage group %q", msg.name)
+		}
+
+		// Remap hand-off for repoint and revert — see the matching comment
+		// on kindDeleteSubmitMsg. A bare custom delete has no kinds left
+		// referencing it, so nothing to remap.
+		if refreshed && (msg.mode == stageDeleteRepoint || msg.mode == stageDeleteRevert) {
+			report := stage.DetectOrphans(m.index, m.kinds, m.stageGroups)
+			if !report.IsEmpty() && len(report.Orphans) <= maxRemapOrphans {
+				n := report.NodeCount()
+				text = fmt.Sprintf("%s — %d node%s need a new stage", text, n, plural(n))
+				m.statusBar.SetCaptureText(text)
+				return m, tea.Batch(m.clearCaptureCmd(), func() tea.Msg { return openRemapFormMsg{} })
+			}
+			text += m.orphanAdvisory()
+		}
+		m.statusBar.SetCaptureText(text)
+		return m, m.clearCaptureCmd()
+
+	case stageDeleteErrorMsg:
+		m.unmountForm()
+		m.statusBar.SetCaptureText("Could not delete stage group: " + msg.err.Error())
+		m.statusBar.MarkCaptureSticky()
+		return m, nil
 
 	case remapFormSubmitMsg:
 		m.unmountForm()
