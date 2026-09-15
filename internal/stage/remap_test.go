@@ -248,6 +248,15 @@ type fakeStore struct {
 	kindsWriteErr    error
 	kindsWritten     bool
 	lastWrittenKinds []types.Kind
+
+	// stagesSeed/stagesReadErr/stagesWriteErr/stagesWritten/lastWrittenStages
+	// mirror the kinds fields above, for delete_test.go's stage-group
+	// deletion coverage.
+	stagesSeed        []types.StageGroup
+	stagesReadErr     error
+	stagesWriteErr    error
+	stagesWritten     bool
+	lastWrittenStages []types.StageGroup
 }
 
 func newFakeStore() *fakeStore {
@@ -292,10 +301,17 @@ func (s *fakeStore) WriteKinds(k []types.Kind) error {
 	return s.kindsWriteErr
 }
 func (s *fakeStore) ReadStages() (*types.StageGroupRegistry, error) {
-	return types.NewStageGroupRegistry(nil), nil
+	if s.stagesReadErr != nil {
+		return nil, s.stagesReadErr
+	}
+	return types.NewStageGroupRegistry(s.stagesSeed), nil
 }
-func (s *fakeStore) WriteStages(g []types.StageGroup) error { return nil }
-func (s *fakeStore) StorePath() string                      { return "/tmp/fake-store" }
+func (s *fakeStore) WriteStages(g []types.StageGroup) error {
+	s.stagesWritten = true
+	s.lastWrittenStages = g
+	return s.stagesWriteErr
+}
+func (s *fakeStore) StorePath() string { return "/tmp/fake-store" }
 
 func sampleReport() stage.OrphanReport {
 	group := types.StageGroup{Name: "task-flow", Stages: []string{"Open", "In Progress", "Done"}, Cycle: types.CycleTerminate}
