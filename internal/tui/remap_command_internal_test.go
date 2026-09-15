@@ -165,6 +165,42 @@ func TestStagesRemapMountsFormWhenOrphansExist(t *testing.T) {
 	}
 }
 
+// TestStagesRemapTooManyOrphansNamesInAppRoute verifies that running
+// ":stages remap" against more than maxRemapOrphans distinct (kind, stage)
+// pairs shows a message naming an in-app route (SL.18's reword of the old
+// "fix stages.jsonc/kinds.jsonc directly" text pointing at a text editor)
+// rather than mounting a form with more fields than fit any terminal.
+func TestStagesRemapTooManyOrphansNamesInAppRoute(t *testing.T) {
+	m := newRemapTestModel(t, func(s *store.Store) {
+		// maxRemapOrphans is 20; 21 distinct orphaned stage values on a
+		// single kind produces 21 rows without needing 21 kinds.
+		for i := 0; i < maxRemapOrphans+1; i++ {
+			node, err := s.CreateNode("orphan", []string{"task"})
+			if err != nil {
+				t.Fatalf("CreateNode: %v", err)
+			}
+			stageVal := "Whenever" + string(rune('A'+i))
+			if _, err := s.UpdateNode(node.ID, map[string]interface{}{"kind": "Task", "stage": stageVal}); err != nil {
+				t.Fatalf("UpdateNode: %v", err)
+			}
+		}
+	})
+
+	cmd := stagesCommand(t, m)
+	m = runCommand(t, m, cmd, []string{"remap"})
+
+	if _, isForm := m.rightPane.(formActivePane); isForm {
+		t.Errorf("expected no form mounted above maxRemapOrphans, got %T", m.rightPane)
+	}
+	view := m.View().Content
+	if !strings.Contains(view, ":kinds edit") || !strings.Contains(view, ":stages remap") {
+		t.Errorf("expected the over-cap message to name an in-app route; got: %q", truncateForTest(view, 400))
+	}
+	if strings.Contains(view, "stages.jsonc") || strings.Contains(view, "kinds.jsonc") {
+		t.Errorf("expected no text-editor pointer in the over-cap message; got: %q", truncateForTest(view, 400))
+	}
+}
+
 // TestStageFormSubmitOpensRemapWhenOrphansAppear verifies that creating a
 // new stage group whose write orphans existing nodes actively opens the
 // :stages remap form, rather than only appending a passive hint — SL.17's

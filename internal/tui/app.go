@@ -1217,7 +1217,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if len(report.Orphans) > maxRemapOrphans {
 			m.statusBar.SetCaptureText(fmt.Sprintf(
-				"Too many orphaned stage combinations (%d) to remap here — fix stages.jsonc/kinds.jsonc directly",
+				"%d orphaned stage combinations, too many to remap at once. Narrow the set with :kinds edit / :stages edit, then run :stages remap again",
 				len(report.Orphans),
 			))
 			m.statusBar.MarkCaptureSticky()
