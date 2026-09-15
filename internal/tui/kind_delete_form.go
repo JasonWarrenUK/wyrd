@@ -99,13 +99,14 @@ func newKindDeleteFormPane(theme *ActiveTheme, store types.StoreFS, index types.
 	case kindDeleteRevert:
 		title = fmt.Sprintf("Restore built-in kind %q?", kind.Name)
 		affirmative = "Restore"
-		if kind.ShadowReason == types.ShadowTombstone {
+		switch kind.ShadowReason {
+		case types.ShadowTombstone:
 			desc = fmt.Sprintf(
 				"%q is a placeholder keeping the built-in hidden after you renamed it. Restoring it brings the built-in %q back. No nodes are affected.",
 				kind.Name, kind.Name)
-		} else if kind.ShadowReason == types.ShadowRenameFanOut || kind.ShadowReason == types.ShadowEditedAndRenamed {
+		case types.ShadowRenameFanOut, types.ShadowEditedAndRenamed:
 			desc = "This entry was written automatically when you renamed a stage group, not edited by hand. Restoring the built-in reverts that change. The built-in may use different stages; you'll be asked to remap if so."
-		} else {
+		default:
 			desc = "Your changes are discarded. The built-in may differ from the version you forked from and may use different stages; you'll be asked to remap if so."
 		}
 
