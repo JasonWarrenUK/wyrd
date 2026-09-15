@@ -574,10 +574,18 @@
 					{
 						"id": "SL.18",
 						"description": "Delete and revert kinds/stage groups in TUI — `:kinds new|edit` and `:stages new|edit` cover creation, editing and rename (SL.10/SL.11/SL.16/SL.17), but nothing removes an entry: deleting a custom kind, or discarding a shadow to get the built-in default back, currently requires opening `kinds.jsonc`/`stages.jsonc` in a text editor. That is the last operation with no in-app path, and `TD.18`'s fat-shadow field makes it worse — a hand-deletion would mean removing a machine-written `ShadowSource` block the user never authored. Adds `:kinds delete <name>` / `:stages delete <name>`, branching on provenance (the `(custom)`/`(edited)` distinction `provenanceMarker` already computes): a **shadowed default** offers \"revert to default\" — drop the user entry entirely so the embedded default resurfaces through the existing merge, which is a different operation from deletion and should be worded as such; a **purely custom** entry offers deletion, gated on the same `stage.DetectOrphans` check SL.16/SL.17 run, since removing a kind strands every node holding it (`Unresolvable`, not merely orphaned — `ApplyRemap` only iterates `Orphans`, so this needs its own handling rather than a hand-off to the SL.14 form). A **tombstone** shadow (`ShadowTombstone`) deleted by name would resurrect a default the user deliberately renamed away from, so it needs its own confirmation wording. Two further pointers at the text editor close here, since \"in-app editing is the complete path\" is the premise `TD.18a` leaned on when accepting fat shadow's file noise: (1) the README's kinds/stages section still says \"Define your own in `~/wyrd/kinds.jsonc` and `~/wyrd/stages.jsonc`\" and its command list omits `:kinds new` and both `edit` commands, steering people to a text editor for work the TUI already does — list all commands, demote hand-editing to a footnote; (2) `app.go:1081` is a live in-app message doing the same thing — when `DetectOrphans` returns more than `maxRemapOrphans` (20) rows, the status bar reads \"Too many orphaned stage combinations (%d) to remap here — fix stages.jsonc/kinds.jsonc directly\", which under fat shadow means hand-editing around machine-written `ShadowSource` blocks. The cap itself is sound (`remap_form.go:17-22` — beyond 20 the config is structurally wrong, not stray nodes, and the form would exceed any terminal); what needs replacing is the escape hatch, via a paged or grouped remap flow, a bulk \"remap all to X\" option, or at minimum a message naming an in-app route",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"SL.16",
 							"SL.17"
+						]
+					},
+					{
+						"id": "SL.19",
+						"description": "Paged/bulk remap flow for the maxRemapOrphans cap — SL.18 deferred this: when `:stages remap` finds more than 20 distinct (kind, stage) orphan combinations, the status bar names an in-app route to narrow the set manually (`:kinds edit` / `:stages edit`, then `:stages remap` again) rather than handling the full set in one flow. `newRemapFormPane` (`internal/tui/remap_form.go`) renders one `huh.NewSelect` per orphan; beyond `maxRemapOrphans` (20) the form would exceed any reasonable terminal, so the cap itself stays. Needs either true pagination (Prev/Next through pages of orphan rows, applying or deferring per page) or a smarter bulk-target mechanism — a naive \"one target stage for everything\" is unsafe: `OrphanKey` is keyed by `(Kind, Stage)` precisely because several kinds share a stage group, so forcing one target stage across kinds with different groups can itself create fresh orphans rather than resolving the existing ones.",
+						"status": "todo",
+						"dependsOn": [
+							"SL.18"
 						]
 					},
 					{
